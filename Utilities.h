@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
+
 using namespace std;
 
 #ifndef UTILITIES_H
@@ -24,6 +25,12 @@ using namespace std;
 #define RandFloat(n) ((float)(v)*rand()/(RAND_MAX+1.0))
 #define MAX(n,m) ((n)>(m)?(n):(m))
 #define INF 10000
+
+#define TOPDOWN 11
+#define LEFTRIGHT 22
+#define BLACK 1
+#define WHITE 2
+#define CLEAR 3
 
 //boost::mt19937 gen;
 

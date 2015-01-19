@@ -57,6 +57,8 @@ PGameState::PGameState(const PGameState& orig) {
     currDepth = orig.currDepth;
     pjm = orig.pjm;
     path = new long int[depth];
+    for(int i=0;i<depth;i++)
+        path[i]= orig.path[i];
     //assert(moveVal->size() == 0 && "can not copy to nonzero children vector!");
     moveVal = new vector<char>(size);
     assert(moveVal->size() != 0 && "can not allocate tree with specified size!");
@@ -87,6 +89,9 @@ int PGameState::GetRandMove(){
      return RandInt(breath-1);
 }
 
+void PGameState::DoRandGame(){
+    
+}
 long int PGameState::NextIdx(int c){
     // the index of c-th child
     //return (currIdx+1+c*((int)pow((float)breath,depth-currDepth)-1/(breath-1)));
@@ -185,4 +190,12 @@ string PGameState::IndentString(int indent){
         s +="| ";
     }
     return s;
+}
+
+float PGameState::EvaluateBoardDSet(int plyjm, int direction){
+    
+}
+
+void PGameState::UndoMoves(int beg){
+    
 }

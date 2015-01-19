@@ -22,15 +22,17 @@ public:
     virtual ~PGameState();
     int DoMove(int move);
     int UndoMove();
+    void UndoMoves(int beg);
     int GetMoves(vector<int>& moves);
     float GetResult(int pjm);
     bool GameOver();
     int PlyJustMoved();
     int CurrIndicator();
-            
+            float EvaluateBoardDSet(int plyjm, int direction);
     long int NextIdx(int c);
     long int PrevIdx();
     int GetRandMove();
+    void DoRandGame();
     float Result(int v);
     float GetValue();
     int MoveValue();
