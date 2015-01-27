@@ -32,7 +32,7 @@ public:
     long int NextIdx(int c);
     long int PrevIdx();
     int GetRandMove();
-    void DoRandGame();
+    void DoRandGame(boost::mt19937& engine);
     float Result(int v);
     float GetValue();
     int MoveValue();

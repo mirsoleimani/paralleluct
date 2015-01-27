@@ -18,6 +18,7 @@ struct BItem{
     bool left;
     bool right;
 };
+
 class HexGameState {
 public:
     HexGameState(int d);
@@ -30,7 +31,7 @@ public:
     int UndoMove();
     int PlyJustMoved();
     int GetMoves(vector<int>& moves);
-    void DoRandGame();
+    void DoRandGame(boost::mt19937& engine);
     float GetResult(int plyjm);
     bool GameOver();
     int CurrIndicator();
@@ -64,6 +65,7 @@ private:
     int size;
     int pjm;
     int moveCounter;
+    //char x[56];
 };
 
 #endif	/* HEXSTATE_H */

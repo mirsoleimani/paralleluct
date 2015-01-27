@@ -26,9 +26,9 @@ public:
     UCTNode(const UCTNode<T>& orig);
     virtual ~UCTNode();
     UCTNode<T>* UCTSelectChild(float cp);
-    void CreateChildren(T& state);
+    void CreateChildren(T& state,boost::mt19937& engine);
     UCTNode<T>* AddChild();
-    UCTNode<T>* AddChild(T& state);
+    UCTNode<T>* AddChild(T& state,boost::mt19937& engine);
     void Update(float result);
     string TreeToString(int indent);
     string NodeToString();
@@ -66,15 +66,31 @@ UCTNode<T>::~UCTNode() {
 }
 
 template <class T>
-void UCTNode<T>::CreateChildren(T& state) {
+void UCTNode<T>::CreateChildren(T& state, boost::mt19937& engine) {
     if (children.size() == 0) {
-    vector<int> moves;
-    state.GetMoves(moves);
-    untriedMoves = moves.size();
-    for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
-        children.push_back(new UCTNode(*itr, this, CLEAR-state.PlyJustMoved()));
-    }
-    std::random_shuffle(children.begin(), children.end());
+        vector<int> moves;
+        state.GetMoves(moves);
+      
+        boost::uniform_int<int> uni_dist(0, moves.size() - 1);
+        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
+        boost::random_shuffle(moves,rand);
+     
+        untriedMoves = moves.size();
+        for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
+            children.push_back(new UCTNode(*itr, this, CLEAR - state.PlyJustMoved()));
+        }
+        
+//                        boost::uniform_int<int> uni_dist(0, children.size() - 1);
+//        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
+//        std::random_shuffle(children.begin(), children.end(),rand);
+        
+        //boost::random_shuffle(children, rand);
+                        
+        //PRINT_ELEMENTS(moves,"original: ");
+
+
+        //std::random_shuffle(children.begin(), children.end(),rand);
+        //std::random_shuffle(children.begin(), children.end());
     }
 }
 
@@ -92,23 +108,33 @@ UCTNode<T>* UCTNode<T>::UCTSelectChild(float cp) {
         (*itr)->val = (double((*itr)->wins) / (double((*itr)->visits)) + (cp * sqrt(2.0 * log(double(visits)) / (double((*itr)->visits)))));
     }
     UCTNode<T> *n = *max_element(children.begin(), children.end(), this->CompareNode);
-    return n;
-    
-    
+    return n;   
 }
 
 template <class T>
-UCTNode<T>* UCTNode<T>::AddChild(T& state) {
+UCTNode<T>* UCTNode<T>::AddChild(T& state,boost::mt19937& engine) {
     UCTNode<T>* n = this;
     if (children.size() == 0) {
         vector<int> moves;
         state.GetMoves(moves);
         untriedMoves = moves.size();
+        
+//        boost::uniform_int<> uni_dist;
+//        boost::variate_generator<boost::mt19937&, boost::uniform_int<> > generator(engine, uni_dist);
+//        std::random_shuffle(moves.begin(), moves.end(), generator);
+
+                                boost::uniform_int<int> uni_dist(0, moves.size() - 1);
+        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
+        boost::random_shuffle(moves,rand);
+        
         for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
             children.push_back(new UCTNode(*itr, this, CLEAR - state.PlyJustMoved()));
         }
-        std::random_shuffle(children.begin(), children.end());
-    }else if (n->untriedMoves > 0) {
+//                        boost::uniform_int<int> uni_dist(0, children.size() - 1);
+//        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
+//        boost::random_shuffle(children, rand);
+        
+    } else if (n->untriedMoves > 0) {
         n = children[untriedMoves - 1];
         untriedMoves--;
         state.DoMove(n->move);

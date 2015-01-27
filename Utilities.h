@@ -11,8 +11,16 @@
 #include <vector>
 #include <time.h>
 #include <assert.h>
+#include <chrono>
+#include <random>
+#include <algorithm>
+#include <sys/time.h>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
+#include <boost/range/algorithm/random_shuffle.hpp>
+#include <boost/random.hpp>
+#include <boost/random/random_device.hpp>
 
 using namespace std;
 
@@ -57,5 +65,17 @@ public:
 private:
     timespec beg_, end_;
 };
+
+template <class T>
+inline void PRINT_ELEMENTS (const T& coll, const char* optcstr="")
+{
+    typename T::const_iterator pos;
+
+    std::cout << optcstr;
+    for (pos=coll.begin(); pos!=coll.end(); ++pos) {
+        std::cout << *pos << ' ';
+    }
+    std::cout << std::endl;
+}
 #endif	/* UTIITIES_H */
 

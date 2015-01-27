@@ -5,6 +5,8 @@
  * Created on 6 november 2014, 16:23
  */
 
+#include <boost/nondet_random.hpp>
+
 #include "GameTree.h"
 
 
@@ -183,16 +185,24 @@ int HexGameState::PlyJustMoved() {
     return pjm;
 }
 
-
-void HexGameState::DoRandGame(){
+void HexGameState::DoRandGame( boost::mt19937& engine) {
     vector<int> moves;
     GetMoves(moves);
-    std::random_shuffle(moves.begin(),moves.end());
-    int m=0;
+     //PRINT_ELEMENTS(moves,"original: ");
+     //PRINT_ELEMENTS(moves,"shuffled: ");
+    boost::uniform_int<int> uni_dist(0,moves.size()-1);
+    boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
+    boost::random_shuffle(moves,rand);
+    
+    
+    //std::random_shuffle(moves.begin(), moves.end(), engine2);
+    //std::random_shuffle(moves.begin(),moves.end());
+        
+    int m = 0;
     while (!GameOver()) {
         DoMove(moves[m]);
         m++;
-    }  
+    }
 }
 
 int HexGameState::GetMoves(vector<int>& moves) {
@@ -462,7 +472,7 @@ void HexGameState::Print() {
         cout << "\\  / ";
     cout << "\n";
     
-    PrintDSet();
+    //PrintDSet();
 }
 
 void HexGameState::PrintDSet(){

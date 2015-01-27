@@ -11,41 +11,59 @@
 #include "UCT.h"
 #include "PGameState.h"
 #include "HexState.h"
-#include <sys/time.h>
 #include <thread>
+#include <boost/nondet_random.hpp>
+#include <boost/random/uniform_int.hpp>
 using namespace std;
 
 /*
  * 
  */
 template <typename T>
-void UCTPlayPGame(T &state,const PlyOptions optplya, const PlyOptions optplyb, int ngames, int seed,int verbose) {
+void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int verbose) {
 
-    UCT<T> plya(optplya,verbose);
-    UCT<T> plyb(optplyb,verbose);
+    UCT<T> plya(optplya, verbose);
+    UCT<T> plyb(optplyb, verbose);
     vector<int> plywin(3);
     vector<int> plywina(3);
     vector<int> plywinb(3);
-    int move, i = 0, ply=0;
+    int move = 0, i = 0, ply = 0;
     string str;
     char buffer[100];
+    std::random_device dev;
+    Timer tmr;
+    vector<unsigned int> seeda(optplya.nthreads);
+    vector<unsigned int> seedb(optplyb.nthreads);
 
     while (i < ngames) {
-        if(verbose){
-        if (i % 2 == 0) {
-            //sprintf(buffer, "#game no. %d plya:Black plyb:White ", i);
-            cout << "\n#start playing,\n";
-            cout << setw(9) << "#game no." << "," << setw(10) << "plya(1)" << "," << setw(10) << "plyb(2)" << "," << endl;
-            cout << setw(9) << i << "," << setw(10) << "Black(B)" << "," << setw(10) << "White(W)" << "," << endl;
-        } else {
-            //sprintf(buffer, "#game no. %d plya:White plyb:Black ", i);
-            cout << "\n#start playing,\n";
-            cout << setw(9) << "#game no." << "," << setw(10) << "plya(1)" << "," << setw(10) << "plyb(2)" << "," << endl;
-            cout << setw(9) << i << "," << setw(10) << "White(W)" << "," << setw(10) << "Black(B)" << "," << endl;
+        T state(rstate);
+        for (int j = 0; j < optplya.nthreads; j++) {
+            seeda[j] = (unsigned int) dev();
+            assert(seeda[j] > 0 && "seed can not be negative\n");
+//            if (verbose)
+//                printf("#plya thread %d, seed=%u\n", j, seeda[j]);
         }
-        cout << setw(9) << "#move no." << "," << setw(10) << "player" << "," << setw(10) << "games/sec" << "," <<
-                setw(10) << "time" << "," << setw(10) << "select(%)" << "," << setw(10) << "expand(%)" << "," <<
-                setw(10) << "playout(%)" << "," << setw(10) << "backup(%)" << "," << endl;
+        for (int j = 0; j < optplyb.nthreads; j++) {
+            seedb[j] = (unsigned int) dev();
+            assert(seedb[j] > 0 && "seed can not be negative\n");
+//            if (verbose)
+//                printf("#plyb thread %d, seed=%u\n", j, seedb[j]);
+        }
+        if (verbose) {
+            if (i % 2 == 0) {
+                //sprintf(buffer, "#game no. %d plya:Black plyb:White ", i);
+                cout << "\n#start playing,\n";
+                cout << setw(9) << "#game no." << "," << setw(10) << "plya(1)" << "," << setw(10) << "plyb(2)" << "," << endl;
+                cout << setw(9) << i << "," << setw(10) << "Black(B)" << "," << setw(10) << "White(W)" << "," << endl;
+            } else {
+                //sprintf(buffer, "#game no. %d plya:White plyb:Black ", i);
+                cout << "\n#start playing,\n";
+                cout << setw(9) << "#game no." << "," << setw(10) << "plya(1)" << "," << setw(10) << "plyb(2)" << "," << endl;
+                cout << setw(9) << i << "," << setw(10) << "White(W)" << "," << setw(10) << "Black(B)" << "," << endl;
+            }
+            cout << setw(9) << "#move no." << "," << setw(10) << "player" << "," << setw(10) << "games/sec" << "," <<
+                    setw(10) << "time" << "," << setw(10) << "select(%)" << "," << setw(10) << "expand(%)" << "," <<
+                    setw(10) << "playout(%)" << "," << setw(10) << "backup(%)" << "," << setw(10) << "move" << endl;
         }
         //str.append(buffer);
         int j = 0;
@@ -53,47 +71,50 @@ void UCTPlayPGame(T &state,const PlyOptions optplya, const PlyOptions optplyb, i
             if (verbose) {
                 //cout << buffer << endl;
                 cout << setw(9) << j << ",";
-                
             }
+
             if (i % 2 == 0) {
                 if (state.PlyJustMoved() == 1) {
                     ply = 2;
-                    if(verbose)
+                    if (verbose)
                         cout << setw(10) << ply << ",";
-                    plyb.Run(state, move);
+                    plyb.Run(state, move, seedb);
                 } else {
-                    
+
                     //cin>>move;
-                    ply=1;
-                    if(verbose)
-                        cout<<setw(10)<<ply<<",";
-                    plya.Run(state,move);
+                    ply = 1;
+                    if (verbose)
+                        cout << setw(10) << ply << ",";
+                    plya.Run(state, move, seeda);
                 }
             } else {
                 if (state.PlyJustMoved() == 1) {
-                    ply=1;
-                    if(verbose)
-                        cout<<setw(10)<<ply<<",";
-                    plya.Run(state,move);
+                    ply = 1;
+                    if (verbose)
+                        cout << setw(10) << ply << ",";
+                    plya.Run(state, move, seeda);
                 } else {
-                    ply=2;
-                    if(verbose)
-                        cout<<setw(10)<<ply<<",";
-                    plyb.Run(state,move);
+                    ply = 2;
+                    if (verbose)
+                        cout << setw(10) << ply << ",";
+                    plyb.Run(state, move, seedb);
                 }
             }
-            
+
             state.DoMove(move);
+            if (verbose)
+                cout << setw(10) << move << endl;
             if (verbose) {
                 const char *c = (state.PlyJustMoved() == 1 ? "Black " : "White ");
                 //plya.PrintTree();
                 str.append(buffer);
                 //cout << c << " moved to " << move << endl; // << " with Index " << state.currIdx << endl;
-                //state.Print();
-//                float w=state.EvaluateBoardDSet(BLACK,TOPDOWN);
-//                cout<<w<<endl;
-//                w=state.EvaluateBoardDSet(WHITE,LEFTRIGHT);
-//                cout<<w<<endl;
+                if (verbose == 2)
+                    state.Print();
+                //                float w=state.EvaluateBoardDSet(BLACK,TOPDOWN);
+                //                cout<<w<<endl;
+                //                w=state.EvaluateBoardDSet(WHITE,LEFTRIGHT);
+                //                cout<<w<<endl;
             }
             j++;
         }
@@ -134,9 +155,9 @@ void UCTPlayPGame(T &state,const PlyOptions optplya, const PlyOptions optplyb, i
     }
     cout << "\n#results,\n";
     cout << setw(6) << "#player" << "," << setw(10) << "wins(%)" << "," << setw(10) << "wins" << "," << setw(10) << "Black" << "," << setw(10) << "White" << endl;
-    cout << setw(6) << 1 << "," << setw(10) <<((plywina[1] + plywina[2]) / (float) ngames)*100  << "," << setw(10) << (plywina[1] + plywina[2])
+    cout << setw(6) << 1 << "," << setw(10) << ((plywina[1] + plywina[2]) / (float) ngames)*100 << "," << setw(10) << (plywina[1] + plywina[2])
             << "," << setw(10) << plywina[1] << "," << setw(10) << plywina[2] << "," << endl;
-    cout << setw(6) << 2 << "," << setw(10) <<((plywinb[1] + plywinb[2]) / (float) ngames)*100  << "," << setw(10) << (plywinb[1] + plywinb[2])
+    cout << setw(6) << 2 << "," << setw(10) << ((plywinb[1] + plywinb[2]) / (float) ngames)*100 << "," << setw(10) << (plywinb[1] + plywinb[2])
             << "," << setw(10) << plywinb[1] << "," << setw(10) << plywinb[2] << "," << endl;
     cout << setw(6) << " " << "," << setw(10) << " " << "," << setw(10) << " " << "," << setw(10) << plywin[1] << "," << setw(10) << plywin[2] << "," << endl;
     //cout << str << endl;
@@ -187,19 +208,21 @@ void NegamaxPlayGame(PGameState &s, int b, int d, int itr, int ntry, int seed, i
 
 int main(int argc, char** argv) {
 
-    int b = 4, d = 6, seed = -1,ngames = 1, vflag = 0;
+    int b = 4, d = 6, seed = -1, ngames = 1, vflag = 0;
     char* game;
-    PlyOptions optplya,optplyb;
-    
+    PlyOptions optplya, optplyb;
+
     int opt;
 
     timeval time;
     gettimeofday(&time, NULL);
     seed = time.tv_sec + time.tv_usec;
+    //srand(seed);
+
 
     char* gflag = "x";
     int hflag = 0;
-    while ((opt = getopt(argc, argv, "hpg:b:d:o:t:m:q:y:w:x:z:n:vs:")) != -1) {
+    while ((opt = getopt(argc, argv, "hpg:b:d:o:t:m:q:y:w:x:z:n:v:s:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
@@ -226,26 +249,26 @@ int main(int argc, char** argv) {
                 optplyb.nthreads = atoi(optarg);
                 break;
             case 'y':
-                if(0<atoi(optarg)<3)
+                if (0 < atoi(optarg) < 3)
                     optplya.par = atoi(optarg);
                 break;
             case 'w':
-                if(0<atoi(optarg)<3)
+                if (0 < atoi(optarg) < 3)
                     optplyb.par = atoi(optarg);
                 break;
-                case 'x':
-                if(0<atoi(optarg))
+            case 'x':
+                if (0 < atoi(optarg))
                     optplya.nsecs = atoi(optarg);
                 break;
-                case 'z':
-                if(0<atoi(optarg))
+            case 'z':
+                if (0 < atoi(optarg))
                     optplyb.nsecs = atoi(optarg);
                 break;
             case 'n':
                 ngames = atoi(optarg);
                 break;
             case 'v':
-                vflag = 1;
+                vflag = atoi(optarg);
                 break;
             case 's':
                 seed = atoi(optarg);
@@ -287,33 +310,31 @@ int main(int argc, char** argv) {
         exit(1);
     }
     if (gflag == "x") {
-        game="Hex";
-    }else if(gflag=="p"){
-        game="p-game";
-    }
-    if(gflag=="x"){
-        printf("#plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, seed=%d\n",
-                game, d, optplya.nsims,optplya.nthreads, optplya.nsecs, ngames, seed);
-        printf("#plyb game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, seed=%d\n",
-                game, d, optplyb.nsims,optplyb.nthreads, optplyb.nsecs, ngames, seed);
+        game = "Hex";
     } else if (gflag == "p") {
-        printf("#plya game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, seed=%d\n",
-                game,b, d, optplya.nsims,optplya.nthreads, optplya.nsecs, ngames, seed);
-        printf("#plyb game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, seed=%d\n",
-                game,b, d, optplyb.nsims,optplyb.nthreads, optplyb.nsecs, ngames, seed);
+        game = "p-game";
+    }
+    if (gflag == "x") {
+        printf("#plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d\n",
+                game, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames);
+        printf("#plyb game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d\n",
+                game, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames);
+    } else if (gflag == "p") {
+        printf("#plya game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d\n",
+                game, b, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames);
+        printf("#plyb game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d\n",
+                game, b, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames);
     }
 
     for (int index = optind; index < argc; index++)
         printf("Non-option argument %s\n", argv[index]);
 
-    srand(seed);
-
     if (gflag == "x") {
         HexGameState state(d);
-        UCTPlayPGame<HexGameState>(state, optplya,optplyb, ngames, seed, vflag);
+        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, vflag);
     } else if (gflag == "p") {
         PGameState state(b, d, 0x80, seed);
-        UCTPlayPGame<PGameState>(state,optplya,optplyb, ngames, seed, vflag);
+        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames, vflag);
     }
 
     //NegamaxPlayGame(state,b,d,1,1,seed,false);

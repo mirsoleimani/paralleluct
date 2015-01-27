@@ -89,7 +89,7 @@ int PGameState::GetRandMove(){
      return RandInt(breath-1);
 }
 
-void PGameState::DoRandGame(){
+void PGameState::DoRandGame(boost::mt19937& engine){
     
 }
 long int PGameState::NextIdx(int c){
