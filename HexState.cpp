@@ -26,28 +26,28 @@ HexGameState::HexGameState(const HexGameState& orig) {
     size = orig.size;
     pjm = orig.pjm;
     moveCounter = orig.moveCounter;
-    edges=orig.edges;
-    dsboard=orig.dsboard;
-    
+    edges = orig.edges;
+    dsboard = orig.dsboard;
+
 }
 
-HexGameState& HexGameState::operator=(const HexGameState& orig){
-    if(this == &orig){
+HexGameState& HexGameState::operator=(const HexGameState& orig) {
+    if (this == &orig) {
         return *this;
     }
     dim = orig.dim;
     size = orig.size;
     pjm = orig.pjm;
     moveCounter = orig.moveCounter;
-    edges=orig.edges;
-    dsboard=orig.dsboard;
-    
+    edges = orig.edges;
+    dsboard = orig.dsboard;
+
     return *this;
 }
 
 HexGameState::~HexGameState() {
     dsboard.clear();
-    edges.clear();    
+    edges.clear();
 }
 
 void HexGameState::NewGame() {
@@ -57,7 +57,7 @@ void HexGameState::NewGame() {
 }
 
 bool HexGameState::GameOver() {
-    if (moveCounter>= (2*dim-1) && (BLACK == EvaluateBoard(BLACK, TOPDOWN) || WHITE == EvaluateBoard(WHITE, LEFTRIGHT))) {
+    if (moveCounter >= (2 * dim - 1) && (BLACK == EvaluateBoard(BLACK, TOPDOWN) || WHITE == EvaluateBoard(WHITE, LEFTRIGHT))) {
         return true;
     } else {
         return false;
@@ -74,7 +74,7 @@ bool HexGameState::GameOver() {
 void HexGameState::MakeBoard() {
     dsboard.resize(dim * dim);
     edges.resize(dim * dim);
-    
+
     int count = 0;
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
@@ -85,7 +85,7 @@ void HexGameState::MakeBoard() {
 }
 
 void HexGameState::ClearBoard() {
-    for(int pos=0;pos<size;pos++)
+    for (int pos = 0; pos < size; pos++)
         ClearStone(pos);
 }
 
@@ -142,7 +142,6 @@ void HexGameState::MakeEdges(int row, int col, vector<int>& eList) {
     }
 }
 
-
 void HexGameState::DoMove(int pos) {
     assert(pos >= 0 && pos < size && dsboard[pos].val == CLEAR && "can not put stone on board!\n");
     pjm = CLEAR - pjm;
@@ -151,31 +150,30 @@ void HexGameState::DoMove(int pos) {
 }
 
 int HexGameState::UndoMove() {
-//    moveCounter--;
-//    int m = moves[moveCounter];
-//    ClearStone(m);
-//    pjm = CLEAR - pjm;
-//    return 1;
+    //    moveCounter--;
+    //    int m = moves[moveCounter];
+    //    ClearStone(m);
+    //    pjm = CLEAR - pjm;
+    //    return 1;
 }
 
-void HexGameState::UndoMoves(int beg){
-//    int i=moveCounter;
-//
-//    while (i > beg) {
-//            UndoMove();
-//            i--;
-//    }
-//    
-//    int pos=moveCounter;
-//    while(pos>=0){
-//    dsboard[moves[pos]].parent=moves[pos];
-//    dsboard[moves[pos]].rank=0;
-//    pos--;
-//    }
-//    
-//    UpdateSet();
+void HexGameState::UndoMoves(int beg) {
+    //    int i=moveCounter;
+    //
+    //    while (i > beg) {
+    //            UndoMove();
+    //            i--;
+    //    }
+    //    
+    //    int pos=moveCounter;
+    //    while(pos>=0){
+    //    dsboard[moves[pos]].parent=moves[pos];
+    //    dsboard[moves[pos]].rank=0;
+    //    pos--;
+    //    }
+    //    
+    //    UpdateSet();
 }
-
 
 int HexGameState::CurrIndicator() {
     return moveCounter;
@@ -185,19 +183,10 @@ int HexGameState::PlyJustMoved() {
     return pjm;
 }
 
-void HexGameState::DoRandGame( boost::mt19937& engine) {
+void HexGameState::DoRandGame(GEN& engine) {
     vector<int> moves;
-    GetMoves(moves);
-     //PRINT_ELEMENTS(moves,"original: ");
-     //PRINT_ELEMENTS(moves,"shuffled: ");
-    boost::uniform_int<int> uni_dist(0,moves.size()-1);
-    boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
-    boost::random_shuffle(moves,rand);
-    
-    
-    //std::random_shuffle(moves.begin(), moves.end(), engine2);
-    //std::random_shuffle(moves.begin(),moves.end());
-        
+    GetMoves(moves, engine);
+
     int m = 0;
     while (!GameOver()) {
         DoMove(moves[m]);
@@ -205,8 +194,37 @@ void HexGameState::DoRandGame( boost::mt19937& engine) {
     }
 }
 
+/**
+ * Find the empty position on the board and store them in a vector.
+ * Apply a random shuffle on the vector.
+ * @param moves empty vector
+ * @param engine random number generator engine
+ * @return a shuffled vector of moves
+ */
+int HexGameState::GetMoves(vector<int>& moves, GEN& gen) {
+    assert(moves.size() == 0 && "The moves vector is not empty");
+    for (int pos = 0; pos < size; pos++) {
+        if (dsboard[pos].val == CLEAR)
+            moves.push_back(pos);
+    }
+    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
+
+    //DIST dist(0, moves.size() - 1);
+//    DIST dist(0,1);
+//    GEN gen(engine, dist);
+    
+    //boost::random_shuffle(moves, gen);
+    std::random_shuffle(moves.begin(),moves.end(),gen);
+
+}
+
+/**
+ * Find the empty position on the board.
+ * @param moves an empty vector
+ * @return a vector of moves
+ */
 int HexGameState::GetMoves(vector<int>& moves) {
-    moves.clear();
+    assert(moves.size() == 0 && "The moves vector is not empty");
     for (int pos = 0; pos < size; pos++) {
         if (dsboard[pos].val == CLEAR)
             moves.push_back(pos);
@@ -214,23 +232,20 @@ int HexGameState::GetMoves(vector<int>& moves) {
     assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
 }
 
-
 int HexGameState::PutStone(int pos) {
     dsboard[pos].val = pjm;
     MakeSet(pos);
     for (int j = 0; j < edges[pos].size(); j++) {
         Union(pos, edges[pos].at(j));
     }
-    
+
     return pos;
 }
 
 void HexGameState::ClearStone(int pos) {
     dsboard[pos].val = CLEAR;
     ClearSet(pos);
-
 }
-
 
 float HexGameState::GetResult(int plyjm) {
     if (plyjm == BLACK) {
@@ -238,16 +253,14 @@ float HexGameState::GetResult(int plyjm) {
     } else {
         return (plyjm == EvaluateBoard(WHITE, LEFTRIGHT)) ? 1.0 : 0.0;
     }
-
 }
 
 float HexGameState::EvaluateBoard(int ply, int direction) {
-    float m,n;
+    float m, n;
     //m= EvaluateDijkstra(ply,direction);
-    n= EvaluateDSet(ply, direction);
+    n = EvaluateDSet(ply, direction);
     //assert(m==n&&"evaluation incorrect!\n");
     return n;
-
 }
 
 float HexGameState::EvaluateDSet(int ply, int direction) {
@@ -255,7 +268,7 @@ float HexGameState::EvaluateDSet(int ply, int direction) {
         for (int pos1 = 0; pos1 < dim; pos1++) {
             if (dsboard[pos1].val == ply) {
                 int p = Find(pos1);
-                if(dsboard[p].top&&dsboard[p].bottom){
+                if (dsboard[p].top && dsboard[p].bottom) {
                     return ply;
                 }
             }
@@ -264,7 +277,7 @@ float HexGameState::EvaluateDSet(int ply, int direction) {
         for (int pos1 = 0; pos1 < size; pos1++) {
             if (pos1 % dim == 0 && dsboard[pos1].val == ply) {
                 int p = Find(pos1);
-                if(dsboard[p].left&&dsboard[p].right){
+                if (dsboard[p].left && dsboard[p].right) {
                     return ply;
                 }
             }
@@ -276,8 +289,8 @@ float HexGameState::EvaluateDSet(int ply, int direction) {
 float HexGameState::EvaluateDijkstra(int ply, int direction) {
     vector<int> src;
     vector<int> dest;
-    src.resize(size,0);
-    dest.resize(size,0);
+    src.resize(size, 0);
+    dest.resize(size, 0);
     src.clear();
     int pos = 0;
     for (int i = 0; i < size; i++) {
@@ -333,12 +346,11 @@ float HexGameState::EvaluateDijkstra(int ply, int direction) {
     return CLEAR;
 }
 
+void HexGameState::MakeSet(int pos) {
+    dsboard[pos].parent = pos;
+    dsboard[pos].rank = 0;
 
-void HexGameState::MakeSet(int pos){
-    dsboard[pos].parent=pos;
-    dsboard[pos].rank=0;
-    
-            if (pos < dim) {
+    if (pos < dim) {
         dsboard[pos].top = 1;
         dsboard[pos].bottom = 0;
     } else if ((size - dim) <= pos && pos < size) {
@@ -355,16 +367,16 @@ void HexGameState::MakeSet(int pos){
     }
 }
 
-void HexGameState::ClearSet(int pos){
-    dsboard[pos].parent=-1;
-    dsboard[pos].rank=0;
-    for(int i=0;i<dsboard.size();i++){
-        if(dsboard[i].parent==pos){
-            dsboard[i].parent=i;
-            dsboard[pos].rank=0;
+void HexGameState::ClearSet(int pos) {
+    dsboard[pos].parent = -1;
+    dsboard[pos].rank = 0;
+    for (int i = 0; i < dsboard.size(); i++) {
+        if (dsboard[i].parent == pos) {
+            dsboard[i].parent = i;
+            dsboard[pos].rank = 0;
         }
     }
-        if (pos < dim) {
+    if (pos < dim) {
         dsboard[pos].top = 1;
         dsboard[pos].bottom = 0;
     } else if ((size - dim) <= pos && pos < size) {
@@ -379,10 +391,10 @@ void HexGameState::ClearSet(int pos){
         dsboard[pos].right = 1;
         dsboard[pos].left = 0;
     }
-    
+
 }
 
-void HexGameState::UpdateSet() {    
+void HexGameState::UpdateSet() {
     for (int pos = 0; pos < dsboard.size(); pos++) {
         if (dsboard[pos].val != CLEAR) {
             for (int j = 0; j < edges[pos].size(); j++) {
@@ -392,11 +404,11 @@ void HexGameState::UpdateSet() {
     }
 }
 
-int HexGameState::Find(int pos){
+int HexGameState::Find(int pos) {
     assert(pos != -1 && "position of -1 is wrong!\n");
-    if(dsboard[pos].parent != pos)
+    if (dsboard[pos].parent != pos)
         dsboard[pos].parent = Find(dsboard[pos].parent);
-    return dsboard[pos].parent;     
+    return dsboard[pos].parent;
 }
 
 void HexGameState::Union(int pos1, int pos2) {
@@ -433,9 +445,8 @@ void HexGameState::Union(int pos1, int pos2) {
     }
 }
 
-
 void HexGameState::Print() {
-        cout << "  ";
+    cout << "  ";
     for (int j = 0; j < dim; j++)
         cout << "/  \\ ";
     cout << endl;
@@ -471,24 +482,24 @@ void HexGameState::Print() {
     for (int j = 0; j < dim; j++)
         cout << "\\  / ";
     cout << "\n";
-    
+
     //PrintDSet();
 }
 
-void HexGameState::PrintDSet(){
+void HexGameState::PrintDSet() {
 
-    for(int pos=0;pos<dsboard.size();pos++){
-        cout<<pos;
-        cout<<" child of "<<dsboard[pos].parent<<endl;//<<" top "<<dsboard[pos].top<<" botom "<<dsboard[pos].bottom
-                //<<" left "<<dsboard[pos].left<<" right "<<dsboard[pos].right<<endl;
+    for (int pos = 0; pos < dsboard.size(); pos++) {
+        cout << pos;
+        cout << " child of " << dsboard[pos].parent << endl; //<<" top "<<dsboard[pos].top<<" botom "<<dsboard[pos].bottom
+        //<<" left "<<dsboard[pos].left<<" right "<<dsboard[pos].right<<endl;
     }
 
 }
 
-void HexGameState::PrintDSet2(int pos){
-    if(dsboard[pos].parent == pos)
-        cout<<" child of "<<pos;//<<" top "<<dsboard[pos].top<<" botom "<<dsboard[pos].bottom
-                //<<" left "<<dsboard[pos].left<<" right "<<dsboard[pos].right<<endl;
+void HexGameState::PrintDSet2(int pos) {
+    if (dsboard[pos].parent == pos)
+        cout << " child of " << pos; //<<" top "<<dsboard[pos].top<<" botom "<<dsboard[pos].bottom
+        //<<" left "<<dsboard[pos].left<<" right "<<dsboard[pos].right<<endl;
     else
-        PrintDSet2(dsboard[pos].parent);   
+        PrintDSet2(dsboard[pos].parent);
 }

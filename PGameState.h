@@ -17,27 +17,28 @@ using namespace std;
 
 class PGameState {
 public:
-    PGameState(int b,int d,float maxmv,int seed);
+    PGameState(int b, int d, float maxmv, int seed);
     PGameState(const PGameState& orig);
     virtual ~PGameState();
     int DoMove(int move);
     int UndoMove();
     void UndoMoves(int beg);
+    int GetMoves(vector<int>& moves, GEN& engine);
     int GetMoves(vector<int>& moves);
     float GetResult(int pjm);
     bool GameOver();
     int PlyJustMoved();
     int CurrIndicator();
-            float EvaluateBoardDSet(int plyjm, int direction);
+    float EvaluateBoardDSet(int plyjm, int direction);
     long int NextIdx(int c);
     long int PrevIdx();
     int GetRandMove();
-    void DoRandGame(boost::mt19937& engine);
+    void DoRandGame(GEN& engine);
     float Result(int v);
     float GetValue();
     int MoveValue();
     void Print();
-    string GameToString(int indent,int m);
+    string GameToString(int indent, int m);
     string StateToString(int m);
     string IndentString(int indent);
     void NewGame();
@@ -49,11 +50,11 @@ private:
     int depth;
     int pjm;
     float maxVal;
-    
+
     size_t size;
     vector<char>* moveVal;
     long int* path;
-    
+
 };
 
 #endif	/* PGAMESTATE_H */

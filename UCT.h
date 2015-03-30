@@ -25,6 +25,7 @@ struct PlyOptions {
     float nsecs = 1.0;
     int par = 0;
     bool verbose = false;
+    float cp = 1.0;
 };
 
 struct TimeOptions {
@@ -38,15 +39,15 @@ struct TimeOptions {
 template <class T>
 class UCT {
 public:
-    UCT(const PlyOptions opt, bool vb);
+    UCT(const PlyOptions opt, int vb);
     UCT(const UCT<T>& orig);
     virtual ~UCT();
-    void UCTSearch(const T& state, int tid, unsigned int seed);
-    void UCTSearchTreePar(T& rstate, int tid);
+    void UCTSearch(const T& state, int sid, int rid, unsigned int seed);
+    void UCTSearchTreePar(T& rstate, int tid, unsigned int seed);
 
     UCTNode<T>* Select(UCTNode<T>* node, T& state, float cp);
-    UCTNode<T>* Expand(UCTNode<T>* node, T& state, boost::mt19937& engine);
-    void Playout(T& state, boost::mt19937& engine);
+    UCTNode<T>* Expand(UCTNode<T>* node, T& state, GEN& engine);
+    void Playout(T& state, GEN& engine);
     void Backup(UCTNode<T>* node, T& state);
 
     void PrintSubTree(UCTNode<T>* root);
@@ -54,26 +55,27 @@ public:
     void PrintRootChildren();
 
     /*Multithreaing section*/
-    void Run(const T& state, int& m, vector<unsigned int> seed);
-    //void CreateNodeForState(T& state, UCTNode<T>* node);
+    void Run(const T& state, int& m, const vector<unsigned int>& seed, string &log1, string &log2);
     void Reset();
 
     typedef UCTNode<T>* UCTNodePointer;
     typedef typename vector<UCTNodePointer>::const_iterator const_iterator;
     typedef typename vector<UCTNodePointer>::iterator iterator;
+
+    static bool SortChildern(UCTNode<T>* a, UCTNode<T>* b) {
+        return (b->move > a->move);
+    }
 private:
-    //T *state;
-    bool verbose;
+    int verbose;
     UCTNode<T>* sharedroot;
     vector<UCTNode<T>*> roots;
     std::vector<TimeOptions*> statistics;
-    std::mutex mtx;
-    std::mutex mtx2;
     PlyOptions plyOpt;
+    std::mutex mtx;
 };
 
 template <class T>
-UCT<T>::UCT(const PlyOptions opt, bool vb) : verbose(vb) {
+UCT<T>::UCT(const PlyOptions opt, int vb) : verbose(vb) {
     plyOpt = opt;
 }
 
@@ -92,41 +94,46 @@ void UCT<T>::Reset() {
 }
 
 template <class T>
-void UCT<T>::Run(const T& state, int& m, vector<unsigned int> seed) {
-    boost::mt19937 engine(seed[0]);
+void UCT<T>::Run(const T& state, int& m, const vector<unsigned int>& seed, string& log1, string& log2) {
+    assert(seed[0] > 0 && "seed should be larger than 0!");
+    //ENG engine(seed[0]);
 
     std::vector<std::thread> threads;
+    //std::vector<pthread_t> myThreads;
     T lstate(state);
-    //    sharedroot = new UCTNode<T>(0, NULL, lstate.PlyJustMoved());
-    //    sharedroot->CreateChildren(lstate,engine);
 
     for (int i = 0; i < plyOpt.nthreads; i++) {
         statistics.push_back(new TimeOptions());
     }
 
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        roots.push_back(new UCTNode<T>(0, NULL, lstate.PlyJustMoved()));
-    }
-
     if (plyOpt.par == 1) {
         /*tree parallelization*/
+        /*create the root*/
+        roots.push_back(new UCTNode<T>(0, NULL, lstate.PlyJustMoved()));
+
         /*create threads*/
         for (int i = 0; i < plyOpt.nthreads; i++) {
-            threads.push_back(std::thread(std::mem_fn(&UCT::UCTSearchTreePar), std::ref(*this), std::ref(lstate), i));
+            threads.push_back(std::thread(std::mem_fn(&UCT::UCTSearch), std::ref(*this), std::ref(lstate), i, 0, seed[i]));
             assert(threads[i].joinable());
         }
 
     } else if (plyOpt.par == 2) {
         /*root parallelization*/
+        /*create the roots among threads*/
+        for (int i = 0; i < plyOpt.nthreads; i++) {
+            roots.push_back(new UCTNode<T>(0, NULL, lstate.PlyJustMoved()));
+        }
         /*create threads*/
         for (int i = 0; i < plyOpt.nthreads; i++) {
             assert(seed[i] > 0 && "seed can not be negative!\n");
-            threads.push_back(std::thread(std::mem_fn(&UCT::UCTSearch), std::ref(*this), std::ref(lstate), i, seed[i]));
+            threads.push_back(std::thread(std::mem_fn(&UCT::UCTSearch), std::ref(*this), std::ref(lstate), i, i, seed[i]));
             assert(threads[i].joinable());
         }
     } else if (plyOpt.par == 0) {
         assert(seed[0] > 0 && "seed can not be negative!\n");
-        UCTSearch(lstate, 0, seed[0]);
+        /*create the root*/
+        roots.push_back(new UCTNode<T>(0, NULL, lstate.PlyJustMoved()));
+        UCTSearch(lstate, 0, 0, seed[0]);
     }
 
     /*Join the threads with the main thread*/
@@ -151,19 +158,27 @@ void UCT<T>::Run(const T& state, int& m, vector<unsigned int> seed) {
     /*Find the best node*/
     UCTNode<T>* n = roots[0]->UCTSelectChild(0);
     m = n->move;
-    //PrintRootChildren();
 
     if (verbose) {
-        cout << std::fixed << std::setprecision(2);
-        cout << setw(10) << roots[0]->visits / 1.0 << "," <<
+        std::stringstream buffer;
+        buffer << std::fixed << std::setprecision(2);
+        buffer << setw(10) << roots[0]->visits << "," <<
                 setw(10) << statistics[0]->ttime << "," <<
                 setw(10) << (statistics[0]->stime / statistics[0]->ttime)*100 << "," <<
                 setw(10) << (statistics[0]->etime / statistics[0]->ttime)*100 << "," <<
                 setw(10) << (statistics[0]->ptime / statistics[0]->ttime)*100 << "," <<
                 setw(10) << (statistics[0]->btime / statistics[0]->ttime)*100 << ",";
+        log1 = buffer.str();
+    }
+    if (verbose == 3) {
+        std::stringstream buffer;
+        std::sort(roots[0]->children.begin(), roots[0]->children.end(), SortChildern);
+        for (iterator itr = roots[0]->children.begin(); itr != roots[0]->children.end(); itr++) {
+            buffer << /*(*itr)->move << "," <<*/ (*itr)->visits << ",";
+        }
+        log2 = buffer.str();
     }
 
-    //delete(sharedroot);
     for (iterator itr = roots.begin(); itr != roots.end(); itr++)
         delete (*itr);
     roots.clear();
@@ -173,17 +188,12 @@ void UCT<T>::Run(const T& state, int& m, vector<unsigned int> seed) {
     threads.clear();
 }
 
-//template <class T>
-//void UCT<T>::CreateNodeForState(T& state, UCTNode<T>* node) {
-//    node = new UCTNode<T>(0, NULL, state);
-//}
-
 template <class T>
 UCTNode<T>* UCT<T>::Select(UCTNode<T>* node, T& state, float cp) {
-    //std::lock_guard<std::mutex> gaurd(mtx);
-
+    
     UCTNode<T>* n = node;
-    while (n->untriedMoves == 0 && n->children.size() > 0) {
+    //while (n->GetUntriedMoves() == 0 && !n->children.empty()) {
+    while(n->GetUntriedMoves()== 0){
         n = n->UCTSelectChild(cp);
         state.DoMove(n->move);
     }
@@ -191,32 +201,23 @@ UCTNode<T>* UCT<T>::Select(UCTNode<T>* node, T& state, float cp) {
 }
 
 template <class T>
-UCTNode<T>* UCT<T>::Expand(UCTNode<T>* node, T& state, boost::mt19937& engine) {
-    // std::lock_guard<std::mutex> gaurd(mtx);
+UCTNode<T>* UCT<T>::Expand(UCTNode<T>* node, T& state, GEN& engine) {
 
-    UCTNode<T>* n = node->AddChild(state, engine);
+    UCTNode<T>* n = NULL;
+    n = node->AddChild(state,engine);
+    assert(n != NULL && "The node to be expanded is NULL");
+    
     return n;
-
-    //    if (n->children.size() == 0) {
-    //        n->CreateChildren(state);
-    //    }
-    //    
-    //    if (n->untriedMoves > 0) {
-    //        n = n->AddChild();
-    //        state.DoMove(n->move);
-    //    }
-    //    return n;
 }
 
 template <class T>
-void UCT<T>::Playout(T& state, boost::mt19937& engine) {
-    //std::lock_guard<std::mutex> gaurd(mtx);
+void UCT<T>::Playout(T& state, GEN& engine) {
+
     state.DoRandGame(engine);
 }
 
 template <class T>
 void UCT<T>::Backup(UCTNode<T>* node, T& state) {
-    //  std::lock_guard<std::mutex> gaurd(mtx);
 
     UCTNode<T>* n = node;
     int winner = 0;
@@ -226,100 +227,44 @@ void UCT<T>::Backup(UCTNode<T>* node, T& state) {
         winner = CLEAR - n->pjm;
     }
     while (n != NULL) {
-        //n->Update(state.GetResult(n->pjm));
         n->Update((n->pjm == winner) ? 1.0 : 0.0);
         n = n->parent;
     }
 }
 
 template <class T>
-void UCT<T>::UCTSearchTreePar(T& rstate, int tid) {
-    //std::random_device rd;
-    boost::mt19937 engine(100);
-    /*Create a copy of the current state for each thread*/
-    T state = rstate;
-    T lstate = state;
-    int id = tid;
-    UCTNode<T>* n;
-    TimeOptions* timeopt = statistics[id];
-
-    double time = 0;
-
-    int itr = 0;
-    Timer tmr;
-
-    while (itr < plyOpt.nsims && (timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs) {
-
-        n = sharedroot;
-        //n=roots[id];
-        assert(n != NULL && "Root of the tree is zero!\n");
-
-        time = tmr.elapsed();
-        n = Select(n, lstate, 0.9);
-        timeopt->stime += tmr.elapsed() - time;
-
-        time = tmr.elapsed();
-        n = Expand(n, lstate, engine);
-        timeopt->etime += tmr.elapsed() - time;
-
-        time = tmr.elapsed();
-        Playout(lstate, engine);
-        timeopt->ptime += tmr.elapsed() - time;
-
-        time = tmr.elapsed();
-        Backup(n, lstate);
-        timeopt->btime += tmr.elapsed() - time;
-
-        itr++;
-        lstate = state;
-    }
-
-    if (verbose) {
-        //PrintTree(m);
-        //        cout << "Time to make move:" << t << " seconds" << endl;
-        //        cout << "Time spends in select:" << selectTime << " second. %" << (selectTime / t)*100 << endl;
-        //        cout << "Time spends in expand:" << expandTime << " second. %" << (expandTime / t)*100 << endl;
-        //        cout << "Time spends in playout:" << playoutTime << " second. %" << (playoutTime / t)*100 << endl;
-        //        cout << "Time spends in backup:" << backupTime << " second. %" << (backupTime / t)*100 << endl;
-        //        cout << "Number of nodes generated per second:" << nnodes / time << " " << time << endl;
-
-    }
-}
-
-template <class T>
-void UCT<T>::UCTSearch(const T& rstate, int tid, unsigned int seed) {
-
-    boost::mt19937 engine(seed);
-
+void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, unsigned int seed) {
+    ENG engine(seed);
+    DIST dist(0,1);
+    GEN gen(engine, dist);
+    
     /*Create a copy of the current state for each thread*/
     T state(rstate);
     T lstate(state);
 
-    //UCTNode<T>* myroot = new UCTNode<T>(0, NULL, state.PlyJustMoved());
-
     UCTNode<T>* n;
-    TimeOptions* timeopt = statistics[tid];
+    TimeOptions* timeopt = statistics[sid];
     double time;
 
     int itr = 0;
     int max = plyOpt.nsims;
     Timer tmr;
+    double sTime = tmr.second();
     while (itr < max && (timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs) {
-
-        //n = myroot;
-        n = roots[tid];
+        //    while (itr < max) {
+        n = roots[rid];
         assert(n != NULL && "Root of the tree is zero!\n");
 
         time = tmr.elapsed();
-        n = Select(n, lstate, 0.9);
+        n = Select(n, lstate, plyOpt.cp);
         timeopt->stime += tmr.elapsed() - time;
 
         time = tmr.elapsed();
-        n = Expand(n, lstate, engine);
+        n = Expand(n, lstate, gen);
         timeopt->etime += tmr.elapsed() - time;
 
         time = tmr.elapsed();
-        Playout(lstate, engine);
+        Playout(lstate, gen);
         timeopt->ptime += tmr.elapsed() - time;
 
         time = tmr.elapsed();
@@ -327,37 +272,14 @@ void UCT<T>::UCTSearch(const T& rstate, int tid, unsigned int seed) {
         timeopt->btime += tmr.elapsed() - time;
 
         itr++;
+//        if(sid==0){
+//            PrintSubTree(roots[rid]);
+//            char a;
+//            cin>>a;
+//        }
         lstate = state;
     }
-
-    //    mtx2.lock();
-    //cout<<endl<<tid<<"my root "<<myroot->visits<<endl;
-    //    sharedroot->wins += myroot->wins;
-    //    sharedroot->visits += myroot->visits;
-    //    for (int i = 0; i < sharedroot->children.size(); i++) {
-    //        for (int j = 0; j < myroot->children.size(); j++) {
-    //            if (sharedroot->children[i]->move == myroot->children[j]->move) {
-    //                sharedroot->children[i]->wins += myroot->children[j]->wins;
-    //                sharedroot->children[i]->visits += myroot->children[j]->visits;
-    //            }
-    //        }
-    //    }
-    //    mtx2.unlock();
-
-    if (verbose) {
-        //PrintTree(m);
-        //PrintTree();
-    }
-    //delete(myroot);
 }
-//
-//undomoves{
-//    //        int i = state.CurrIndicator();
-////        while (i > d) {
-////            state.UndoMove();
-////            i--;
-////        }
-//}
 
 template <class T>
 void UCT<T>::PrintSubTree(UCTNode<T>* root) {
@@ -371,11 +293,69 @@ void UCT<T>::PrintTree() {
 
 template <class T>
 void UCT<T>::PrintRootChildren() {
-    cout << endl;
     for (iterator itr = roots[0]->children.begin(); itr != roots[0]->children.end(); itr++) {
-        cout << (*itr)->move << "," << (*itr)->visits << "," << (*itr)->wins / (*itr)->visits << " | ";
+        //cout << (*itr)->move << "," << (*itr)->visits << "," << (*itr)->wins / (*itr)->visits << " | ";
+        cout << (*itr)->move << "," << (*itr)->visits << ",";
     }
-    cout << endl;
 }
 #endif	/* UCT_H */
+//
+//undomoves{
+//    //        int i = state.CurrIndicator();
+////        while (i > d) {
+////            state.UndoMove();
+////            i--;
+////        }
+//}
 
+
+
+
+//template <class T>
+//void UCT<T>::UCTSearchTreePar(T& rstate, int tid, unsigned int seed) {
+//    ENG engine(seed);
+//    /*Create a copy of the current state for each thread*/
+//    T state = rstate;
+//    T lstate = state;
+//    int id = tid;
+//    UCTNode<T>* n;
+//    TimeOptions* timeopt = statistics[id];
+//
+//    double time = 0;
+//
+//    int itr = 0;
+//    Timer tmr;
+//
+//    while (itr < plyOpt.nsims && (timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs) {
+//
+//        n = roots[0];
+//        assert(n != NULL && "Root of the tree is zero!\n");
+//
+//        time = tmr.elapsed();
+//        mtx.lock();
+//        n = Select(n, lstate, plyOpt.cp);
+//        mtx.unlock();
+//        timeopt->stime += tmr.elapsed() - time;
+//
+//        time = tmr.elapsed();
+//        mtx.lock();
+//        n = Expand(n, lstate, engine);
+//        mtx.unlock();
+//        timeopt->etime += tmr.elapsed() - time;
+//
+//        time = tmr.elapsed();
+//        mtx.lock();
+//        Playout(lstate, engine);
+//        mtx.unlock();
+//        timeopt->ptime += tmr.elapsed() - time;
+//
+//        time = tmr.elapsed();
+//        mtx.lock();
+//        Backup(n, lstate);
+//        mtx.unlock();
+//        timeopt->btime += tmr.elapsed() - time;
+//
+//        itr++;
+//        lstate = state;
+//    }
+//}

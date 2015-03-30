@@ -9,6 +9,7 @@
 #include <string>
 #include <sstream>
 #include <mutex>
+#include <omp.h>
 #include "PGameState.h"
 #ifndef UCTNODE_H
 #define	UCTNODE_H
@@ -22,36 +23,40 @@ public:
     typedef typename vector<UCTNodePointer>::const_iterator const_iterator;
     typedef typename vector<UCTNodePointer>::iterator iterator;
 
-    UCTNode(int m, UCTNode<T>* parent,int plyjm);
+    UCTNode(int m, UCTNode<T>* parent, int plyjm);
     UCTNode(const UCTNode<T>& orig);
     virtual ~UCTNode();
     UCTNode<T>* UCTSelectChild(float cp);
-    void CreateChildren(T& state,boost::mt19937& engine);
-    UCTNode<T>* AddChild();
-    UCTNode<T>* AddChild(T& state,boost::mt19937& engine);
+    void CreateChildren(T& state, GEN& engine);
+    bool ChildrenEmpty();
+    int GetUntriedMoves();
+    UCTNode<T>* AddChild(T& state, GEN& engine);
     void Update(float result);
     string TreeToString(int indent);
     string NodeToString();
     string IndentString(int indent);
 
-    static bool CompareNode(UCTNode<T>* a, UCTNode<T>* b) {
-        return (a->val < b->val);
-    }
+            //UCTNode<T>* UCTSelect(T& state,float cp);
+    //UCTNode<T>* AddChild();
+    //UCTNode<T>* Expand(T& state, ENG& engine);
+    //    static bool CompareNode(UCTNode<T>* a, UCTNode<T>* b) {
+    //        return (a->val < b->val);
+    //    }
 private:
     int move;
-    double val;
-    double wins;
-    double visits;
     int pjm;
+    //double wins;
+    std::atomic_int wins;
+    std::atomic_int visits;
+    int untriedMoves;
     UCTNode<T> *parent;
     vector<UCTNode<T>*> children;
-    int untriedMoves;
-
+    std::mutex mtx;
 };
 
 template <class T>
 UCTNode<T>::UCTNode(int m, UCTNode<T>* pr, int plyjm) : move(m), visits(0), wins(0), children(NULL), parent(pr), pjm(plyjm) {
-    untriedMoves = 99999;
+    untriedMoves = 999999;
 }
 
 template <class T>
@@ -66,86 +71,78 @@ UCTNode<T>::~UCTNode() {
 }
 
 template <class T>
-void UCTNode<T>::CreateChildren(T& state, boost::mt19937& engine) {
-    if (children.size() == 0) {
-        vector<int> moves;
-        state.GetMoves(moves);
-      
-        boost::uniform_int<int> uni_dist(0, moves.size() - 1);
-        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
-        boost::random_shuffle(moves,rand);
-     
-        untriedMoves = moves.size();
-        for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
-            children.push_back(new UCTNode(*itr, this, CLEAR - state.PlyJustMoved()));
-        }
-        
-//                        boost::uniform_int<int> uni_dist(0, children.size() - 1);
-//        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
-//        std::random_shuffle(children.begin(), children.end(),rand);
-        
-        //boost::random_shuffle(children, rand);
-                        
-        //PRINT_ELEMENTS(moves,"original: ");
-
-
-        //std::random_shuffle(children.begin(), children.end(),rand);
-        //std::random_shuffle(children.begin(), children.end());
-    }
-}
-
-//template <class T>
-//UCTNode<T>* UCTNode<T>::AddChild() {    
-//    UCTNode<T>* n = children[untriedMoves - 1];
-//    untriedMoves--;
-//    return n;
-//}
-
-template <class T>
-UCTNode<T>* UCTNode<T>::UCTSelectChild(float cp) {
-    assert(!children.empty() && "can not select next move!");
-    for (iterator itr = children.begin(); itr != children.end(); itr++) {
-        (*itr)->val = (double((*itr)->wins) / (double((*itr)->visits)) + (cp * sqrt(2.0 * log(double(visits)) / (double((*itr)->visits)))));
-    }
-    UCTNode<T> *n = *max_element(children.begin(), children.end(), this->CompareNode);
-    return n;   
+int UCTNode<T>::GetUntriedMoves(){
+    //std::lock_guard<std::mutex> lock(mtx);
+    return untriedMoves;
 }
 
 template <class T>
-UCTNode<T>* UCTNode<T>::AddChild(T& state,boost::mt19937& engine) {
+UCTNode<T>* UCTNode<T>::AddChild(T& state, GEN& engine) {
+    std::lock_guard<std::mutex> lock(mtx);
     UCTNode<T>* n = this;
-    if (children.size() == 0) {
-        vector<int> moves;
-        state.GetMoves(moves);
-        untriedMoves = moves.size();
-        
-//        boost::uniform_int<> uni_dist;
-//        boost::variate_generator<boost::mt19937&, boost::uniform_int<> > generator(engine, uni_dist);
-//        std::random_shuffle(moves.begin(), moves.end(), generator);
-
-                                boost::uniform_int<int> uni_dist(0, moves.size() - 1);
-        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
-        boost::random_shuffle(moves,rand);
-        
-        for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
-            children.push_back(new UCTNode(*itr, this, CLEAR - state.PlyJustMoved()));
-        }
-//                        boost::uniform_int<int> uni_dist(0, children.size() - 1);
-//        boost::variate_generator<boost::mt19937&, boost::uniform_int<int> > rand(engine, uni_dist);
-//        boost::random_shuffle(children, rand);
-        
-    } else if (n->untriedMoves > 0) {
-        n = children[untriedMoves - 1];
-        untriedMoves--;
-        state.DoMove(n->move);
+    if (children.empty()&& untriedMoves==999999) {
+        CreateChildren(state, engine);
+    }
+    if(untriedMoves>0){
+    int idx = --untriedMoves;
+    n = children[idx];
+    state.DoMove(n->move);
     }
     return n;
 }
 
 template <class T>
+void UCTNode<T>::CreateChildren(T& state, GEN& engine) {
+    assert(children.size() == 0 && "Create The size of children is not zero!\n");
+    vector<int> moves;
+    state.GetMoves(moves, engine);
+    untriedMoves = moves.size();
+    //assert(untriedMoves > 0 && "there is no more moves!");
+    if (untriedMoves > 0) {
+        int plyToMove = CLEAR - state.PlyJustMoved();
+#pragma unroll(16)
+        for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
+            children.push_back(new UCTNode(*itr, this, plyToMove));
+        }
+    } else {
+        untriedMoves = -1;
+    }
+}
+
+template <class T>
 void UCTNode<T>::Update(float result) {
-    this->wins += result;
-    this->visits ++;
+    wins += result;
+    visits++;
+}
+
+template <class T>
+UCTNode<T>* UCTNode<T>::UCTSelectChild(float cp) {
+    assert(!children.empty() && "children is empty. can not select next move!\n");
+    float max_val = 0;
+    float loc_val = 0;
+    UCTNode<T> *n = NULL;
+    float val1, val2;
+    float l = 2.0 * log((float) this->visits);
+#pragma unroll(16)
+    for (iterator itr = children.begin(); itr != children.end(); itr++) {
+        //assert((*itr)->visits>0 && "The children has not visited yet UCT Select Child.");
+        val1 = (*itr)->wins / (float) ((*itr)->visits + 1);
+        val2 = cp * sqrt(l / (float) ((*itr)->visits + 1));
+        loc_val = val1 + val2;
+        if (n == NULL || max_val < loc_val) {
+            n = *itr;
+            max_val = loc_val;
+        }
+    }
+
+    //    for (iterator itr = children.begin(); itr != children.end(); itr++) {
+    //        (*itr)->val = (double((*itr)->wins) / (double((*itr)->visits)) + (cp * sqrt(2.0 * log(double(visits)) / (double((*itr)->visits)))));
+    //    }
+    //    UCTNode<T> *n2 = *max_element(children.begin(), children.end(), this->CompareNode);
+
+    assert(n != NULL && "UCT can not select child!");
+
+    return n;
 }
 
 template <class T>
@@ -159,8 +156,8 @@ string UCTNode<T>::TreeToString(int indent) {
 
 template <class T>
 string UCTNode<T>::NodeToString() {
-    double v = wins / visits;
-   // assert(untriedMoves <= 36);
+    //double v = wins / visits;
+    double v = 888;
     return "[M:" + NumToStr<int>(this->move) + " W/V:" + NumToStr<double>(wins)
             + "/" + NumToStr<double>(visits) + "=" + NumToStr<double>(v) + "U:" + NumToStr<int>(untriedMoves);
 }
@@ -175,3 +172,63 @@ string UCTNode<T>::IndentString(int indent) {
 }
 #endif	/* UCTNODE_H */
 
+
+
+//template <class T>
+//UCTNode<T>* UCTNode<T>::UCTSelect(T& state, float cp) {
+//    //std::lock_guard<std::mutex> lock(mtx);
+//    
+//    UCTNode<T> *n = this;
+//    UCTNode<T> *m = NULL;
+//    //while (n->untriedMoves == 0 && !n->children.empty()) {
+//    while (n->untriedMoves == 0 && n->childrenCreated) {
+//        assert(!children.empty() && "children is empty. can not select next move!\n");
+//        float max_val = 0;
+//        float loc_val = 0;
+//        float val1, val2;
+//        float l = 2.0 * log((float) n->visits);
+//        for (iterator itr = n->children.begin(); itr != n->children.end(); itr++) {
+//            assert((*itr)->visits > 0 && "The children has not visited yet.");
+//
+//            val1 = (*itr)->wins / (float) (*itr)->visits;
+//            val2 = cp * sqrt(l / (float) (*itr)->visits);
+//            loc_val = val1 + val2;
+//            if (m == NULL || max_val < loc_val) {
+//                m = *itr;
+//                max_val = loc_val;
+//            }
+//        }
+//        assert(m != NULL && "UCT can not select child m!");
+//        n=m;
+//        state.DoMove(n->move);
+//    }
+//    
+//    assert(n != NULL && "UCT can not select child n!");
+//
+//    return n;
+//}
+
+//template <class T>
+//UCTNode<T>* UCTNode<T>::Expand(T& state, ENG& engine) {
+//    std::lock_guard<std::mutex> lock(mtx);
+//    //if (children.empty()) {
+//    if(!childrenCreated){
+//        //CreateChildren(state, engine);
+//
+//        vector<int> moves;
+//        state.GetMoves(moves, engine);
+//        untriedMoves = moves.size();
+//        int plyToMove = CLEAR - state.PlyJustMoved();
+//        for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
+//            children.push_back(new UCTNode(*itr, this, plyToMove));
+//        }
+//        childrenCreated = 1;
+//    }
+//     UCTNode<T>* n = this;
+//    if (untriedMoves > 0) {
+//        n = children[--untriedMoves];
+//        state.DoMove(n->move);
+//    }
+//
+//    return n;
+//}

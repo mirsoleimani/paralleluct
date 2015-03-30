@@ -83,13 +83,17 @@ int PGameState::GetMoves(vector<int>& moves){
     return breath;
 }
 
+int PGameState::GetMoves(vector<int>& moves,GEN& engine){
+    assert("It is not implemented!");
+}
+
 int PGameState::GetRandMove(){
      if(currDepth == depth) 
         return -1;
      return RandInt(breath-1);
 }
 
-void PGameState::DoRandGame(boost::mt19937& engine){
+void PGameState::DoRandGame(GEN& engine){
     
 }
 long int PGameState::NextIdx(int c){
@@ -165,15 +169,15 @@ void PGameState::Print(){
 }
 
 string PGameState::GameToString(int indent,int m){
-    vector<int> moves;
-    string s = IndentString(indent)+ StateToString(m);
-    this->GetMoves(moves);
-    for(int i=0;i<moves.size();i++){
-    this->DoMove(moves[i]);
-    s+=GameToString(indent+1,moves[i]);
-    this->UndoMove();
-    }
-    return s;
+//    vector<int> moves;
+//    string s = IndentString(indent)+ StateToString(m);
+//    this->GetMoves(moves);
+//    for(int i=0;i<moves.size();i++){
+//    this->DoMove(moves[i]);
+//    s+=GameToString(indent+1,moves[i]);
+//    this->UndoMove();
+//    }
+//    return s;
 }
 
 string PGameState::StateToString(int m){

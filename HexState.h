@@ -30,8 +30,9 @@ public:
     void UndoMoves(int beg);
     int UndoMove();
     int PlyJustMoved();
+    int GetMoves(vector<int>& moves,GEN& engine);
     int GetMoves(vector<int>& moves);
-    void DoRandGame(boost::mt19937& engine);
+    void DoRandGame(GEN& engine);
     float GetResult(int plyjm);
     bool GameOver();
     int CurrIndicator();
