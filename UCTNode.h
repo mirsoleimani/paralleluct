@@ -26,17 +26,19 @@ public:
     UCTNode(int m, UCTNode<T>* parent, int plyjm);
     UCTNode(const UCTNode<T>& orig);
     virtual ~UCTNode();
-    UCTNode<T>* UCTSelectChild(float cp);
+    UCTNode<T>* UCTSelectChild(float cp, int rand);
     void CreateChildren(T& state, GEN& engine);
+    void CreateChildren2(T& state, int* random, int& randIndex);
     bool ChildrenEmpty();
     int GetUntriedMoves();
     UCTNode<T>* AddChild(T& state, GEN& engine);
+    UCTNode<T>* AddChild2(T& state, int* random, int& randIndex);
     void Update(float result);
     string TreeToString(int indent);
     string NodeToString();
     string IndentString(int indent);
 
-            //UCTNode<T>* UCTSelect(T& state,float cp);
+    //UCTNode<T>* UCTSelect(T& state,float cp);
     //UCTNode<T>* AddChild();
     //UCTNode<T>* Expand(T& state, ENG& engine);
     //    static bool CompareNode(UCTNode<T>* a, UCTNode<T>* b) {
@@ -45,7 +47,6 @@ public:
 private:
     int move;
     int pjm;
-    //double wins;
     std::atomic_int wins;
     std::atomic_int visits;
     int untriedMoves;
@@ -57,6 +58,7 @@ private:
 template <class T>
 UCTNode<T>::UCTNode(int m, UCTNode<T>* pr, int plyjm) : move(m), visits(0), wins(0), children(NULL), parent(pr), pjm(plyjm) {
     untriedMoves = 999999;
+    
 }
 
 template <class T>
@@ -90,6 +92,20 @@ UCTNode<T>* UCTNode<T>::AddChild(T& state, GEN& engine) {
     }
     return n;
 }
+template <class T>
+UCTNode<T>* UCTNode<T>::AddChild2(T& state, int* random, int& randIndex) {
+    std::lock_guard<std::mutex> lock(mtx);
+    UCTNode<T>* n = this;
+    if (children.empty()&& untriedMoves==999999) {
+        CreateChildren2(state, random,randIndex);
+    }
+    if(untriedMoves>0){
+    int idx = --untriedMoves;
+    n = children[idx];
+    state.DoMove(n->move);
+    }
+    return n;
+}
 
 template <class T>
 void UCTNode<T>::CreateChildren(T& state, GEN& engine) {
@@ -100,7 +116,32 @@ void UCTNode<T>::CreateChildren(T& state, GEN& engine) {
     //assert(untriedMoves > 0 && "there is no more moves!");
     if (untriedMoves > 0) {
         int plyToMove = CLEAR - state.PlyJustMoved();
-#pragma unroll(16)
+//#pragma unroll(16)
+        for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
+            children.push_back(new UCTNode(*itr, this, plyToMove));
+        }
+    } else {
+        untriedMoves = -1;
+    }
+}
+template <class T>
+void UCTNode<T>::CreateChildren2(T& state, int* random,int &randIndex) {
+    assert(children.size() == 0 && "Create The size of children is not zero!\n");
+    vector<int> moves;
+    state.GetMoves(moves);
+    untriedMoves = moves.size();
+    
+    vector<int>::iterator __first = moves.begin();
+    vector<int>::iterator __last = moves.end();
+    if (__first != __last)
+        for (vector<int>::iterator __i = __first + 1; __i != __last; ++__i){
+            //random[randIndex] = random[randIndex]+(*__i*2);
+            int rand = random[randIndex++];
+            std::iter_swap(__i, __first + (rand % ((__i - __first) + 1)));
+        }
+    if (untriedMoves > 0) {
+        int plyToMove = CLEAR - state.PlyJustMoved();
+
         for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); ++itr) {
             children.push_back(new UCTNode(*itr, this, plyToMove));
         }
@@ -115,26 +156,71 @@ void UCTNode<T>::Update(float result) {
     visits++;
 }
 
+
 template <class T>
-UCTNode<T>* UCTNode<T>::UCTSelectChild(float cp) {
+UCTNode<T>* UCTNode<T>::UCTSelectChild(float cp,int rand) {
     assert(!children.empty() && "children is empty. can not select next move!\n");
-    float max_val = 0;
-    float loc_val = 0;
-    UCTNode<T> *n = NULL;
-    float val1, val2;
-    float l = 2.0 * log((float) this->visits);
-#pragma unroll(16)
-    for (iterator itr = children.begin(); itr != children.end(); itr++) {
-        //assert((*itr)->visits>0 && "The children has not visited yet UCT Select Child.");
-        val1 = (*itr)->wins / (float) ((*itr)->visits + 1);
-        val2 = cp * sqrt(l / (float) ((*itr)->visits + 1));
-        loc_val = val1 + val2;
-        if (n == NULL || max_val < loc_val) {
-            n = *itr;
-            max_val = loc_val;
+
+//    UCTNode<T> *n = NULL;
+    UCTNode<T> *n = children[rand%children.size()];
+
+    float l = 2.0 * logf((float) this->visits);
+    
+#ifdef CILKSELECT
+    std::vector<float> loc_val;
+    loc_val.resize(children.size());
+    cilk::reducer< cilk::op_max_index<unsigned, float> > best;
+    
+    for (int i = 0; i < children.size(); i++) {
+        float val1 = children[i]->wins / (float) (children[i]->visits + 1);
+        float val2 = cp * sqrtf(l / (float) (children[i]->visits + 1));
+        loc_val[i] = (val1 + val2);
+    }
+
+    cilk_for(unsigned i = 0; i < loc_val.size(); ++i) {
+        best->calc_max(i, loc_val[i]);
+    }
+    
+    n = children[best->get_index_reference()];
+#else
+
+    float max_val2 = 0.0;
+    int index = -1;
+    std::vector<float> loc_val;
+    loc_val.resize(children.size());
+
+    for (int i = 0; i < children.size(); i++) {
+        float val1 = children[i]->wins / (float) (children[i]->visits + 1);
+        float val2 = cp * sqrtf(l / (float) (children[i]->visits + 1));
+        loc_val[i] = (val1 + val2);
+    }
+
+    for (int i = 0; i < loc_val.size(); i++) {
+        if (max_val2 < loc_val[i]) {
+            index = i;
+            max_val2 = loc_val[i];
         }
     }
 
+    if (index >= 0)
+        n = children[index];
+
+    //version 2
+    //        float max_val = 0.0;
+    //        for (iterator itr = children.begin(); itr != children.end(); itr++) {
+    //            //assert((*itr)->visits>0 && "The children has not visited yet UCT Select Child.");
+    //            int visits = (*itr)->visits + 1;
+    //            float val1 = (*itr)->wins / (float) (visits);
+    //            float val2 = cp * sqrtf(l / (float) (visits));
+    //            float loc_val = val1 + val2;
+    //            if (n == NULL || max_val < loc_val) {
+    //                n = *itr;
+    //                max_val = loc_val;
+    //            }
+    //        }
+#endif
+
+    //version 1
     //    for (iterator itr = children.begin(); itr != children.end(); itr++) {
     //        (*itr)->val = (double((*itr)->wins) / (double((*itr)->visits)) + (cp * sqrt(2.0 * log(double(visits)) / (double((*itr)->visits)))));
     //    }

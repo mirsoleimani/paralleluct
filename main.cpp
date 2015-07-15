@@ -12,6 +12,8 @@
 #include "PGameState.h"
 #include "HexState.h"
 #include <thread>
+#include <cilk/cilk.h>
+#include <cilktools/cilkview.h>
 //#include <boost/nondet_random.hpp>
 //#include <boost/random/uniform_int.hpp>
 using namespace std;
@@ -20,10 +22,11 @@ using namespace std;
  * 
  */
 template <typename T>
-void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int verbose) {
-
-    UCT<T> plya(optplya, verbose);
-    UCT<T> plyb(optplyb, verbose);
+void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose) {
+     cilkview_data_t d;
+#ifdef THREADPOOL
+    boost::threadpool::pool thread_pool(NTHREADS);
+#endif
     vector<int> plywin(3);
     vector<int> plywina(3);
     vector<int> plywinb(3);
@@ -36,30 +39,60 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
     std::random_device dev;
     vector<unsigned int> seeda(optplya.nthreads);
     vector<unsigned int> seedb(optplyb.nthreads);
+    
 
+    //Timer tmr;
+//    for (int j = 0; j < optplya.nthreads; j++) {
+////        seeda[j] = (unsigned int) dev();
+//        seeda[j]=1;
+//        assert(seeda[j] > 0 && "seed can not be negative\n");
+//        if (verbose)
+//         printf("#plya thread %d, seed=%u\n", j, seeda[j]);
+//    }
+//    for (int j = 0; j < optplyb.nthreads; j++) {
+////        seedb[j] = (unsigned int) dev();
+//        seedb[j]=1;
+//        assert(seedb[j] > 0 && "seed can not be negative\n");
+//        if (verbose)
+//          printf("#plyb thread %d, seed=%u\n", j, seedb[j]);
+//    }
+//    
+//    UCT<T> plya(optplya, verbose,seeda);
+//    UCT<T> plyb(optplyb, verbose,seedb);
+        
     while (i < ngames) {
         T state(rstate);
 
-        if (i % 2 == 0) {
+        if (swap) {
+            if (i % 2 == 0) {
+                black = "plya(B)";
+                white = "plyb(W)";
+            } else {
+                black = "plyb(B)";
+                white = "plya(W)";
+            }
+        } else {
             black = "plya(B)";
             white = "plyb(W)";
-        } else {
-            black = "plyb(B)";
-            white = "plya(W)";
         }
-
+        //
         for (int j = 0; j < optplya.nthreads; j++) {
             seeda[j] = (unsigned int) dev();
             assert(seeda[j] > 0 && "seed can not be negative\n");
-            //if (verbose)
-            // printf("#plya thread %d, seed=%u\n", j, seeda[j]);
+            //            if (verbose)
+            //             printf("#plya thread %d, seed=%u\n", j, seeda[j]);
         }
         for (int j = 0; j < optplyb.nthreads; j++) {
             seedb[j] = (unsigned int) dev();
             assert(seedb[j] > 0 && "seed can not be negative\n");
-            //if (verbose)
-            //  printf("#plyb thread %d, seed=%u\n", j, seedb[j]);
+            //            if (verbose)
+            //              printf("#plyb thread %d, seed=%u\n", j, seedb[j]);
         }
+        cout << "# plya seed = " << seeda[0] << endl;
+        UCT<T> plya(optplya, verbose, seeda);
+        cout << "# plyb seed = " << seedb[0] << endl;
+        UCT<T> plyb(optplyb, verbose, seedb);
+
         if (verbose) {
             cout << "# start game" << ","
                     << setw(8) << i << ","
@@ -75,19 +108,20 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                     << setw(10) << "expand(%)" << ","
                     << setw(10) << "playout(%)" << ","
                     << setw(10) << "backup(%)" << ","
+                    << setw(10) << "nrandvec" << ","
                     << setw(10) << "move" << endl;
         }
         if (verbose == 3) {
             strVisit.str().clear();
             strVisit.str(std::string());
-            strVisit<< "# start visit,"
+            strVisit << "# start visit,"
                     << setw(9) << i << ","
                     << setw(10) << black << ","
                     << setw(10) << white << endl;
         }
 
         int j = 0;
-        while (!state.GameOver()) {
+        while (!state.GameOver()&& j < nmoves) {
             string log = " ";
             string log2 = " ";
 
@@ -97,42 +131,94 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
             if (verbose == 3) {
                 vector<MOVE> moves;
                 state.GetMoves(moves);
-                
+
                 strVisit << setw(9) << "# move no." << ","
-                         << setw(10) << "player" << ",";
+                        << setw(10) << "player" << ",";
                 for (int i = 0; i < moves.size(); i++)
                     strVisit << moves[i] << ",";
                 strVisit << endl;
             }
-
             if (state.PlyJustMoved() == BLACK) {
                 ply = white;
                 if (white == "plya(W)") {
-                    plya.Run(state, move, seeda, log, log2);
+                    //cin>>move;
+                    if (optplya.threadruntime == 0)
+                        plya.Run(state, move, log, log2);
+#ifdef THREADPOOL
+                    else if (optplya.threadruntime == 1)
+                        plya.RunThreadPool(state, move, log, log2, thread_pool);
+#endif
+                    else if (optplya.threadruntime == 2)
+                        plya.RunCilk(state, move, log, log2);
+                    else if (optplya.threadruntime == 3)
+                        plya.RunTBB(state, move, log, log2);
+                    else if (optplya.threadruntime == 4)
+                        plya.RunCilkFor(state, move, log, log2);
                 } else {
-                    plyb.Run(state, move, seedb, log, log2);
+                    if (optplyb.threadruntime == 0)
+                        plyb.Run(state, move, log, log2);
+#ifdef THREADPOOL
+                    else if (optplyb.threadruntime == 1)
+                        plyb.RunThreadPool(state, move, log, log2, thread_pool);
+#endif
+                    else if (optplyb.threadruntime == 2){
+                        __cilkview_query(d);
+                        plya.RunCilk(state, move, log, log2);
+                        __cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                    }else if (optplyb.threadruntime == 3)
+                        plyb.RunTBB(state, move, log, log2);
+                    else if (optplyb.threadruntime == 4)
+                        plyb.RunCilkFor(state, move, log, log2);
+
                 }
             } else {
                 ply = black;
                 if (black == "plya(B)") {
-                    plya.Run(state, move, seeda, log, log2);
+                    //cin>>move;
+                    if (optplya.threadruntime == 0)
+                        plya.Run(state, move, log, log2);
+#ifdef THREADPOOL
+                    else if (optplya.threadruntime == 1)
+                        plya.RunThreadPool(state, move, log, log2, thread_pool);
+#endif
+                    else if (optplya.threadruntime == 2){
+                        __cilkview_query(d);
+                        plya.RunCilk(state, move, log, log2);
+                        __cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                    }else if (optplya.threadruntime == 3)
+                        plya.RunTBB(state, move, log, log2);
+                    else if (optplya.threadruntime == 4)
+                        plya.RunCilkFor(state, move, log, log2);
                 } else {
-                    plyb.Run(state, move, seedb, log, log2);
+                    
+                    if (optplyb.threadruntime == 0)
+                        plyb.Run(state, move, log, log2);
+#ifdef THREADPOOL
+                    else if (optplyb.threadruntime == 1)
+                        plyb.RunThreadPool(state, move, log, log2, thread_pool);
+#endif
+                    else if (optplyb.threadruntime == 2)
+                        plyb.RunCilk(state, move, log, log2);
+                    else if (optplyb.threadruntime == 3)
+                        plyb.RunTBB(state, move, log, log2);
+                    else if (optplyb.threadruntime == 4)
+                        plyb.RunCilkFor(state, move, log, log2);
+
                 }
 
             }
 
             state.DoMove(move);
 
-            if (verbose){
+            if (verbose) {
                 cout << setw(10) << ply << ",";
-            cout << log;
-            cout << setw(10) << move << endl;
+                cout << log;
+                cout << setw(10) << move << endl;
             }
             if (verbose == 2)
                 state.Print();
             if (verbose == 3) {
-                strVisit<< setw(9) << j << ","
+                strVisit << setw(9) << j << ","
                         << setw(10) << ply << ","
                         << log2 << endl;
             }
@@ -249,7 +335,7 @@ void NegamaxPlayGame(PGameState &s, int b, int d, int itr, int ntry, int seed, i
 
 int main(int argc, char** argv) {
 
-    int b = 4, d = 6, seed = -1, ngames = 1, vflag = 0;
+    int b = 4, d = 6, seed = -1, ngames = 1, vflag = 0,nmoves=99999, swap=1;
     char* game;
     char* par_a;
     char* par_b;
@@ -260,7 +346,7 @@ int main(int argc, char** argv) {
 
     char* gflag = "x";
     int hflag = 0;
-    while ((opt = getopt(argc, argv, "hpg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:")) != -1) {
+    while ((opt = getopt(argc, argv, "hpg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
@@ -317,6 +403,16 @@ int main(int argc, char** argv) {
             case 'f':
                 optplyb.cp = atof(optarg);
                 break;
+            case 'r':
+                optplya.threadruntime=atoi(optarg);
+                optplyb.threadruntime=atoi(optarg);
+                break;
+            case 'a':
+                nmoves=atoi(optarg);
+                break;
+            case 'c':
+                swap=atoi(optarg);
+                break;
             case '?':
                 if (optopt == 'g' || optopt == 'b' || optopt == 'd' || optopt == 'n' || optopt == 's')
                     fprintf(stderr, "Option -%opt requires an argument.\n", optopt);
@@ -352,6 +448,9 @@ int main(int argc, char** argv) {
                 << "\t-f\t\tThe value of cp(default=0) for the player b\n"
                 << "\t-v\t\tShow the output on screen(default=0)\n"
                 << "\t-s\t\tSeed to be used by random number generator\n"
+                << "\t-r\t\tThreading runtime for both player (default=2 none=0, boost thread pool=1, cilkplus=2, TBB=3)\n"
+                << "\t-a\t\tNumber of moves in a game\n"
+                << "\t-c\t\tTurn off swap rule(set to 0)\n"
                 << endl;
         exit(1);
     }
@@ -374,7 +473,17 @@ int main(int argc, char** argv) {
     } else {
         par_b = "seq";
     }
-
+    if(optplya.par==0){
+        optplya.nthreads=1;
+    }
+    if(optplyb.par==0){
+        optplyb.nthreads=1;
+    }
+    if(nmoves == 0 ){
+        cout<<"Can not run a game with zero moves\n";
+        exit(0);
+    }
+    
     if (gflag == "x") {
         printf("# plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
                 game, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
@@ -401,10 +510,10 @@ int main(int argc, char** argv) {
     
     if (gflag == "x") {
         HexGameState state(d);
-        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, vflag);
+        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag);
     } else if (gflag == "p") {
         PGameState state(b, d, 0x80, seed);
-        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames, vflag);
+        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag);
     }
 
     //NegamaxPlayGame(state,b,d,1,1,seed,false);

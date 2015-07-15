@@ -6,6 +6,7 @@
  */
 #include "Utilities.h"
 
+
 #ifndef HEXSTATE_H
 #define	HEXSTATE_H
 
@@ -32,6 +33,7 @@ public:
     int PlyJustMoved();
     int GetMoves(vector<int>& moves,GEN& engine);
     int GetMoves(vector<int>& moves);
+    int GetMoves();
     void DoRandGame(GEN& engine);
     float GetResult(int plyjm);
     bool GameOver();
@@ -62,6 +64,7 @@ private:
     
     vector< vector<int> > edges;
     vector<BItem> dsboard;      //the board for using disjoint set data structure
+    vector<int> lefPos;
     int dim;
     int size;
     int pjm;

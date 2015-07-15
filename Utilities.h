@@ -10,26 +10,39 @@
 #include <iostream>
 #include <vector>
 #include <time.h>
-#include <assert.h>
 #include <chrono>
 #include <random>
 #include <algorithm>
 #include <atomic>
 #include <sys/time.h>
 #include <stddef.h>
+#ifdef __INTEL_COMPILER
+#include <cilk/cilk.h>
+#include <cilk/cilk_api.h>
+#include <cilk/reducer_max.h>
+#endif
 
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
+#include <boost/thread/thread.hpp>
+#include "threadpool.hpp"
+//#include <boost/asio.hpp>
 
+
+//#define MKLRAND
+//#define CILKSELECT
+//#define TIMING
+#define THREADPOOL
+//#define VECRAND
+#define NDEBUG
+#include <assert.h>
 
 
 using namespace std;
 
 #ifndef UTILITIES_H
 #define	UTILITIES_H
-
-//#define NDEBUG
 
 #define POS(i,j,dim) i*dim+j       
 #define RandInt(n) ((int)((float)(n)*rand()/(RAND_MAX+1.0)))
@@ -40,11 +53,11 @@ using namespace std;
   #define max(n,m) (((n) > (m)) ? (n) ; (m))
 #endif
 #define INF 10000
-static inline float RandFloat_T(float low, float high, unsigned int *seed){
-    float t = (float)rand_r(seed) / (float)RAND_MAX;
-    return (1.0 - t) * low + t * high;
-}
 
+#define NSTREAMS 6024
+static const int MAXRAND_N=10000;
+static const int SIMDALIGN= 64;  
+static const int NTHREADS= 244;
 static const int TOPDOWN = 11;
 static const int LEFTRIGHT = 22;
 static const int BLACK = 1;
@@ -54,8 +67,18 @@ static const float WIN=1.0;
 static const float LOST=0.0;
 static const float DRAW=0.5;
 
-typedef int MOVE;
+//const FP_TYPE NUM_ONE = 1.0;
+//static inline FP_TYPE RandDouble(FP_TYPE low, FP_TYPE high){
+//    double t = (FP_TYPE)rand() / (FP_TYPE)RAND_MAX;
+//    return (NUM_ONE - t) * low + t * high;
+//}
 
+//static inline float RandFloat_T(float low, float high, unsigned int *seed){
+//    float t = (float)rand_r(seed) / (float)RAND_MAX;
+//    return (1.0 - t) * low + t * high;
+//}
+
+typedef int MOVE;
 
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
@@ -77,6 +100,7 @@ random_shuffle_custome(_RandomAccessIterator __first, _RandomAccessIterator __la
         for (_RandomAccessIterator __i = __first + 1; __i != __last; ++__i)
             std::iter_swap(__i, __first + (rand % ((__i - __first) + 1)));
 }
+
   
 class Timer {
 public:
@@ -86,6 +110,7 @@ public:
     }
 
     double elapsed() {
+        timespec end_;
         clock_gettime(CLOCK_REALTIME, &end_);
         return end_.tv_sec - beg_.tv_sec +
                 (end_.tv_nsec - beg_.tv_nsec) / 1000000000.;
@@ -102,7 +127,7 @@ public:
     }
 
 private:
-    timespec beg_, end_;
+    timespec beg_;//, end_;
 };
 
 

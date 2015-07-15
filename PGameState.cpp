@@ -83,6 +83,16 @@ int PGameState::GetMoves(vector<int>& moves){
     return breath;
 }
 
+int PGameState::GetMoves(){
+    vector<int> moves;
+    if(currDepth == depth) 
+        return -1;
+    for(int i=0;i<breath;i++){
+        moves.push_back(i);
+    }
+    return breath;
+}
+
 int PGameState::GetMoves(vector<int>& moves,GEN& engine){
     assert("It is not implemented!");
 }

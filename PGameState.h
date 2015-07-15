@@ -25,6 +25,7 @@ public:
     void UndoMoves(int beg);
     int GetMoves(vector<int>& moves, GEN& engine);
     int GetMoves(vector<int>& moves);
+    int GetMoves();
     float GetResult(int pjm);
     bool GameOver();
     int PlyJustMoved();
