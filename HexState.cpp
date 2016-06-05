@@ -53,13 +53,13 @@ HexGameState::~HexGameState() {
     lefPos.clear();
 }
 
-void HexGameState::NewGame() {
-    pjm = 2;
+void HexGameState::Reset() {
+    pjm = WHITE;    //In Hex, black plays first.
     moveCounter = 0;
     ClearBoard();
 }
 
-bool HexGameState::GameOver() {
+bool HexGameState::IsTerminal() {
     if (moveCounter >= (2 * dim - 1) && (BLACK == EvaluateBoard(BLACK, TOPDOWN) || WHITE == EvaluateBoard(WHITE, LEFTRIGHT))) {
         return true;
     } else {
@@ -152,57 +152,57 @@ void HexGameState::MakeEdges(int row, int col, vector<int>& eList) {
     }
 }
 
-void HexGameState::DoMove(int pos) {
+void HexGameState::SetMove(int pos) {
     assert(pos >= 0 && pos < size && dsboard[pos].val == CLEAR && "can not put stone on board!\n");
     pjm = CLEAR - pjm;
     PutStone(pos);
     moveCounter++;
 }
 
-int HexGameState::UndoMove() {
-    //    moveCounter--;
-    //    int m = moves[moveCounter];
-    //    ClearStone(m);
-    //    pjm = CLEAR - pjm;
-    //    return 1;
-}
+//int HexGameState::UndoMove() {
+//    //    moveCounter--;
+//    //    int m = moves[moveCounter];
+//    //    ClearStone(m);
+//    //    pjm = CLEAR - pjm;
+//    //    return 1;
+//}
 
-void HexGameState::UndoMoves(int beg) {
-    //    int i=moveCounter;
-    //
-    //    while (i > beg) {
-    //            UndoMove();
-    //            i--;
-    //    }
-    //    
-    //    int pos=moveCounter;
-    //    while(pos>=0){
-    //    dsboard[moves[pos]].parent=moves[pos];
-    //    dsboard[moves[pos]].rank=0;
-    //    pos--;
-    //    }
-    //    
-    //    UpdateSet();
-}
+//void HexGameState::UndoMoves(int beg) {
+//    //    int i=moveCounter;
+//    //
+//    //    while (i > beg) {
+//    //            UndoMove();
+//    //            i--;
+//    //    }
+//    //    
+//    //    int pos=moveCounter;
+//    //    while(pos>=0){
+//    //    dsboard[moves[pos]].parent=moves[pos];
+//    //    dsboard[moves[pos]].rank=0;
+//    //    pos--;
+//    //    }
+//    //    
+//    //    UpdateSet();
+//}
 
 int HexGameState::CurrIndicator() {
     return moveCounter;
 }
 
-int HexGameState::PlyJustMoved() {
+int HexGameState::GetPlyJM() {
     return pjm;
 }
 
-void HexGameState::DoRandGame(GEN& engine) {
-    vector<int> moves;
-    GetMoves(moves, engine);
-
-    int m = 0;
-    while (!GameOver()) {
-        DoMove(moves[m]);
-        m++;
-    }
-}
+//void HexGameState::DoRandGame(GEN& engine) {
+//    vector<int> moves;
+//    GetMoves(moves, engine);
+//
+//    int m = 0;
+//    while (!GameOver()) {
+//        SetMove(moves[m]);
+//        m++;
+//    }
+//}
 
 /**
  * Find the empty position on the board and store them in a vector.
@@ -211,23 +211,23 @@ void HexGameState::DoRandGame(GEN& engine) {
  * @param engine random number generator engine
  * @return a shuffled vector of moves
  */
-int HexGameState::GetMoves(vector<int>& moves, GEN& gen) {
-    assert(moves.size() == 0 && "The moves vector is not empty");
-    for (int pos = 0; pos < size; pos++) {
-        if (dsboard[pos].val == CLEAR)
-            moves.push_back(pos);
-    }
-    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
-
-    //DIST dist(0, moves.size() - 1);
-//    DIST dist(0,1);
-//    GEN gen(engine, dist);
-    
-    //boost::random_shuffle(moves, gen);
-    std::random_shuffle(moves.begin(),moves.end(),gen);
-
-    return moves.size();
-}
+//int HexGameState::GetMoves(vector<int>& moves, GEN& gen) {
+//    assert(moves.size() == 0 && "The moves vector is not empty");
+//    for (int pos = 0; pos < size; pos++) {
+//        if (dsboard[pos].val == CLEAR)
+//            moves.push_back(pos);
+//    }
+//    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
+//
+//    //DIST dist(0, moves.size() - 1);
+////    DIST dist(0,1);
+////    GEN gen(engine, dist);
+//    
+//    //boost::random_shuffle(moves, gen);
+//    std::random_shuffle(moves.begin(),moves.end(),gen);
+//
+//    return moves.size();
+//}
 
 /**
  * Find the empty position on the board.
@@ -244,15 +244,15 @@ int HexGameState::GetMoves(vector<int>& moves) {
     return moves.size();
 }
 
-int HexGameState::GetMoves() {
-    vector<int> moves;
-    for (int pos = 0; pos < size; pos++) {
-        if (dsboard[pos].val == CLEAR)
-            moves.push_back(pos);
-    }
-    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
-    return moves.size();
-}
+//int HexGameState::GetMoves() {
+//    vector<int> moves;
+//    for (int pos = 0; pos < size; pos++) {
+//        if (dsboard[pos].val == CLEAR)
+//            moves.push_back(pos);
+//    }
+//    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
+//    return moves.size();
+//}
 
 int HexGameState::PutStone(int pos) {
     dsboard[pos].val = pjm;
@@ -277,6 +277,10 @@ float HexGameState::GetResult(int plyjm) {
     }
 }
 
+int HexGameState::Evaluate(){
+    std::cout<<"Evalute for Hex should be Implemented\n";
+    exit(0);
+}
 float HexGameState::EvaluateBoard(int ply, int direction) {
     float m, n;
     //m= EvaluateDijkstra(ply,direction);

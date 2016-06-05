@@ -27,12 +27,13 @@
 #include <boost/random/variate_generator.hpp>
 #include <boost/thread/thread.hpp>
 #include "threadpool.hpp"
+#include <boost/assert.hpp>
 //#include <boost/asio.hpp>
 
 
 //#define MKLRAND
 //#define CILKSELECT
-//#define TIMING
+#define TIMING
 #define THREADPOOL
 //#define VECRAND
 #define NDEBUG
@@ -49,9 +50,9 @@ using namespace std;
 #define RandChar(n) ((char)((float)(n)*rand()/(RAND_MAX+1.0)))
 #define RandFloat(n) ((float)(v)*rand()/(RAND_MAX+1.0))
 #define MAX(n,m) ((n)>(m)?(n):(m))
-#ifndef max
-  #define max(n,m) (((n) > (m)) ? (n) ; (m))
-#endif
+//#ifndef max
+//  #define max(n,m) (((n) > (m)) ? (n) ; (m))
+//#endif
 #define INF 10000
 
 #define NSTREAMS 6024
@@ -79,6 +80,8 @@ static const float DRAW=0.5;
 //}
 
 typedef int MOVE;
+typedef std::vector<int> term;
+typedef std::vector<term> polynomial;
 
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
@@ -101,7 +104,7 @@ random_shuffle_custome(_RandomAccessIterator __first, _RandomAccessIterator __la
             std::iter_swap(__i, __first + (rand % ((__i - __first) + 1)));
 }
 
-  
+
 class Timer {
 public:
 
@@ -147,6 +150,62 @@ inline void PRINT_ELEMENTS(const T& coll, const char* optcstr = "") {
         std::cout << *pos << ' ';
     }
     std::cout << std::endl;
+}
+
+static unsigned GCD(unsigned u, unsigned v) {
+    while ( v != 0) {
+        unsigned r = u % v;
+        u = v;
+        v = r;
+    }
+    return u;
+}
+
+/**
+ * Generates all ordered subsets of size k. Should yield (n ncr k) elements.
+ * @param s Array to generate subsets from
+ * @param k Number of elements to pick
+ * @param t Temporary buffer. Should have size k.
+ * @param out List of subsets
+ * @param q Internal use
+ * @param r Internal use
+ */
+template <typename T>
+void genSubsets(const std::vector<T>& s, int k, std::vector<T>& t, std::vector<std::vector<T >> &out, int q = 0, int r = 0) {
+    if (k - q > s.size() - r) {
+        return;
+    }
+
+    if (q == k) {
+        out.push_back(t);
+    } else {
+        for (int i = r; i < s.size(); i++) {
+            t[q] = s[i];
+            genSubsets(s, k, t, out, q + 1, i + 1);
+        }
+    }
+}
+
+template <typename T>
+float getAverage(std::vector<T>& sample) {
+    T sum = 0;
+    for (T& s : sample) {
+        sum += s;
+    }
+
+    return sum / (float) sample.size();
+}
+
+template <typename T>
+float getStdDev(std::vector<T>& sample) {
+    float avg = getAverage(sample);
+
+    float sum = 0;
+    for (T& s : sample) {
+        sum += (s - avg) * (s - avg);
+    }
+
+    return sqrt(sum / (sample.size() - 1.0));
 }
 #endif	/* UTIITIES_H */
 
