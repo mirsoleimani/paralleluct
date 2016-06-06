@@ -14,9 +14,6 @@
 
 class GemPuzzleState {
 public:
-
-    class Item {
-    };
     GemPuzzleState();
     GemPuzzleState(const GemPuzzleState& orig);
     virtual ~GemPuzzleState();
