@@ -13,9 +13,13 @@
 
 GemPuzzleState::GemPuzzleState(const char* str) {
     MakeBoard(str);
+    _goal = _board;
+    std::sort(_goal.begin(), _goal.end());
+    std::fill(_fix.begin(),_fix.end(),-1);
 }
 
 GemPuzzleState::GemPuzzleState(const GemPuzzleState& orig) {
+    _goal = orig._goal;
     _board = orig._board;
     _edges = orig._edges;
     _zeroPos = orig._zeroPos;
@@ -29,7 +33,7 @@ GemPuzzleState::~GemPuzzleState() {
 /**
  * Converts @param str of the form
  * "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0"
- * to a state _puzzle. Update _board and _zeroPos.
+ * to a state. Update _board and _zeroPos.
  * Return the length of @param str as the size of the _board.
  * @param str
  * @return i
@@ -45,14 +49,13 @@ int GemPuzzleState::ParseToState(const char* str) {
     token = std::strtok(s.get(), ",");
     while (token) {
         assert(0 < atoi(token) < size && "The string is not valid!\n");
-        _puzzle.push_back(atoi(token));
+        _board.push_back(atoi(token));
         if (token == 0) {
             _zeroPos = i;
         }
         token = std::strtok(NULL, ",");
         i++;
     }
-    _board = _puzzle;
     return i;
 
 }
@@ -140,6 +143,14 @@ int GemPuzzleState::GetMoves(vector<int>& moves){
     assert(moves.empty() && "moves should be empty!\n");
     moves.insert(moves.begin(),_edges[_zeroPos].begin(),_edges[_zeroPos].end());
 }
+int GemPuzzleState::GetPlayoutMoves(vector<int>& moves){
+    assert(moves.empty() && "moves should be empty!\n");
+    for (int i = 0; i < _size; i++) {
+        if(_fix[i]==-1)
+            moves.push_back(_board[i]);
+    }
+    return moves.size();
+}
 /**
  * Swap the value of _zeroPos with @param move on the _board. Update the value
  * of _zeroPos.
@@ -151,7 +162,17 @@ void GemPuzzleState::SetMove(int move){
     _zeroPos = move;
     _pjm = WHITE;
 }
-
+void GemPuzzleState::SetPlayoutMoves(vector<int> moves){
+    int j=0;
+    for(int i=0;i<_fix.size();i++)
+    {
+        if(_fix[i]==-1){
+            _fix[i]=1;
+            _board[i] = moves[j];
+            j++;
+        }
+    }
+}
 int GemPuzzleState::GetPlyJM(){
     return _pjm;
 }
@@ -161,9 +182,12 @@ int GemPuzzleState::GetPlyJM(){
  */
 int GemPuzzleState::Evaluate(){
     for(int i=0;i<_size;i++){
-        _reward = std::abs(_board[i]-_puzzle[i]);
+        _reward = std::abs(_board[i]-_goal[i]);
     }
     return _reward;
+}
+bool GemPuzzleState::IsTerminal(){
+    
 }
 void GemPuzzleState::Print() {
     printf("*---*---*---*---*\n");

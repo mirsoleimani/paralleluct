@@ -20,7 +20,9 @@ public:
 
     void Reset();
     void SetMove(int move);
-    int GetMoves(vector<int>& moves); 
+    void SetPlayoutMoves(vector<int> moves);
+    int GetMoves(vector<int>& moves);
+    int GetPlayoutMoves(vector<int>& moves); 
     int GetPlyJM();
     int Evaluate();
     float GetResult(int plyjm);
@@ -32,8 +34,9 @@ protected:
     void MakeBoard(const char* str);
     void MakeEdges(int row, int col, vector<int>& list);
 private:
-    std::vector<int> _puzzle;   //the original position of the game.
-    std::vector<int> _board;    //the current position of the game.
+    std::vector<int> _goal; //the original position of the game.
+    std::vector<int> _board; //the current position of the game.
+    std::vector<int> _fix; //keep track of the tiles that already played (+1).
     std::vector<std::vector<int>> _edges;
     int _zeroPos;
     int _dim;

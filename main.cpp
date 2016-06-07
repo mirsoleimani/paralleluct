@@ -391,7 +391,88 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose){
 
 template <typename T>
 void UCTPlayGemPuzzle(T &rstate, PlyOptions optplya, int ngames, int verbose){
+        vector<unsigned int> seeda(optplya.nthreads);
+    std::random_device dev;
+    std::stringstream strVisit;
+    std::vector<int> res(ngames);
     
+    for(int i=0;i<ngames;i++){
+        T state(rstate);
+        string log = " ";
+        string log2 = " ";
+        int m;
+        for (int j = 0; j < optplya.nthreads; j++) {
+            seeda[j] = (unsigned int) dev();
+            assert(seeda[j] > 0 && "seed can not be negative\n");
+        }
+                if (verbose) {
+            cout << "# start game" << ","
+                    << setw(8) << i << ","
+                    << setw(10) << BLACK << ","
+                    << setw(10) << WHITE << ","
+                    << setw(10) << "?" << endl;
+
+            cout << setw(9) << "# move no." << ","
+                    << setw(10) << "player" << ","
+                    << setw(10) << "playout" << ","
+                    << setw(10) << "time" << ","
+                    << setw(10) << "select(%)" << ","
+                    << setw(10) << "expand(%)" << ","
+                    << setw(10) << "playout(%)" << ","
+                    << setw(10) << "backup(%)" << ","
+                    << setw(10) << "nrandvec" << ","
+                    << setw(10) << "move" << endl;
+        }
+        if (verbose == 3) {
+            strVisit.str().clear();
+            strVisit.str(std::string());
+            strVisit << "# start visit,"
+                    << setw(9) << i << ","
+                    << setw(10) << BLACK << ","
+                    << setw(10) << WHITE << endl;
+        }
+
+        UCT<T> plya(optplya, verbose, seeda);
+        int j=0;
+        while (!state.IsTerminal()) {
+            if (verbose) {
+                cout << setw(9) << j << ",";
+            }
+            if (verbose == 3) {
+                vector<MOVE> moves;
+                state.GetMoves(moves);
+
+                strVisit << setw(9) << "# move no." << ","
+                        << setw(10) << "player" << ",";
+                for (int i = 0; i < moves.size(); i++)
+                    strVisit << moves[i] << ",";
+                strVisit << endl;
+            }
+            plya.Run(state, m, log, log2);
+            state.SetMove(m);
+            if (verbose) {
+                cout << setw(10) << state.GetPlyJM() << ",";
+                cout << log;
+                cout << setw(10) << m << endl;
+            }
+            if (verbose == 2)
+                state.Print();
+            if (verbose == 3) {
+                strVisit << setw(9) << i << ","
+                        << setw(10) << state.GetPlyJM() << ","
+                        << log2 << endl;
+            }
+            j++;
+        }
+        res[i]=state.Evaluate();
+        //res[i]=state.GetResult(WHITE);
+        std::cout<<std::endl<<res[i]<<std::endl;
+        state.Reset(); //TODO: New game is not impelemented yet.
+    }
+    
+    std::cout << "Avg: " << getAverage(res) << std::endl;
+    std::cout << "Std: " << getStdDev(res) << std::endl;
+    std::cout << "Err: " << getStdDev(res) / sqrt(ngames) << std::endl;
 }
 // <editor-fold defaultstate="collapsed" desc="Negamax">
 //void NegamaxPlayGame(PGameState &s, int b, int d, int itr, int ntry, int seed, int verbose) {
@@ -689,10 +770,10 @@ int main(int argc, char** argv) {
         UCTPlayHorner<PolyState>(state,optplya, ngames,vflag);  
     }else if(gIndex == 4){
         //pars input file for puzzle
-        GemPuzzleState state("1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0");
+        GemPuzzleState state("14,1,9,6,4,8,12,5,7,2,3,0,10,11,13,15");
         //state.Print();
         
-        //UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
+        UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
     }
     //TODO a new method to get input from user is required. 
     
