@@ -16,7 +16,7 @@ public:
     Parser(const Parser& orig);
     virtual ~Parser();
     
-    polynomial parseFile(std::string filename);
+    polynomial parseFile(const char* filename);
 private:
 
 };

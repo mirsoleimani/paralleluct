@@ -14,27 +14,32 @@
 
 class GemPuzzleState {
 public:
-    GemPuzzleState();
+    GemPuzzleState(const char* str);
     GemPuzzleState(const GemPuzzleState& orig);
     virtual ~GemPuzzleState();
 
     void Reset();
     void SetMove(int move);
     int GetMoves(vector<int>& moves); 
-    int GetPlyJMd();
+    int GetPlyJM();
     int Evaluate();
     float GetResult(int plyjm);
     bool IsTerminal();
     void Print();
 protected:
-    void MakeBoard();
-    void MakeEdges(int row,int col,vector<int>& list);
+    int ParseToState(const char* str);
+    void ParseFileGemPuzzle(char* fileName);
+    void MakeBoard(const char* str);
+    void MakeEdges(int row, int col, vector<int>& list);
 private:
-    std::vector<int> _board;
+    std::vector<int> _puzzle;   //the original position of the game.
+    std::vector<int> _board;    //the current position of the game.
     std::vector<std::vector<int>> _edges;
     int _zeroPos;
     int _dim;
+    int _size;
     int _pjm;
+    int _reward; 
 
 };
 

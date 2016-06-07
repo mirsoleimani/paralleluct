@@ -11,21 +11,67 @@
 
 #include "GemPuzzleState.h"
 
-GemPuzzleState::GemPuzzleState() {
+GemPuzzleState::GemPuzzleState(const char* str) {
+    MakeBoard(str);
 }
 
 GemPuzzleState::GemPuzzleState(const GemPuzzleState& orig) {
+    _board = orig._board;
+    _edges = orig._edges;
+    _zeroPos = orig._zeroPos;
+    _dim = orig._dim;
+    _pjm = orig._pjm;
 }
 
 GemPuzzleState::~GemPuzzleState() {
 }
 
-void GemPuzzleState::MakeBoard(){
-    for (int i = 0; i < _dim; i++) {
+/**
+ * Converts @param str of the form
+ * "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0"
+ * to a state _puzzle. Update _board and _zeroPos.
+ * Return the length of @param str as the size of the _board.
+ * @param str
+ * @return i
+ */
+int GemPuzzleState::ParseToState(const char* str) {
+    int size = std::strlen(str) - 1;
+    assert((_size == 16 || _size == 25)&&"The state is not valid!\n");
+
+    char* token;
+    auto s = std::unique_ptr<char[]>(new char[std::strlen(str) + 1]); // +1 for the null terminator
+    int i = 0;
+    std::strcpy(s.get(), str);
+    token = std::strtok(s.get(), ",");
+    while (token) {
+        assert(0 < atoi(token) < size && "The string is not valid!\n");
+        _puzzle.push_back(atoi(token));
+        if (token == 0) {
+            _zeroPos = i;
+        }
+        token = std::strtok(NULL, ",");
+        i++;
+    }
+    _board = _puzzle;
+    return i;
+
+}
+void GemPuzzleState::MakeBoard(const char* str){
+    
+    _size = ParseToState(str);
+    _dim = sqrt(_size);
+
+    for(int i=0;i<_size;i++){
+        vector<int> list;
+        _edges.push_back(list);
+    }
+        
+    for (int i = 0; i < _dim; i++) {   
         for (int j = 0; j < _dim; j++) {
             MakeEdges(i,j,_edges[POS(i,j,_dim)]);
         }
     }
+        
 }
 /**
  * Create the adjacency list for each position on the board. An example of the 
@@ -106,14 +152,28 @@ void GemPuzzleState::SetMove(int move){
     _pjm = WHITE;
 }
 
-int GemPuzzleState::GetPlyJMd(){
+int GemPuzzleState::GetPlyJM(){
     return _pjm;
 }
-
-void GemPuzzleState::Print(){
+/**
+ * Calculating Manhattan-distance between _board and _puzzle.
+ * @return _reward 
+ */
+int GemPuzzleState::Evaluate(){
+    for(int i=0;i<_size;i++){
+        _reward = std::abs(_board[i]-_puzzle[i]);
+    }
+    return _reward;
+}
+void GemPuzzleState::Print() {
     printf("*---*---*---*---*\n");
     for (int i = 0; i < _dim; i++) {
-        printf("|%u  |%u  |%u  |%u  |\n", _board[POS(i,0,_dim)], _board[POS(i,1,_dim)], _board[POS(i,2,_dim)], _board[POS(i,3,_dim)]);
+        cout << "|" << setw(3) << _board[POS(i, 0, _dim)] <<
+                "|" << setw(3) << _board[POS(i, 1, _dim)] <<
+                "|" << setw(3) << _board[POS(i, 2, _dim)] <<
+                "|" << setw(3) << _board[POS(i, 3, _dim)] <<
+                "|" << std::endl;
+        //printf("|%u  |%u  |%u  |%u  |\n", _board[POS(i,0,_dim)], _board[POS(i,1,_dim)], _board[POS(i,2,_dim)], _board[POS(i,3,_dim)]);
         printf("*---*---*---*---*\n");
     }
 }

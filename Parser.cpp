@@ -18,8 +18,8 @@ Parser::Parser(const Parser& orig) {
 Parser::~Parser() {
 }
 
-polynomial Parser::parseFile(std::string filename) {
-    std::ifstream f(filename.c_str());
+polynomial Parser::parseFile(const char* filename) {
+    std::ifstream f(filename);
 
     if (!f.is_open()) {
         std::cerr << "Could not read file " << std::string(filename) << std::endl;

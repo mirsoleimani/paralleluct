@@ -315,9 +315,9 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose){
         string log = " ";
         string log2 = " ";
         int m;
-        for (int i = 0; i < optplya.nthreads; i++) {
-            seeda[i] = (unsigned int) dev();
-            assert(seeda[i] > 0 && "seed can not be negative\n");
+        for (int j = 0; j < optplya.nthreads; j++) {
+            seeda[j] = (unsigned int) dev();
+            assert(seeda[j] > 0 && "seed can not be negative\n");
         }
                 if (verbose) {
             cout << "# start game" << ","
@@ -473,7 +473,7 @@ int main(int argc, char** argv) {
     char* game;
     char* par_a;
     char* par_b;
-    string polyFileName;
+    char* polyFileName;
     PlyOptions optplya, optplyb;
 
     int opt;
@@ -551,7 +551,7 @@ int main(int argc, char** argv) {
                 swap = atoi(optarg);
                 break;
             case 'i':
-                polyFileName.assign(optarg);
+                polyFileName=optarg;
                 break;
             case '?':
                 if (optopt == 'g' || optopt == 'b' || optopt == 'd' || optopt == 'n' || optopt == 's')
@@ -689,8 +689,8 @@ int main(int argc, char** argv) {
         UCTPlayHorner<PolyState>(state,optplya, ngames,vflag);  
     }else if(gIndex == 4){
         //pars input file for puzzle
-        GemPuzzleState state();
-        //state.PrintPoly();
+        GemPuzzleState state("1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0");
+        //state.Print();
         
         //UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
     }
