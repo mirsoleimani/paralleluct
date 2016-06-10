@@ -33,6 +33,8 @@ public:
     int GetPlyJM();
     //int GetMoves(vector<int>& moves,GEN& engine);
     int GetMoves(vector<int>& moves);
+    void SetPlayoutMoves(vector<int>& moves);
+    int GetPlayoutMoves(vector<int>& moves);   
     //int GetMoves();
     //void DoRandGame(GEN& engine);
     int Evaluate();

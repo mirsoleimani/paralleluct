@@ -8,28 +8,45 @@
 #include <ios>
 #include <vector>
 #include <thread>
+#include <string.h>
 
 #include "GemPuzzleState.h"
 
-GemPuzzleState::GemPuzzleState(const char* str) {
+GemPuzzleState::GemPuzzleState(const char* str):_reward(0),_pjm(WHITE) {
     MakeBoard(str);
-    _goal = _board;
-    std::sort(_goal.begin(), _goal.end());
+    _board = _srcBoard;
+    _zeroPos = _srcZeroPos;
+    _dstBoard=_srcBoard;
+    _fix.resize(_size);
+    std::sort(_dstBoard.begin(), _dstBoard.end());
+    std::swap(_dstBoard[0],_dstBoard[_size-1]);
     std::fill(_fix.begin(),_fix.end(),-1);
+    _srcReward = Evaluate();
+    
 }
 
 GemPuzzleState::GemPuzzleState(const GemPuzzleState& orig) {
-    _goal = orig._goal;
+    _srcBoard = orig._srcBoard;
+    _dstBoard = orig._dstBoard;
     _board = orig._board;
+    _fix = orig._fix;
     _edges = orig._edges;
     _zeroPos = orig._zeroPos;
+    _srcZeroPos = orig._srcZeroPos;
     _dim = orig._dim;
+    _size = orig._size;
     _pjm = orig._pjm;
+    _reward = orig._reward;
+    _srcReward = orig._srcReward;
 }
 
 GemPuzzleState::~GemPuzzleState() {
 }
-
+void GemPuzzleState::Reset(){
+    _board=_srcBoard;
+    _zeroPos = _srcZeroPos;
+    std::fill(_fix.begin(),_fix.end(),-1);
+}
 /**
  * Converts @param str of the form
  * "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0"
@@ -39,19 +56,16 @@ GemPuzzleState::~GemPuzzleState() {
  * @return i
  */
 int GemPuzzleState::ParseToState(const char* str) {
-    int size = std::strlen(str) - 1;
-    assert((_size == 16 || _size == 25)&&"The state is not valid!\n");
-
     char* token;
     auto s = std::unique_ptr<char[]>(new char[std::strlen(str) + 1]); // +1 for the null terminator
     int i = 0;
     std::strcpy(s.get(), str);
     token = std::strtok(s.get(), ",");
     while (token) {
-        assert(0 < atoi(token) < size && "The string is not valid!\n");
-        _board.push_back(atoi(token));
-        if (token == 0) {
-            _zeroPos = i;
+        assert(0 < atoi(token) && "The string is not valid!\n");
+        _srcBoard.push_back(atoi(token));
+        if (!std::strcmp(token,"0")) {
+            _srcZeroPos = i;
         }
         token = std::strtok(NULL, ",");
         i++;
@@ -62,6 +76,8 @@ int GemPuzzleState::ParseToState(const char* str) {
 void GemPuzzleState::MakeBoard(const char* str){
     
     _size = ParseToState(str);
+    //TODO what is the right way of using assert here
+    //assert(!(size == 17 || size == 25)&&"The state is not valid!\n");
     _dim = sqrt(_size);
 
     for(int i=0;i<_size;i++){
@@ -147,7 +163,7 @@ int GemPuzzleState::GetPlayoutMoves(vector<int>& moves){
     assert(moves.empty() && "moves should be empty!\n");
     for (int i = 0; i < _size; i++) {
         if(_fix[i]==-1)
-            moves.push_back(_board[i]);
+            moves.push_back(i);
     }
     return moves.size();
 }
@@ -159,19 +175,21 @@ int GemPuzzleState::GetPlayoutMoves(vector<int>& moves){
  */
 void GemPuzzleState::SetMove(int move){
     std::swap(_board[_zeroPos],_board[move]);
+    _fix[_zeroPos]=1;
     _zeroPos = move;
     _pjm = WHITE;
 }
-void GemPuzzleState::SetPlayoutMoves(vector<int> moves){
-    int j=0;
-    for(int i=0;i<_fix.size();i++)
-    {
-        if(_fix[i]==-1){
-            _fix[i]=1;
-            _board[i] = moves[j];
-            j++;
-        }
-    }
+void GemPuzzleState::SetPlayoutMoves(vector<int>& moves){
+    std::cerr<<"GemPuzzleState::SetPlayoutMoves is not implemented!\n";
+    exit(0);
+//    int j=0;
+//    for(int i=0;i<_fix.size();i++)
+//    {
+//        if(_fix[i]==-1){
+//            std::swap(_board[i],_board[moves[j]]);
+//            j++;
+//        }
+//    }
 }
 int GemPuzzleState::GetPlyJM(){
     return _pjm;
@@ -182,12 +200,24 @@ int GemPuzzleState::GetPlyJM(){
  */
 int GemPuzzleState::Evaluate(){
     for(int i=0;i<_size;i++){
-        _reward = std::abs(_board[i]-_goal[i]);
+        _reward += std::abs(_board[i]-_dstBoard[i]);
     }
     return _reward;
 }
+float GemPuzzleState::GetResult(int plyjm){
+    return _srcReward/(float)_reward;
+}
 bool GemPuzzleState::IsTerminal(){
-    
+    int tmp=1;
+    for(auto i:_board){
+        if(i==tmp)
+            tmp++;
+    }
+    if(tmp == (_size-1)){
+        return true;
+    }else{
+        return false;
+    }
 }
 void GemPuzzleState::Print() {
     printf("*---*---*---*---*\n");

@@ -101,7 +101,14 @@ void PolyState::SetMove(int move){
     //TODO: _polyOrder.Insert all moves at once is more efficient method for horner.
     _polyOrder.push_back(move);
 }
-
+void PolyState::SetPlayoutMoves(vector<int>& moves){
+    std::cerr<<"HexGameState::SetPlayoutMoves is not implemented!\n";
+    exit(0);
+}
+int PolyState::GetPlayoutMoves(vector<int>& moves){
+    std::cerr<<"HexGameState::GetPlayoutMoves is not implemented!\n";
+    exit(0);
+}
 void PolyState::Reset(){
     _wReward = 0;
     _bReward = 0;

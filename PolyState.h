@@ -20,6 +20,8 @@ public:
     void Reset();
     void SetMove(int move);
     int GetMoves(term& moves);     //This method returns leftover variables
+    void SetPlayoutMoves(vector<int>& moves);
+    int GetPlayoutMoves(vector<int>& moves);    
     int GetPlyJM();
     float GetResult(int plyjm);
     int Evaluate();

@@ -253,7 +253,14 @@ int HexGameState::GetMoves(vector<int>& moves) {
 //    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
 //    return moves.size();
 //}
-
+void HexGameState::SetPlayoutMoves(vector<int>& moves){
+    std::cerr<<"HexGameState::SetPlayoutMoves is not implemented!\n";
+    exit(0);
+}
+int HexGameState::GetPlayoutMoves(vector<int>& moves){
+    std::cerr<<"HexGameState::GetPlayoutMoves is not implemented!\n";
+    exit(0);
+}
 int HexGameState::PutStone(int pos) {
     dsboard[pos].val = pjm;
     MakeSet(pos);

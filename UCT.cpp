@@ -551,15 +551,18 @@ template <class T>
 void UCT<T>::Playout(T& state, GEN& engine) {
 
     vector<int> moves;
-    state.GetMoves(moves); //TODO: Rename GetMoves to GetUntriedMoves
+    //state.GetMoves(moves); //TODO: Rename GetMoves to GetUntriedMoves
+    state.GetPlayoutMoves(moves);
     std::random_shuffle(moves.begin(), moves.end(), engine);
 
     // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached">
-    int m = 0;
-    while (!state.IsTerminal()) { 
-        state.SetMove(moves[m]);
-        m++;
-    }// </editor-fold>
+//    int m = 0;
+    state.SetPlayoutMoves(moves);
+//    while (!state.IsTerminal()) { 
+//        state.SetMove(moves[m]);
+//        m++;
+//    }
+    // </editor-fold>
 
     //TODO: Evaluate the current state
     state.Evaluate();

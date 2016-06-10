@@ -90,7 +90,7 @@ public:
          * state after the playout operation.
          * @param result
          */
-        void Update(int result) {
+        void Update(float result) {
             _visits++;
             _wins += result;
         }
@@ -114,7 +114,7 @@ public:
         //private:
         int _move;
         int _pjm;
-        std::atomic<unsigned long long> _wins;
+        float _wins;
         std::atomic_int _visits;
         std::atomic_int _untriedMoves;
         NodePtr _parent;
