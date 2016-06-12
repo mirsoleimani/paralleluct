@@ -302,8 +302,6 @@ void UCT<T>::RunThreadPool(const T& state, int& m, string& log1, string& log2, b
         tmr.reset();
         for (int i = 0; i < plyOpt.nthreads; i++) {
             thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, 0, std::ref(tmr)));
-
-
         }
 
     } else if (plyOpt.par == 2) {
@@ -318,8 +316,6 @@ void UCT<T>::RunThreadPool(const T& state, int& m, string& log1, string& log2, b
         tmr.reset();
         for (int i = 0; i < plyOpt.nthreads; i++) {
             thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, i, std::ref(tmr)));
-
-
         }
     } else if (plyOpt.par == 0) {
         /*create the root*/
@@ -327,9 +323,6 @@ void UCT<T>::RunThreadPool(const T& state, int& m, string& log1, string& log2, b
         //Timer tmr;
         tmr.reset();
         thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), 0, 0, std::ref(tmr)));
-
-
-
     }
 
     /*Join the threads with the main thread*/
@@ -444,9 +437,22 @@ void UCT<T>::Run(const T& state, int& m, string& log1, string& log2) {
 
     /*Find the best node*/
     T rootState(state);
-    Node* n = UCT<T>::Select(roots[0], rootState, 0);
-    m = n->_move;
+    vector<int>UCT;
+    UCT::Node* nn = roots[0];
+#ifdef MAXNUMVISITS
+    // <editor-fold defaultstate="collapsed" desc="extract number of visits for each children">
+    for (iterator itr = nn->_children.begin(); itr != nn->_children.end(); itr++) {
+        int visits = (*itr)->_visits;
+        UCT.push_back(visits);
+    }// </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
+    int index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
+    nn = nn->_children[index];// </editor-fold>
+#else
+    nn = UCT<T>::Select(roots[0], rootState, 0);
+#endif
+    m = nn->_move;
 
     if (verbose) {
         PrintStats_1(log1, ttime);
@@ -462,9 +468,7 @@ void UCT<T>::Run(const T& state, int& m, string& log1, string& log2) {
         delete (*itr);
     statistics.clear();
     threads.clear();
-}
-
-// </editor-fold>
+}// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="MCTS steps">
 
@@ -480,8 +484,13 @@ UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* node, T& state, float cp) {
 
         // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
         for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
-            float exploit = (*itr)->_wins / (float) ((*itr)->_visits);
-            float explore = cp * sqrtf(l / (float) ((*itr)->_visits));
+            int visits = (*itr)->_visits;
+            float wins = (*itr)->_wins;
+            float score = state.GetResult(WHITE);
+            assert(wins>0);
+            assert(score>0);
+            float exploit = score /(wins / (float) (visits));    //TODO this is not working for Hex
+            float explore = cp * sqrtf(l / (float) (visits));
             UCT.push_back(exploit + explore);
         }// </editor-fold>
 
@@ -549,19 +558,12 @@ UCT<T>::Node* UCT<T>::ExpandVecRand(UCT<T>::Node* node, T& state, int* random, i
 
 template <class T>
 void UCT<T>::Playout(T& state, GEN& engine) {
-
     vector<int> moves;
-    //state.GetMoves(moves); //TODO: Rename GetMoves to GetUntriedMoves
     state.GetPlayoutMoves(moves);
     std::random_shuffle(moves.begin(), moves.end(), engine);
 
     // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached">
-//    int m = 0;
     state.SetPlayoutMoves(moves);
-//    while (!state.IsTerminal()) { 
-//        state.SetMove(moves[m]);
-//        m++;
-//    }
     // </editor-fold>
 
     //TODO: Evaluate the current state

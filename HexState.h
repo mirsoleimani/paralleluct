@@ -25,6 +25,7 @@ public:
     HexGameState(int d);
     HexGameState(const HexGameState& orig);
     HexGameState& operator=(const HexGameState& orig);
+    HexGameState& operator =(HexGameState&& orig);
     virtual ~HexGameState();
     void Reset();
     void SetMove(int move);
@@ -35,13 +36,12 @@ public:
     int GetMoves(vector<int>& moves);
     void SetPlayoutMoves(vector<int>& moves);
     int GetPlayoutMoves(vector<int>& moves);   
-    //int GetMoves();
-    //void DoRandGame(GEN& engine);
     int Evaluate();
     float GetResult(int plyjm);
     bool IsTerminal();
     int CurrIndicator();
     void Print();
+    void PrintToFile(char* fileName);
     void PrintDSet();
     void PrintDSet2(int pos);
 

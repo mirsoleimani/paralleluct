@@ -28,6 +28,7 @@ public:
     float GetResult(int plyjm);
     bool IsTerminal();
     void Print();
+    void PrintToFile(char* fileName);
 protected:
     int ParseToState(const char* str);
     void ParseFileGemPuzzle(char* fileName);

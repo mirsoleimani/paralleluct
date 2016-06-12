@@ -47,6 +47,21 @@ HexGameState& HexGameState::operator=(const HexGameState& orig) {
     return *this;
 }
 
+HexGameState& HexGameState::operator =(HexGameState&& orig){
+        if (this == &orig) {
+        return *this;
+    }
+    dim = orig.dim;
+    size = orig.size;
+    pjm = orig.pjm;
+    moveCounter = orig.moveCounter;
+    edges = std::move(orig.edges);
+    dsboard = std::move(orig.dsboard);
+    lefPos = std::move(orig.lefPos);
+
+    return *this;
+}
+
 HexGameState::~HexGameState() {
     dsboard.clear();
     edges.clear();
@@ -54,7 +69,7 @@ HexGameState::~HexGameState() {
 }
 
 void HexGameState::Reset() {
-    pjm = WHITE;    //In Hex, black plays first.
+    pjm = WHITE; //In Hex, black plays first.
     moveCounter = 0;
     ClearBoard();
 }
@@ -83,13 +98,13 @@ void HexGameState::MakeBoard() {
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
             MakeEdges(i, j, edges[count++]);
-//            if (POS(i,j,dim) % dim == 0)
-//                lefPos.push_back(POS(i,j,dim));
+            //            if (POS(i,j,dim) % dim == 0)
+            //                lefPos.push_back(POS(i,j,dim));
         }
     }
-    
-    for(int i=0;i<size;i++)
-        if( i % dim == 0 )
+
+    for (int i = 0; i < size; i++)
+        if (i % dim == 0)
             lefPos.push_back(i);
 
 }
@@ -158,7 +173,6 @@ void HexGameState::SetMove(int pos) {
     PutStone(pos);
     moveCounter++;
 }
-
 //int HexGameState::UndoMove() {
 //    //    moveCounter--;
 //    //    int m = moves[moveCounter];
@@ -192,18 +206,6 @@ int HexGameState::CurrIndicator() {
 int HexGameState::GetPlyJM() {
     return pjm;
 }
-
-//void HexGameState::DoRandGame(GEN& engine) {
-//    vector<int> moves;
-//    GetMoves(moves, engine);
-//
-//    int m = 0;
-//    while (!GameOver()) {
-//        SetMove(moves[m]);
-//        m++;
-//    }
-//}
-
 /**
  * Find the empty position on the board and store them in a vector.
  * Apply a random shuffle on the vector.
@@ -244,23 +246,18 @@ int HexGameState::GetMoves(vector<int>& moves) {
     return moves.size();
 }
 
-//int HexGameState::GetMoves() {
-//    vector<int> moves;
-//    for (int pos = 0; pos < size; pos++) {
-//        if (dsboard[pos].val == CLEAR)
-//            moves.push_back(pos);
-//    }
-//    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
-//    return moves.size();
-//}
-void HexGameState::SetPlayoutMoves(vector<int>& moves){
-    std::cerr<<"HexGameState::SetPlayoutMoves is not implemented!\n";
-    exit(0);
+void HexGameState::SetPlayoutMoves(vector<int>& moves) {
+    int m = 0;
+    while (!IsTerminal()) {
+        SetMove(moves[m]);
+        m++;
+    }
 }
-int HexGameState::GetPlayoutMoves(vector<int>& moves){
-    std::cerr<<"HexGameState::GetPlayoutMoves is not implemented!\n";
-    exit(0);
+
+int HexGameState::GetPlayoutMoves(vector<int>& moves) {
+    return GetMoves(moves);
 }
+
 int HexGameState::PutStone(int pos) {
     dsboard[pos].val = pjm;
     MakeSet(pos);
@@ -283,11 +280,13 @@ float HexGameState::GetResult(int plyjm) {
         return (plyjm == EvaluateBoard(WHITE, LEFTRIGHT)) ? 1.0 : 0.0;
     }
 }
+// <editor-fold defaultstate="collapsed" desc="evaluation">
 
-int HexGameState::Evaluate(){
-    std::cout<<"Evalute for Hex should be Implemented\n";
+int HexGameState::Evaluate() {
+    std::cout << "Evalute for Hex should be Implemented\n";
     exit(0);
 }
+
 float HexGameState::EvaluateBoard(int ply, int direction) {
     float m, n;
     //m= EvaluateDijkstra(ply,direction);
@@ -300,10 +299,10 @@ float HexGameState::EvaluateDSet(int ply, int direction) {
 
     int player = CLEAR;
     if (direction == TOPDOWN) {
-//#pragma unroll(8)
+        //#pragma unroll(8)
         for (int pos1 = 0; pos1 < dim; pos1++) {
 
-        //cilk_for(int pos1 = 0; pos1 < dim; pos1++) {
+            //cilk_for(int pos1 = 0; pos1 < dim; pos1++) {
             if (dsboard[pos1].val == ply) {
                 int p = Find(pos1);
                 if (dsboard[p].top && dsboard[p].bottom) {
@@ -314,11 +313,11 @@ float HexGameState::EvaluateDSet(int ply, int direction) {
         }
     } else if (direction == LEFTRIGHT) {
         //for (int pos1 = 0; pos1 < size; pos1++) {
-        for(int pos1 = 0 ;pos1<dim;pos1++){
+        for (int pos1 = 0; pos1 < dim; pos1++) {
             //if (pos1 % dim == 0 && dsboard[pos1].val == ply) {
-             if(dsboard[lefPos[pos1]].val == ply){
+            if (dsboard[lefPos[pos1]].val == ply) {
                 //int p = Find(pos1);
-                 int p = Find(lefPos[pos1]);
+                int p = Find(lefPos[pos1]);
                 if (dsboard[p].left && dsboard[p].right) {
                     //return ply;
                     player = ply;
@@ -487,7 +486,9 @@ void HexGameState::Union(int pos1, int pos2) {
             dsboard[xroot].rank++;
         }
     }
-}
+}// </editor-fold>
+
+// <editor-fold defaultstate="collapsed" desc="print">
 
 void HexGameState::Print() {
     cout << "  ";
@@ -530,6 +531,11 @@ void HexGameState::Print() {
     //PrintDSet();
 }
 
+void HexGameState::PrintToFile(char* FilaName){
+    std::cerr<<"GemPuzzleState::PrintToFile is not implemented!\n";
+    exit(0);
+}
+
 void HexGameState::PrintDSet() {
 
     for (int pos = 0; pos < dsboard.size(); pos++) {
@@ -546,4 +552,5 @@ void HexGameState::PrintDSet2(int pos) {
         //<<" left "<<dsboard[pos].left<<" right "<<dsboard[pos].right<<endl;
     else
         PrintDSet2(dsboard[pos].parent);
-}
+}// </editor-fold>
+

@@ -231,3 +231,8 @@ void GemPuzzleState::Print() {
         printf("*---*---*---*---*\n");
     }
 }
+
+void GemPuzzleState::PrintToFile(char* FilaName){
+    std::cerr<<"GemPuzzleState::PrintToFile is not implemented!\n";
+    exit(0);
+}

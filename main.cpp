@@ -309,6 +309,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     std::random_device dev;
     std::stringstream strVisit;
     std::vector<int> res(ngames);
+    char fileName[100];
 
     for (int i = 0; i < ngames; i++) {
         T state(rstate);
@@ -356,12 +357,12 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                 vector<MOVE> moves;
                 state.GetMoves(moves);
 
-                strVisit << setw(9) << "# move no." << ","
+                strVisit << setw(9) << "move no." << ","
                         << setw(10) << "player" << ",";
                 for (int i = 0; i < moves.size(); i++)
                     strVisit << moves[i] << ",";
                 strVisit << endl;
-            }
+            }            
             plya.Run(state, m, log, log2);
             state.SetMove(m);
             if (verbose) {
@@ -372,108 +373,55 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             if (verbose == 2)
                 state.Print();
             if (verbose == 3) {
-                strVisit << setw(9) << i << ","
+                strVisit << setw(9) << j << ","
                         << setw(10) << state.GetPlyJM() << ","
                         << log2 << endl;
+            }
+            if (verbose == 4) {
+                std::sprintf(fileName, "%d.csv", m);
+                state.PrintToFile(fileName);
             }
             j++;
         }
         res[i] = state.Evaluate();
         //res[i]=state.GetResult(WHITE);
-        std::cout << std::endl << res[i] << std::endl;
+        //std::cout << std::endl << res[i] << std::endl;
         state.Reset(); //TODO: New game is not impelemented yet.
-    }
-
-    std::cout << "Avg: " << getAverage(res) << std::endl;
-    std::cout << "Std: " << getStdDev(res) << std::endl;
-    std::cout << "Err: " << getStdDev(res) / sqrt(ngames) << std::endl;
-}
-
-template <typename T>
-void UCTPlayGemPuzzle(T &rstate, PlyOptions optplya, int ngames, int verbose) {
-    vector<unsigned int> seeda(optplya.nthreads);
-    std::random_device dev;
-    std::stringstream strVisit;
-    std::vector<int> res(ngames);
-
-    for (int i = 0; i < ngames; i++) {
-        T state(rstate);
-        string log = " ";
-        string log2 = " ";
-        int m;
-        for (int j = 0; j < optplya.nthreads; j++) {
-            seeda[j] = (unsigned int) dev();
-            assert(seeda[j] > 0 && "seed can not be negative\n");
-        }
         if (verbose) {
-            cout << "# start game" << ","
-                    << setw(8) << i << ","
+            cout << "# end game" << ","
+                    << setw(10) << i << ","
                     << setw(10) << BLACK << ","
                     << setw(10) << WHITE << ","
-                    << setw(10) << "?" << endl;
+                    << setw(10) << res[i] << endl;
 
-            cout << setw(9) << "# move no." << ","
+            std::cout << "# start result" << std::endl;
+            std::cout << "# game no" << ","
                     << setw(10) << "player" << ","
-                    << setw(10) << "playout" << ","
-                    << setw(10) << "time" << ","
-                    << setw(10) << "select(%)" << ","
-                    << setw(10) << "expand(%)" << ","
-                    << setw(10) << "playout(%)" << ","
-                    << setw(10) << "backup(%)" << ","
-                    << setw(10) << "nrandvec" << ","
-                    << setw(10) << "move" << endl;
+                    << setw(10) << "result" << std::endl;
+            std::cout << setw(10) << i << ","
+                    << setw(10) << WHITE << ","
+                    << setw(10) << res[i] << std::endl;
+            std::cout << "# end result" << std::endl;
         }
         if (verbose == 3) {
-            strVisit.str().clear();
-            strVisit.str(std::string());
-            strVisit << "# start visit,"
-                    << setw(9) << i << ","
+            cout << strVisit.str()
+                    << "# end visit,"
+                    << setw(10) << i << ","
                     << setw(10) << BLACK << ","
                     << setw(10) << WHITE << endl;
         }
-
-        UCT<T> plya(optplya, verbose, seeda);
-        int j = 0;
-        while (!state.IsTerminal()) {
-            if (verbose) {
-                cout << setw(9) << j << ",";
-            }
-            if (verbose == 3) {
-                vector<MOVE> moves;
-                state.GetMoves(moves);
-
-                strVisit << setw(9) << "# move no." << ","
-                        << setw(10) << "player" << ",";
-                for (int i = 0; i < moves.size(); i++)
-                    strVisit << moves[i] << ",";
-                strVisit << endl;
-            }
-            plya.Run(state, m, log, log2);
-            state.SetMove(m);
-            if (verbose) {
-                cout << setw(10) << state.GetPlyJM() << ",";
-                cout << log;
-                cout << setw(10) << m << endl;
-            }
-            if (verbose == 2)
-                state.Print();
-            if (verbose == 3) {
-                strVisit << setw(9) << i << ","
-                        << setw(10) << state.GetPlyJM() << ","
-                        << log2 << endl;
-            }
-            j++;
-        }
-        res[i] = state.Evaluate();
-        //res[i]=state.GetResult(WHITE);
-        std::cout << std::endl << res[i] << std::endl;
-        state.Reset(); //TODO: New game is not impelemented yet.
     }
 
-    std::cout << "Avg: " << getAverage(res) << std::endl;
-    std::cout << "Std: " << getStdDev(res) << std::endl;
-    std::cout << "Err: " << getStdDev(res) / sqrt(ngames) << std::endl;
+    std::cout << "# start statistic" << std::endl;
+    std::cout << "# Avg" << ","
+            << setw(5) << "Std" << ","
+            << setw(5) << "Err" << std::endl;
+    std::cout << setw(5) << getAverage(res) << ","
+            << setw(5) << getStdDev(res) << ","
+            << setw(5) << getStdDev(res) / sqrt(ngames) << std::endl;
+    std::cout << "# end statistic" << std::endl;
 }
+
 // <editor-fold defaultstate="collapsed" desc="Negamax">
 //void NegamaxPlayGame(PGameState &s, int b, int d, int itr, int ntry, int seed, int verbose) {
 //    PGameState state(s);
@@ -722,8 +670,9 @@ int main(int argc, char** argv) {
         printf("# plyb game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
                 game, b, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b);
     } else if (gIndex == 3) {
-        printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
-                game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
+        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,cp\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%0.2f\n",
+                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
     } else if (gIndex == 4) {
         printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
                 game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
@@ -746,26 +695,16 @@ int main(int argc, char** argv) {
     if (gIndex == 1) {
         HexGameState state(d);
         UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
-    } else if (gflag == "p") {
+    } else if (gIndex == 2) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
-    }
-    //    else if(gflag=="h"){
-    //        //pars input file for polynomial
-    //        Parser parser;
-    //        polynomial poly = parser.parseFile(fileName);
-    //        PolyState state(poly);
-    //        //state.PrintPoly();
-    //        
-    //        UCTPlayHorner<PolyState>(state,optplya, ngames,vflag);
-    //    }
-
-    if (gIndex == 3) {
+    } else if (gIndex == 3) {
         //pars input file for polynomial
         Parser parser;
         polynomial poly = parser.parseFile(fileName);
         PolyState state(poly);
-        //state.PrintPoly();
+        if (vflag == 4)
+            state.PrintToFile("orig.csv");
 
         UCTPlayHorner<PolyState>(state, optplya, ngames, vflag);
     } else if (gIndex == 4) {
@@ -773,7 +712,6 @@ int main(int argc, char** argv) {
         exit(0);
         //pars input file for puzzle
         //GemPuzzleState state("14,1,9,6,4,8,12,5,7,2,3,0,10,11,13,15");
-        //state.Print();
 
         //UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
     }

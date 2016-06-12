@@ -14,23 +14,23 @@ using namespace std;
 #ifndef POLYSTATE_H
 #define	POLYSTATE_H
 
-class PolyState{
+class PolyState {
 public:
     PolyState(const polynomial poly);
     void Reset();
     void SetMove(int move);
-    int GetMoves(term& moves);     //This method returns leftover variables
+    int GetMoves(term& moves); //This method returns leftover variables
     void SetPlayoutMoves(vector<int>& moves);
-    int GetPlayoutMoves(vector<int>& moves);    
+    int GetPlayoutMoves(vector<int>& moves);
     int GetPlyJM();
     float GetResult(int plyjm);
     int Evaluate();
     bool IsTerminal();
     void Print();
-    void PrintPoly();
-    
+    void PrintToFile(char* fileName);
+
 protected:
-    int CountMultiplications();  
+    int CountMultiplications();
 
 private:
     float _wReward;
@@ -41,8 +41,8 @@ private:
     int _polyNumOps;
     int _polyNumMult;
     int _polyForward;
-    polynomial _poly;
-    term _polyOrder;    // This is the order of the variables   
+    vector<vector<int>> _poly;
+    vector<int> _polyOrder; // This is the order of the variables   
 };
 #endif	/* POLYSTATE_H */
 

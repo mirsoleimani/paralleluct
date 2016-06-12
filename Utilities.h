@@ -36,6 +36,7 @@
 #define TIMING
 #define THREADPOOL
 //#define VECRAND
+#define MAXNUMVISITS
 #define NDEBUG
 #include <assert.h>
 
