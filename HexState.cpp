@@ -5,11 +5,6 @@
  * Created on 6 november 2014, 16:23
  */
 
-#include <boost/nondet_random.hpp>
-
-#include "GameTree.h"
-
-
 #include "HexState.h"
 
 HexGameState::HexGameState(int d) {
@@ -173,63 +168,10 @@ void HexGameState::SetMove(int pos) {
     PutStone(pos);
     moveCounter++;
 }
-//int HexGameState::UndoMove() {
-//    //    moveCounter--;
-//    //    int m = moves[moveCounter];
-//    //    ClearStone(m);
-//    //    pjm = CLEAR - pjm;
-//    //    return 1;
-//}
-
-//void HexGameState::UndoMoves(int beg) {
-//    //    int i=moveCounter;
-//    //
-//    //    while (i > beg) {
-//    //            UndoMove();
-//    //            i--;
-//    //    }
-//    //    
-//    //    int pos=moveCounter;
-//    //    while(pos>=0){
-//    //    dsboard[moves[pos]].parent=moves[pos];
-//    //    dsboard[moves[pos]].rank=0;
-//    //    pos--;
-//    //    }
-//    //    
-//    //    UpdateSet();
-//}
-
-int HexGameState::CurrIndicator() {
-    return moveCounter;
-}
 
 int HexGameState::GetPlyJM() {
     return pjm;
 }
-/**
- * Find the empty position on the board and store them in a vector.
- * Apply a random shuffle on the vector.
- * @param moves empty vector
- * @param engine random number generator engine
- * @return a shuffled vector of moves
- */
-//int HexGameState::GetMoves(vector<int>& moves, GEN& gen) {
-//    assert(moves.size() == 0 && "The moves vector is not empty");
-//    for (int pos = 0; pos < size; pos++) {
-//        if (dsboard[pos].val == CLEAR)
-//            moves.push_back(pos);
-//    }
-//    assert(moves.size() <= size && "The number of untried moves is out of bound!\n");
-//
-//    //DIST dist(0, moves.size() - 1);
-////    DIST dist(0,1);
-////    GEN gen(engine, dist);
-//    
-//    //boost::random_shuffle(moves, gen);
-//    std::random_shuffle(moves.begin(),moves.end(),gen);
-//
-//    return moves.size();
-//}
 
 /**
  * Find the empty position on the board.
@@ -273,18 +215,32 @@ void HexGameState::ClearStone(int pos) {
     ClearSet(pos);
 }
 
+void HexGameState::UndoMoves(int beg){
+    std::cerr<<"UndoMoves is not implemented\n";
+    exit(0);
+}
+
+int HexGameState::GetMoveCounter(){
+        std::cerr<<"GetMoveCounter is not implemented\n";
+    exit(0);
+}
+
+// <editor-fold defaultstate="collapsed" desc="evaluation">
+
 float HexGameState::GetResult(int plyjm) {
     if (plyjm == BLACK) {
+        //return _bReward;
         return (plyjm == EvaluateBoard(BLACK, TOPDOWN)) ? 1.0 : 0.0;
     } else {
+        //return _wReward;
         return (plyjm == EvaluateBoard(WHITE, LEFTRIGHT)) ? 1.0 : 0.0;
     }
 }
-// <editor-fold defaultstate="collapsed" desc="evaluation">
 
-int HexGameState::Evaluate() {
-    std::cout << "Evalute for Hex should be Implemented\n";
-    exit(0);
+void HexGameState::Evaluate() {
+    //TODO merge Evaluate and GetResult
+    _bReward = (BLACK == EvaluateBoard(BLACK, TOPDOWN)) ? 1.0 : 0.0;
+    _wReward = (WHITE == EvaluateBoard(WHITE, LEFTRIGHT)) ? 1.0 : 0.0;
 }
 
 float HexGameState::EvaluateBoard(int ply, int direction) {
@@ -554,3 +510,32 @@ void HexGameState::PrintDSet2(int pos) {
         PrintDSet2(dsboard[pos].parent);
 }// </editor-fold>
 
+//int HexGameState::UndoMove() {
+//    //    moveCounter--;
+//    //    int m = moves[moveCounter];
+//    //    ClearStone(m);
+//    //    pjm = CLEAR - pjm;
+//    //    return 1;
+//}
+
+//void HexGameState::UndoMoves(int beg) {
+//    //    int i=moveCounter;
+//    //
+//    //    while (i > beg) {
+//    //            UndoMove();
+//    //            i--;
+//    //    }
+//    //    
+//    //    int pos=moveCounter;
+//    //    while(pos>=0){
+//    //    dsboard[moves[pos]].parent=moves[pos];
+//    //    dsboard[moves[pos]].rank=0;
+//    //    pos--;
+//    //    }
+//    //    
+//    //    UpdateSet();
+//}
+
+//int HexGameState::CurrIndicator() {
+//    return moveCounter;
+//}

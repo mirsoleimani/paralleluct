@@ -17,6 +17,7 @@ PolyState::PolyState(const polynomial poly) {
     _bReward = _polyNumOps;
     _polyNumVars = _poly.begin()->size() - 1; // number of vars. first is constant so -1
     _polyForward = 1;
+    _moveCounter=0;
 }
 
 int PolyState::CountMultiplications() {
@@ -63,7 +64,7 @@ float PolyState::GetResult(int plyjm) {
         return _bReward;
 }
 
-int PolyState::Evaluate() {
+void PolyState::Evaluate() {
     //Tree building assumes that var 0 is constant
     term order = _polyOrder;
     for (int i = 0; i < _polyOrder.size(); i++)
@@ -82,7 +83,7 @@ int PolyState::Evaluate() {
     _wReward = count; // //(float)_polyNumOps;
     _bReward = count; // //(float)_polyNumOps;
 
-    return count;
+    //return count;
 }
 
 bool PolyState::IsTerminal() {
@@ -99,6 +100,7 @@ int PolyState::GetPlyJM() {
 
 void PolyState::SetMove(int move) {
     _polyOrder.push_back(move);
+    _moveCounter++;
 }
 
 void PolyState::SetPlayoutMoves(vector<int>& moves) {
@@ -113,6 +115,18 @@ int PolyState::GetPlayoutMoves(vector<int>& moves) {
     return GetMoves(moves);
 }
 
+int PolyState::GetMoveCounter(){
+    return _moveCounter;
+}
+
+void PolyState::UndoMoves(int origMoveCounter) {
+    //int i=0;
+    while (_moveCounter>origMoveCounter) {
+        _polyOrder.pop_back();
+        _moveCounter--;
+    }
+    //_moveCounter = _polyOrder.size();
+}
 void PolyState::Reset() {
     _wReward = 0;
     _bReward = 0;
@@ -123,6 +137,7 @@ void PolyState::Reset() {
     _polyNumOps = _poly.size() + _polyNumMult;
     _polyNumVars = _poly.begin()->size() - 1; // number of vars. first is constant so -1
     _polyForward = 1;
+    _moveCounter = 0;
 }
 
 void PolyState::Print() {
@@ -152,8 +167,8 @@ void PolyState::Print() {
 
 void PolyState::PrintToFile(char* fileName) {
     std::ofstream ofs(fileName);
-    //std::string varnames = "abcdefghijklmnopqrstuvwxyz";
-    BOOST_ASSERT(_poly[0].size() - 1 <= varnames.size());
+//    std::string varnames = "abcdefghijklmnopqrstuvwxyz";
+//    BOOST_ASSERT(_poly[0].size() - 1 <= varnames.size());
 
     for (int i = 0; i < _poly.size(); i++) {
         //std::cout << _poly[i][0]; // constant

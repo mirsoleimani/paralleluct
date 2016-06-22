@@ -1,5 +1,3 @@
-#include <algorithm>
-
 #include "UCT.h"
 
 // <editor-fold defaultstate="collapsed" desc="Con/Destruction">
@@ -19,6 +17,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
     for (int i = 0; i < plyOpt.nthreads; i++)
         gengine.push_back(ENG(seed[i]));
 #endif
+    
 }
 
 template <class T>
@@ -41,54 +40,164 @@ UCT<T>::~UCT() {
 // </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="Run">
-
 template <class T>
-void UCT<T>::RunCilkFor(const T& state, int& m, string& log1, string& log2) {
+void UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
+
+    // <editor-fold defaultstate="collapsed" desc="initialize">
+    std::vector<std::thread> threads;
+    tbb::task_group g;
+
     T lstate(state);
     double ttime = 0;
     Timer tmr;
     for (int i = 0; i < plyOpt.nthreads; i++) {
         statistics.push_back(new TimeOptions());
-    }
+    }// </editor-fold>
 
-    if (plyOpt.par == 1) {
-        /*tree parallelization*/
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-
-        /*create threads*/
-        tmr.reset();
-
-        cilk_for(int i = 0; i < plyOpt.nthreads; i++) {
-            UCTSearch(lstate, i, 0, tmr);
-        }
-
-    } else if (plyOpt.par == 2) {
-        /*root parallelization*/
-        /*create the roots among threads*/
-
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        }
-        /*create threads*/
-        tmr.reset();
-
-        cilk_for(int i = 0; i < plyOpt.nthreads; i++) {
-            UCTSearch(lstate, i, i, tmr);
-        }
-    } else if (plyOpt.par == 0) {
-        //assert(seed[0] > 0 && "seed can not be negative!\n");
-        /*create the root*/
+    // <editor-fold defaultstate="collapsed" desc="fork">
+    // <editor-fold defaultstate="collapsed" desc="sequential">
+    if (plyOpt.par == SEQUENTIAL) {
+        /*create root of the tree*/
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
         tmr.reset();
         UCTSearch(lstate, 0, 0, tmr);
+        ttime=tmr.elapsed();
+    }// </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="tree parallelization">
+    else if (plyOpt.par == TREEPAR) {
+        /*create the root*/
+        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+        tmr.reset();
+        if (plyOpt.threadruntime == CPP11) {
+            
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                auto Search = std::bind(&UCT::UCTSearch,std::ref(*this),std::cref(lstate),i,0,tmr);
+                threads.push_back(std::thread(Search));
+                //threads.push_back(std::thread(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, 0, tmr));
+                assert(threads[i].joinable());
+            }
+            
+        } else if (plyOpt.threadruntime == THPOOL) {  
+#ifdef THREADPOOL
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, 0, tmr));
+            }
+#else
+            std::cerr << "THREADPOOL is not defined!\n";
+            exit(0);
+#endif           
+        } else if (plyOpt.threadruntime == CILKPSPAWN) {
+#ifdef __INTEL_COMPILER
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                cilk_spawn UCTSearch(lstate, i, 0, tmr);
+            }
+#else
+            std::cerr<<"No Intel compiler for cilk plus!\n";
+            exit(0);
+#endif
+        } else if (plyOpt.threadruntime == TBBTASKGROUP) {  
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, 0, tmr));
+            }            
+        } else if (plyOpt.threadruntime == CILKPFOR) {
+#ifdef __INTEL_COMPILER
+            cilk_for(int i = 0; i < plyOpt.nthreads; i++) {
+                UCTSearch(lstate, i, 0, tmr);
+            }
+#else
+            std::cerr<<"No Intel compiler for cilk plus!\n";
+            exit(0);
+#endif            
+        } else {
+            std::cerr << "No threading library is selected for tree parallelization!\n";
+            exit(0);
+        }
+    }// </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="root parallelization">
+    else if (plyOpt.par == ROOTPAR) {
+        /*create the roots among threads*/
+        for (int i = 0; i < plyOpt.nthreads; i++) {
+            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+        }
+        tmr.reset();
+        if (plyOpt.threadruntime == CPP11) {
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                auto Search = std::bind(&UCT::UCTSearch,std::ref(*this),std::cref(lstate),i,0,tmr);
+                threads.push_back(std::thread(Search));
+                //threads.push_back(std::thread(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, i, tmr));
+                assert(threads[i].joinable());
+            }
+        } else if (plyOpt.threadruntime == THPOOL) {            
+#ifdef THREADPOOL
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, i, tmr));
+            }
+#else
+            std::cerr<<"THREADPOOL is not defined!\n";
+            exit(0);
+#endif            
+        } else if (plyOpt.threadruntime == CILKPSPAWN) {
+#ifdef __INTEL_COMPILER
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                cilk_spawn UCTSearch(lstate, i, i, tmr);
+            }
+#else
+            std::cerr<<"No Intel compiler for cilk plus!\n";
+            exit(0);
+#endif          
+        } else if (plyOpt.threadruntime == TBBTASKGROUP) {
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, i, tmr));
+            }           
+        } else if (plyOpt.threadruntime == CILKPFOR) {
+            std::cerr < "Cilk plus for for root parallelization is not implemented!\n";
+            exit(0);
+
+            /*cilk_for(int i = 0; i < plyOpt.nthreads; i++) {
+                      UCTSearch(lstate, i, i, tmr);
+              }*/
+        } else {
+            std::cerr << "No threading library is selected for root parallelization!\n";
+            exit(0);
+        }
+    }// </editor-fold>
+
+    else {
+        std::cerr << "No parallel method (-y) is selected!\n";
+        exit(0);
+    }// </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="join">
+    if (plyOpt.threadruntime == CPP11) {
+        if (threads.size() > 0) {
+            std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
+        }
+    } else if (plyOpt.threadruntime == THPOOL) {
+#ifdef THREADPOOL
+        thread_pool.wait(0);
+#else
+        std::cerr << "THREADPOOL is not defined!\n";
+        exit(0);
+#endif
+    } else if (plyOpt.threadruntime == CILKPSPAWN) {
+#ifdef __INTEL_COMPILER
+        cilk_sync;
+#else
+        std::cerr << "No Intel compiler for cilk plus!\n";
+        exit(0);
+#endif
+    } else if (plyOpt.threadruntime == TBBTASKGROUP) {
+        g.wait();
+    }// </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="collect">
+    if(plyOpt.par==TREEPAR){
+        ttime=tmr.elapsed();
     }
-
-    /*Join the threads with the main thread*/
-    ttime = tmr.elapsed();
-
-    if (plyOpt.par == 2 && plyOpt.nthreads > 1) {
-        for (int j = 1; j < plyOpt.nthreads; j++) {
+    if (plyOpt.par == ROOTPAR) {
+        for (int j = 1; j < roots.size(); j++) {
             roots[0]->_wins += roots[j]->_wins;
             roots[0]->_visits += roots[j]->_visits;
             for (int i = 0; i < roots[0]->_children.size(); i++) {
@@ -100,341 +209,11 @@ void UCT<T>::RunCilkFor(const T& state, int& m, string& log1, string& log2) {
                 }
             }
         }
+        ttime = tmr.elapsed();
     }
+    // </editor-fold>
 
-    /*Find the best node*/
-    T rootstate(state);
-    UCT<T>::Node* n = UCT<T>::Select(roots[0], rootstate, 0);
-    m = n->_move;
-
-
-    if (verbose) {
-        PrintStats_1(log1, ttime);
-    }
-    if (verbose == 3) {
-        PrintStats_2(log2);
-    }
-
-    for (iterator itr = roots.begin(); itr != roots.end(); itr++)
-        delete (*itr);
-    roots.clear();
-    for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
-        delete (*itr);
-    statistics.clear();
-}
-
-template <class T>
-void UCT<T>::RunTBB(const T& state, int& m, string& log1, string& log2) {
-    tbb::task_group g;
-    T lstate(state);
-    double ttime = 0;
-    Timer tmr;
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        statistics.push_back(new TimeOptions());
-    }
-
-    if (plyOpt.par == 1) {
-        /*tree parallelization*/
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-
-        /*create threads*/
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, 0, std::ref(tmr)));
-        }
-
-    } else if (plyOpt.par == 2) {
-        /*root parallelization*/
-        /*create the roots among threads*/
-
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        }
-        /*create threads*/
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, i, std::ref(tmr)));
-        }
-    } else if (plyOpt.par == 0) {
-        //assert(seed[0] > 0 && "seed can not be negative!\n");
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        tmr.reset();
-        g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), 0, 0, std::ref(tmr)));
-    }
-
-    /*Join the threads with the main thread*/
-    g.wait();
-    ttime = tmr.elapsed();
-
-    if (plyOpt.par == 2 && plyOpt.nthreads > 1) {
-        for (int j = 1; j < plyOpt.nthreads; j++) {
-            roots[0]->_wins += roots[j]->_wins;
-            roots[0]->_visits += roots[j]->_visits;
-            for (int i = 0; i < roots[0]->_children.size(); i++) {
-                for (int k = 0; k < roots[j]->_children.size(); k++) {
-                    if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
-                        roots[0]->_children[i]->_wins += roots[j]->_children[k]->_wins;
-                        roots[0]->_children[i]->_visits += roots[j]->_children[k]->_visits;
-                    }
-                }
-            }
-        }
-    }
-
-    /*Find the best node*/
-    T rootstate(state);
-    UCT<T>::Node* n = UCT<T>::Select(roots[0], rootstate, 0);
-    m = n->_move;
-
-    if (verbose) {
-        PrintStats_1(log1, ttime);
-    }
-    if (verbose == 3) {
-        PrintStats_2(log2);
-    }
-
-    for (iterator itr = roots.begin(); itr != roots.end(); itr++)
-        delete (*itr);
-    roots.clear();
-    for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
-        delete (*itr);
-    statistics.clear();
-}
-
-template <class T>
-void UCT<T>::RunCilk(const T& state, int& m, string& log1, string& log2) {
-    T lstate(state);
-    double ttime = 0;
-    Timer tmr;
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        statistics.push_back(new TimeOptions());
-    }
-
-    if (plyOpt.par == 1) {
-        /*tree parallelization*/
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-
-        /*create threads*/
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            cilk_spawn UCTSearch(lstate, i, 0, tmr);
-        }
-
-    } else if (plyOpt.par == 2) {
-        /*root parallelization*/
-        /*create the roots among threads*/
-
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        }
-        /*create threads*/
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            cilk_spawn UCTSearch(lstate, i, i, tmr);
-        }
-    } else if (plyOpt.par == 0) {
-        //assert(seed[0] > 0 && "seed can not be negative!\n");
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        tmr.reset();
-        cilk_spawn UCTSearch(lstate, 0, 0, tmr);
-    }
-
-    /*Join the threads with the main thread*/
-    cilk_sync;
-    ttime = tmr.elapsed();
-
-    if (plyOpt.par == 2 && plyOpt.nthreads > 1) {
-        for (int j = 1; j < plyOpt.nthreads; j++) {
-            roots[0]->_wins += roots[j]->_wins;
-            roots[0]->_visits += roots[j]->_visits;
-            for (int i = 0; i < roots[0]->_children.size(); i++) {
-                for (int k = 0; k < roots[j]->_children.size(); k++) {
-                    if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
-                        roots[0]->_children[i]->_wins += roots[j]->_children[k]->_wins;
-                        roots[0]->_children[i]->_visits += roots[j]->_children[k]->_visits;
-                    }
-                }
-            }
-        }
-    }
-
-    /*Find the best node*/
-    T rootstate(state);
-    UCT<T>::Node* n = UCT<T>::Select(roots[0], rootstate, 0);
-    m = n->_move;
-
-
-    if (verbose) {
-        PrintStats_1(log1, ttime);
-    }
-    if (verbose == 3) {
-        PrintStats_2(log2);
-    }
-
-    for (iterator itr = roots.begin(); itr != roots.end(); itr++)
-        delete (*itr);
-    roots.clear();
-    for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
-        delete (*itr);
-    statistics.clear();
-}
-
-template <class T>
-void UCT<T>::RunThreadPool(const T& state, int& m, string& log1, string& log2, boost::threadpool::pool& thread_pool) {
-    T lstate(state);
-    double ttime = 0;
-    Timer tmr;
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        statistics.push_back(new TimeOptions());
-    }
-
-    if (plyOpt.par == 1) {
-        /*tree parallelization*/
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-
-        /*create threads*/
-        // Timer tmr;
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, 0, std::ref(tmr)));
-        }
-
-    } else if (plyOpt.par == 2) {
-        /*root parallelization*/
-        /*create the roots among threads*/
-
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        }
-        /*create threads*/
-        //Timer tmr;
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, i, std::ref(tmr)));
-        }
-    } else if (plyOpt.par == 0) {
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        //Timer tmr;
-        tmr.reset();
-        thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), 0, 0, std::ref(tmr)));
-    }
-
-    /*Join the threads with the main thread*/
-    thread_pool.wait(0);
-    ttime = tmr.elapsed();
-
-    //    Timer tmr1;
-    if (plyOpt.par == 2 /*&& plyOpt.nthreads > 1*/) {
-        for (int j = 1; j < plyOpt.nthreads; j++) {
-            roots[0]->_wins += roots[j]->_wins;
-            roots[0]->_visits += roots[j]->_visits;
-            int i = 0;
-            while (i < roots[0]->_children.size()) {
-                //for (int i = 0; i < roots[0]->_children.size(); i++) {
-                for (int k = 0; k < roots[j]->_children.size(); k++) {
-                    if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
-                        roots[0]->_children[i]->_wins += roots[j]->_children[k]->_wins;
-                        roots[0]->_children[i]->_visits += roots[j]->_children[k]->_visits;
-                        i++;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    //        printf("\n***%f***\n",tmr1.elapsed());
-    /*Find the best node*/
-    T rootstate(state);
-    UCT<T>::Node* n = UCT<T>::Select(roots[0], rootstate, 0);
-    m = n->_move;
-
-
-    if (verbose) {
-        PrintStats_1(log1, ttime);
-    }
-    if (verbose == 3) {
-        PrintStats_2(log2);
-    }
-
-    for (iterator itr = roots.begin(); itr != roots.end(); itr++)
-        delete (*itr);
-    roots.clear();
-    for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
-        delete (*itr);
-    statistics.clear();
-}
-
-template <class T>
-void UCT<T>::Run(const T& state, int& m, string& log1, string& log2) {
-    std::vector<std::thread> threads;
-    double ttime = 0;
-    Timer tmr;
-    T lstate(state);
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        statistics.push_back(new TimeOptions());
-    }
-
-    if (plyOpt.par == 1) {
-        /*tree parallelization*/
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-
-        /*create threads*/
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            threads.push_back(std::thread(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, 0, std::ref(tmr)));
-            assert(threads[i].joinable());
-        }
-
-    } else if (plyOpt.par == 2) {
-        /*root parallelization*/
-        /*create the roots among threads*/
-
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        }
-        /*create threads*/
-        tmr.reset();
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            threads.push_back(std::thread(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), i, i, std::ref(tmr)));
-            assert(threads[i].joinable());
-        }
-    } else if (plyOpt.par == 0) {
-        /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        tmr.reset();
-        threads.push_back(std::thread(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::ref(lstate), 0, 0, std::ref(tmr)));
-        assert(threads[0].joinable());
-        //UCTSearch(lstate, 0, 0, seed[0],tmr);
-    }
-
-    /*Join the threads with the main thread*/
-    if (threads.size() > 0) {
-        std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
-    }
-    ttime = tmr.elapsed();
-
-    if (plyOpt.par == 2 && plyOpt.nthreads > 1) {
-        for (int j = 1; j < plyOpt.nthreads; j++) {
-            roots[0]->_wins += roots[j]->_wins;
-            roots[0]->_visits += roots[j]->_visits;
-            for (int i = 0; i < roots[0]->_children.size(); i++) {
-                for (int k = 0; k < roots[j]->_children.size(); k++) {
-                    if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
-                        roots[0]->_children[i]->_wins += roots[j]->_children[k]->_wins;
-                        roots[0]->_children[i]->_visits += roots[j]->_children[k]->_visits;
-                    }
-                }
-            }
-        }
-    }
-
+    // <editor-fold defaultstate="collapsed" desc="select best child">
     /*Find the best node*/
     T rootState(state);
     vector<int>UCT;
@@ -448,65 +227,80 @@ void UCT<T>::Run(const T& state, int& m, string& log1, string& log2) {
 
     // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
     int index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
-    nn = nn->_children[index];// </editor-fold>
+    nn = nn->_children[index]; // </editor-fold>
 #else
     nn = UCT<T>::Select(roots[0], rootState, 0);
 #endif
-    m = nn->_move;
+    m = nn->_move; // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="log">
     if (verbose) {
         PrintStats_1(log1, ttime);
     }
     if (verbose == 3) {
         PrintStats_2(log2);
-    }
+    }// </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="free">
     for (iterator itr = roots.begin(); itr != roots.end(); itr++)
         delete (*itr);
     roots.clear();
     for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
         delete (*itr);
-    statistics.clear();
-    threads.clear();
-}// </editor-fold>
+    statistics.clear(); // </editor-fold>
+    
+}
+// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="MCTS steps">
 
 template <class T>
-UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* node, T& state, float cp) {
+typename UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* n, T& state) {
 
-    UCT<T>::Node* n = node;
     while (n->IsFullExpanded()) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
+        assert(n->_children.size()>0&&"_children can not be empty!\n");
         float l = 2.0 * logf((float) n->_visits);
         int index = -1;
+        float cp=plyOpt.cp;
         std::vector<float> UCT; // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
         for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
+
             int visits = (*itr)->_visits;
             float wins = (*itr)->_wins;
-            float score = state.GetResult(WHITE);
-            assert(wins>0);
-            assert(score>0);
-            float exploit = score /(wins / (float) (visits));    //TODO this is not working for Hex
+            assert(wins >= 0);
+            assert(visits > 0);
+
+            float exploit=0;
+            if (plyOpt.game == HORNER) {
+                float score = state.GetResult(WHITE);
+                assert(score > 0);
+                exploit = score / (wins / (float) (visits));
+            } else if (plyOpt.game == HEX) {
+                exploit = wins / (float) (visits);
+            }
             float explore = cp * sqrtf(l / (float) (visits));
+
             UCT.push_back(exploit + explore);
+
         }// </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
         index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));   //TODO: why max is better than min?
+        assert(index<n->_children.size() && "index is out of range\n");
         n = n->_children[index]; // </editor-fold>
 
         //TODO: Add child to current trajectory
-        state.SetMove(n->_move);
+        state.SetMove(n->_move);    /*this line could be removed*/
     }
     return n;
 
 }
 
 template <class T>
-UCT<T>::Node* UCT<T>::SelectVecRand(UCT<T>::Node* node, T& state, float cp, int* random, int &randIndex) {
+typename UCT<T>::Node* UCT<T>::SelectVecRand(UCT<T>::Node* node, T& state, float cp, int* random, int &randIndex) {
 
 //    UCT<T>::Node* n = node;
 //    //while (n->GetUntriedMoves() == 0 && !n->_children.empty()) {
@@ -518,36 +312,34 @@ UCT<T>::Node* UCT<T>::SelectVecRand(UCT<T>::Node* node, T& state, float cp, int*
 }
 
 template <class T>
-UCT<T>::Node* UCT<T>::Expand(UCT<T>::Node* node, T& state, GEN& engine) {
+typename UCT<T>::Node* UCT<T>::Expand(UCT<T>::Node* node, T& state, GEN& engine) {
 
     UCT<T>::Node* n = node;
     if (!state.IsTerminal()) {
-        //Check if n has already children
-        if (!n->IsParent()) {
-            // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
-            vector<int> moves;
-            //set the number of untried moves for n based on the current state
-            state.GetMoves(moves);
-            std::random_shuffle(moves.begin(), moves.end(), engine);
-            n->CreatChildren(moves,(state.GetPlyJM()==WHITE)?WHITE:BLACK);
-            // </editor-fold>
-
-        }
+        // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
+        vector<int> moves;
+        //set the number of untried moves for n based on the current state
+        state.GetMoves(moves);
+        std::random_shuffle(moves.begin(), moves.end(), engine);
+        n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
+        // </editor-fold>
 
         //TODO: Appending child could be happened in update phase.
+        //TODO: Append new node the trajectory
         // <editor-fold defaultstate="collapsed" desc="add new node child to n">
-        if (!n->IsFullExpanded()) {
-            //TODO: Append new node the trajectory
-            n = n->AddChild();
-            assert(n!=NULL&&"AddChild should not return a NULL pointer!\n");
-            state.SetMove(n->_move);
-        }// </editor-fold>
+        n = n->AddChild();
+        if (n != node) {
+            int m = n->_move;
+            assert(m > 0 && "move is not valid!\n");
+            state.SetMove(n->_move);    /*this line could be removed*/
+        }
+        // </editor-fold>
     }
     return n;
 }
 
 template <class T>
-UCT<T>::Node* UCT<T>::ExpandVecRand(UCT<T>::Node* node, T& state, int* random, int &randIndex) {
+typename UCT<T>::Node* UCT<T>::ExpandVecRand(UCT<T>::Node* node, T& state, int* random, int &randIndex) {
 
 //    UCT<T>::Node* n = NULL;
 //    n = node->AddChild2(state, random, randIndex);
@@ -609,11 +401,12 @@ void UCT<T>::Backup(UCT<T>::Node* node,T& state) {
 // <editor-fold defaultstate="collapsed" desc="Search">
 
 template <class T>
-void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer& tmr) {
+void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
+    
     /*Create a copy of the current state for each thread*/
-    //T state(rstate);
-    //T lstate(state);
     T lstate(rstate);
+    int origMoveCounter = lstate.GetMoveCounter();
+    float reward=std::numeric_limits<float>::infinity();
 
     UCT<T>::Node* n;
     TimeOptions* timeopt = statistics[sid];
@@ -629,8 +422,10 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer& tmr) {
 #endif
 
     int itr = 0;
-    int max = ceil(plyOpt.nsims / (float) plyOpt.nthreads);
-
+    //TODO is it thread safe to calculate max here?
+    float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
+    int max = ceil(nsims);
+    
 #ifdef VECRAND
     int umoves = lstate.GetMoves();
     int nRandItr = umoves * 2;
@@ -647,13 +442,13 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer& tmr) {
 
     timeopt->nrand++;
     errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random, 0, RAND_MAX);
-    CheckVslError(errCode);
+    CheckVslError(errCode); 
 #else
     DIST dist(0, 1);
     GEN gen(gengine[sid], dist);
 #endif
 
-    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs && itr < max) {
+    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs && itr < max && reward > plyOpt.minReward) {
 
 #ifdef VECRAND
         if (randIndex > limit) {
@@ -672,7 +467,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer& tmr) {
 #ifdef VECRAND
         n = SelectVecRand(n, lstate, plyOpt.cp, random, randIndex);
 #else
-        n = Select(n, lstate, plyOpt.cp);
+        n = Select(n, lstate);
 #endif        
 #ifdef TIMING
         timeopt->stime += tmr.elapsed() - time;
@@ -715,232 +510,18 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer& tmr) {
         assert(randIndex < RAND_N && "not enough random numbers");
 #endif
         //lstate = state;
+        reward = lstate.GetResult(WHITE);
+#ifdef COPYSTATE
         lstate = rstate;
+#else
+        lstate.UndoMoves(origMoveCounter);
+#endif
 
     }
 #ifdef VECRAND
     //_mm_free(random);
 #endif
-}
-
-template <class T>
-void UCT<T>::UCTSearchCilkFor(const T& rstate, int sid, int rid, Timer& tmr) {
-    /*Create a copy of the current state for each thread*/
-    T state(rstate);
-    T lstate(state);
-
-    UCT<T>::Node* n;
-    TimeOptions* timeopt = statistics[sid];
-
-    timeopt->nrand = 0;
-
-#ifdef TIMING
-    timeopt->stime = 0;
-    timeopt->btime = 0;
-    timeopt->ptime = 0;
-    timeopt->etime = 0;
-    double time = 0.0;
-#endif
-
-    int itr = 0;
-    int max = ceil(plyOpt.nsims / (float) plyOpt.nthreads);
-
-#ifdef VECRAND
-    int umoves = lstate.GetMoves();
-    int nRandItr = umoves * 2;
-    int RAND_N = max * 2 * umoves;
-    if (RAND_N > 16384 * 4)
-        RAND_N = 16384 * 4;
-    int random[RAND_N] __attribute__((aligned(SIMDALIGN)));
-    //int * random = (int *)_mm_malloc(RAND_N*sizeof(int), SIMDALIGN);
-
-    int errCode;
-
-    int limit = RAND_N - nRandItr;
-    int randIndex = 0;
-
-    timeopt->nrand++;
-    errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random, 0, RAND_MAX);
-    CheckVslError(errCode);
-#else
-    DIST dist(0, 1);
-    GEN gen(gengine[sid], dist);
-#endif
-
-    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs && itr < max) {
-
-#ifdef VECRAND
-        if (randIndex > limit) {
-            timeopt->nrand++;
-            errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random, 1, RAND_MAX);
-            CheckVslError(errCode);
-            randIndex = 0;
-        }
-#endif
-        n = roots[rid];
-        assert(n != NULL && "Root of the tree is zero!\n");
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-#ifdef VECRAND
-        n = SelectVecRand(n, lstate, plyOpt.cp, random, randIndex);
-#else
-        n = Select(n, lstate, plyOpt.cp);
-#endif        
-#ifdef TIMING
-        timeopt->stime += tmr.elapsed() - time;
-#endif
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-#ifdef VECRAND
-        n = ExpandVecRand(n, lstate, random, randIndex);
-#else
-        n = Expand(n, lstate, gen);
-#endif
-#ifdef TIMING
-        timeopt->etime += tmr.elapsed() - time;
-#endif
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-#ifdef VECRAND
-        PlayoutVecRand(lstate, random, randIndex);
-#else
-        Playout(lstate, gen);
-#endif
-#ifdef TIMING
-        timeopt->ptime += tmr.elapsed() - time;
-#endif
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-        Backup(n, lstate);
-#ifdef TIMING
-        timeopt->btime += tmr.elapsed() - time;
-#endif
-
-        itr++;
-#ifdef VECRAND
-        assert(randIndex < RAND_N && "not enough random numbers");
-#endif
-        lstate = state;
-
-    }
-#ifdef VECRAND
-    //_mm_free(random);
-#endif
-}
-
-template <class T>
-void UCT<T>::UCTSearchOMPFor(const T& rstate, int sid, int rid, Timer& tmr) {
-    /*Create a copy of the current state for each thread*/
-    T state(rstate);
-    T lstate(state);
-
-    UCT<T>::Node* n;
-    TimeOptions* timeopt = statistics[sid];
-    timeopt->nrand = 0;
-
-#ifdef TIMING
-    timeopt->stime = 0;
-    timeopt->btime = 0;
-    timeopt->ptime = 0;
-    timeopt->etime = 0;
-    double time = 0.0;
-#endif
-
-    int itr = 0;
-    int max = plyOpt.nsims;
-
-#ifdef VECRAND
-    __attribute__((aligned(64))) int random1[RAND_N];
-    ;
-    int errCode;
-
-    int umoves = lstate.GetMoves();
-    int limit = RAND_N - umoves * 20;
-    int randIndex = 0;
-
-    errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random1, 0, RAND_MAX);
-    CheckVslError(errCode);
-#else
-    DIST dist(0, 1);
-    GEN gen(gengine[sid], dist);
-#endif
-
-    for (itr = 0; itr < max; itr++) {
-
-#ifdef VECRAND
-        if (randIndex > limit) {
-            timeopt->nrand++;
-            errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random1, 1, RAND_MAX);
-            //printf("Generated %ld random numbers\nA[0]=%ld\n", RAND_N, random1[1]);
-            CheckVslError(errCode);
-            randIndex = 0;
-        }
-#endif
-        n = roots[rid];
-        assert(n != NULL && "Root of the tree is zero!\n");
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-#ifdef VECRAND
-        n = SelectVecRand(n, lstate, plyOpt.cp, random1, randIndex);
-#else
-        n = Select(n, lstate, plyOpt.cp);
-#endif        
-#ifdef TIMING
-        timeopt->stime += tmr.elapsed() - time;
-#endif
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-#ifdef VECRAND
-        n = ExpandVecRand(n, lstate, random1, randIndex);
-#else
-        n = Expand(n, lstate, gen);
-#endif
-#ifdef TIMING
-        timeopt->etime += tmr.elapsed() - time;
-#endif
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-#ifdef VECRAND
-        PlayoutVecRand(lstate, random1, randIndex);
-#else
-        Playout(lstate, gen);
-#endif
-#ifdef TIMING
-        timeopt->ptime += tmr.elapsed() - time;
-#endif
-
-#ifdef TIMING
-        time = tmr.elapsed();
-#endif
-        Backup(n, lstate);
-#ifdef TIMING
-        timeopt->btime += tmr.elapsed() - time;
-#endif
-
-        itr++;
-#ifdef VECRAND
-        assert(randIndex < RAND_N && "not enough random numbers");
-#endif
-        lstate = state;
-
-    }
-}
-
-// </editor-fold>
+}// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="Printing">
 

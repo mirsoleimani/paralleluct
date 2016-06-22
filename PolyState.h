@@ -24,8 +24,10 @@ public:
     int GetPlayoutMoves(vector<int>& moves);
     int GetPlyJM();
     float GetResult(int plyjm);
-    int Evaluate();
+    void Evaluate();
     bool IsTerminal();
+    int GetMoveCounter();
+    void UndoMoves(int origMoveCounter);
     void Print();
     void PrintToFile(char* fileName);
 
@@ -33,6 +35,7 @@ protected:
     int CountMultiplications();
 
 private:
+    int _moveCounter;
     float _wReward;
     float _bReward;
     int _pjm;

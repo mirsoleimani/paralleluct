@@ -29,17 +29,13 @@ public:
     virtual ~HexGameState();
     void Reset();
     void SetMove(int move);
-//    void UndoMoves(int beg);
-//    int UndoMove();
     int GetPlyJM();
-    //int GetMoves(vector<int>& moves,GEN& engine);
     int GetMoves(vector<int>& moves);
     void SetPlayoutMoves(vector<int>& moves);
     int GetPlayoutMoves(vector<int>& moves);   
-    int Evaluate();
+    
     float GetResult(int plyjm);
     bool IsTerminal();
-    int CurrIndicator();
     void Print();
     void PrintToFile(char* fileName);
     void PrintDSet();
@@ -53,15 +49,24 @@ public:
     void ClearStone(int pos);
     int PutStone(int pos);
     
+    void Evaluate();
     float EvaluateBoard(int plyjm, int direction);
+    
+    //dijkstra method
     float EvaluateDSet(int plyjm, int direction);
     float EvaluateDijkstra(int plyjm, int direction);
-    //disjoint set
+    
+    //disjoint set method
     void MakeSet(int pos);
     void ClearSet(int pos);
     void UpdateSet();
     int Find(int pos);
-    void Union(int pos1,int pos2);
+    void Union(int pos1, int pos2);
+
+        void UndoMoves(int beg);
+        int GetMoveCounter();
+    //    int UndoMove();
+    //int CurrIndicator();
     
 private:
     
@@ -72,7 +77,9 @@ private:
     int size;
     int pjm;
     int moveCounter;
-    //char x[56];
+    float _bReward;
+    float _wReward;
+
 };
 
 #endif	/* HEXSTATE_H */

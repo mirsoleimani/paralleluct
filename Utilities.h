@@ -16,50 +16,48 @@
 #include <atomic>
 #include <sys/time.h>
 #include <stddef.h>
-#ifdef __INTEL_COMPILER
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h>
-#include <cilk/reducer_max.h>
-#endif
+
 
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
+
+//#define THREADPOOL
+#ifdef THREADPOOL
 #include <boost/thread/thread.hpp>
 #include "threadpool.hpp"
 #include <boost/assert.hpp>
-//#include <boost/asio.hpp>
-
-
-//#define MKLRAND
-//#define CILKSELECT
-#define TIMING
-#define THREADPOOL
-//#define VECRAND
-#define MAXNUMVISITS
-#define NDEBUG
-#include <assert.h>
-
+#include <boost/asio.hpp>
+#endif
 
 using namespace std;
 
 #ifndef UTILITIES_H
 #define	UTILITIES_H
 
+//#define MKLRAND
+//#define VECRAND
+
+//#define CILKSELECT
+#define MAXNUMVISITS
+
+//#define TIMING
+
+#define NDEBUG
+#include <assert.h>
+
+#define LOCKFREE
+
+//#define COPYSTATE
+
 #define POS(i,j,dim) i*dim+j       
-#define RandInt(n) ((int)((float)(n)*rand()/(RAND_MAX+1.0)))
-#define RandChar(n) ((char)((float)(n)*rand()/(RAND_MAX+1.0)))
-#define RandFloat(n) ((float)(v)*rand()/(RAND_MAX+1.0))
 #define MAX(n,m) ((n)>(m)?(n):(m))
-//#ifndef max
-//  #define max(n,m) (((n) > (m)) ? (n) ; (m))
-//#endif
-#define INF 10000
 
 #define NSTREAMS 6024
 static const int MAXRAND_N=10000;
 static const int SIMDALIGN= 64;  
 static const int NTHREADS= 244;
+//static const int MAXTHREAD = 273;
 static const int TOPDOWN = 11;
 static const int LEFTRIGHT = 22;
 static const int BLACK = 1;
@@ -68,6 +66,26 @@ static const int CLEAR = 3;
 static const float WIN=1.0;
 static const float LOST=0.0;
 static const float DRAW=0.5;
+
+typedef int MOVE;
+typedef std::vector<int> term;
+typedef std::vector<term> polynomial;
+
+enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR};
+enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR};
+enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};
+
+//#define RandInt(n) ((int)((float)(n)*rand()/(RAND_MAX+1.0)))
+//#define RandChar(n) ((char)((float)(n)*rand()/(RAND_MAX+1.0)))
+//#define RandFloat(n) ((float)(v)*rand()/(RAND_MAX+1.0))
+
+//typedef std::mt19937 ENG; // Mersenne Twister
+//typedef std::uniform_int<int> DIST; // Uniform Distribution
+//typedef std::variate_generator<ENG&, DIST> GEN; // Variate generator
+
+typedef boost::mt19937 ENG; // Mersenne Twister
+typedef boost::uniform_int<int> DIST;
+typedef boost::variate_generator<ENG, DIST > GEN;
 
 //const FP_TYPE NUM_ONE = 1.0;
 //static inline FP_TYPE RandDouble(FP_TYPE low, FP_TYPE high){
@@ -79,18 +97,6 @@ static const float DRAW=0.5;
 //    float t = (float)rand_r(seed) / (float)RAND_MAX;
 //    return (1.0 - t) * low + t * high;
 //}
-
-typedef int MOVE;
-typedef std::vector<int> term;
-typedef std::vector<term> polynomial;
-
-//typedef std::mt19937 ENG; // Mersenne Twister
-//typedef std::uniform_int<int> DIST; // Uniform Distribution
-//typedef std::variate_generator<ENG&, DIST> GEN; // Variate generator
-
-typedef boost::mt19937 ENG; // Mersenne Twister
-typedef boost::uniform_int<int> DIST;
-typedef boost::variate_generator<ENG, DIST > GEN;
 
 template<typename _RandomAccessIterator>
 inline void
@@ -208,5 +214,7 @@ float getStdDev(std::vector<T>& sample) {
 
     return sqrt(sum / (sample.size() - 1.0));
 }
+
+
 #endif	/* UTIITIES_H */
 

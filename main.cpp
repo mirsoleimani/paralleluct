@@ -6,24 +6,16 @@
  */
 
 #include <cstdlib>
-//#include "GameTree.h"
-//#include "Alphabeta.h"
 #include "UCT.h"
 #include "PGameState.h"
 #include "HexState.h"
 #include "PolyState.h"
 #include "GemPuzzleState.h"
 #include "Parser.h"
-#include <thread>
-#include <cilk/cilk.h>
+//#include <cilk/cilk.h>
 //#include <cilktools/cilkview.h>
-//#include <boost/nondet_random.hpp>
-//#include <boost/random/uniform_int.hpp>
 using namespace std;
 
-/*
- * 
- */
 template <typename T>
 void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
     if (twoPly) {
@@ -44,26 +36,6 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
         vector<unsigned int> seeda(optplya.nthreads);
         vector<unsigned int> seedb(optplyb.nthreads);
 
-
-        //Timer tmr;
-        //    for (int j = 0; j < optplya.nthreads; j++) {
-        ////        seeda[j] = (unsigned int) dev();
-        //        seeda[j]=1;
-        //        assert(seeda[j] > 0 && "seed can not be negative\n");
-        //        if (verbose)
-        //         printf("#plya thread %d, seed=%u\n", j, seeda[j]);
-        //    }
-        //    for (int j = 0; j < optplyb.nthreads; j++) {
-        ////        seedb[j] = (unsigned int) dev();
-        //        seedb[j]=1;
-        //        assert(seedb[j] > 0 && "seed can not be negative\n");
-        //        if (verbose)
-        //          printf("#plyb thread %d, seed=%u\n", j, seedb[j]);
-        //    }
-        //    
-        //    UCT<T> plya(optplya, verbose,seeda);
-        //    UCT<T> plyb(optplyb, verbose,seedb);
-        //
         while (i < ngames) {
             T state(rstate);
 
@@ -151,71 +123,34 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                 if (state.GetPlyJM() == BLACK) {
                     ply = white;
                     if (white == "plya(W)") {
+                        
                         //cin>>move;
-                        if (optplya.threadruntime == 0)
-                            plya.Run(state, move, log, log2);
-#ifdef THREADPOOL
-                        else if (optplya.threadruntime == 1)
-                            plya.RunThreadPool(state, move, log, log2, thread_pool);
-#endif
-                        else if (optplya.threadruntime == 2)
-                            plya.RunCilk(state, move, log, log2);
-                        else if (optplya.threadruntime == 3)
-                            plya.RunTBB(state, move, log, log2);
-                        else if (optplya.threadruntime == 4)
-                            plya.RunCilkFor(state, move, log, log2);
+                        //__cilkview_query(d);
+                        plya.Run(state, move, log, log2);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                        
                     } else {
-                        if (optplyb.threadruntime == 0)
-                            plyb.Run(state, move, log, log2);
-#ifdef THREADPOOL
-                        else if (optplyb.threadruntime == 1)
-                            plyb.RunThreadPool(state, move, log, log2, thread_pool);
-#endif
-                        else if (optplyb.threadruntime == 2) {
-                            // __cilkview_query(d);
-                            plya.RunCilk(state, move, log, log2);
-                            // __cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
-                        } else if (optplyb.threadruntime == 3)
-                            plyb.RunTBB(state, move, log, log2);
-                        else if (optplyb.threadruntime == 4)
-                            plyb.RunCilkFor(state, move, log, log2);
-
+                        
+                        //__cilkview_query(d);
+                        plyb.Run(state, move, log, log2);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                        
                     }
                 } else {
                     ply = black;
                     if (black == "plya(B)") {
+                        
                         //cin>>move;
-                        if (optplya.threadruntime == 0)
-                            plya.Run(state, move, log, log2);
-#ifdef THREADPOOL
-                        else if (optplya.threadruntime == 1)
-                            plya.RunThreadPool(state, move, log, log2, thread_pool);
-#endif
-                        else if (optplya.threadruntime == 2) {
-                            //__cilkview_query(d);
-                            plya.RunCilk(state, move, log, log2);
-                            //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
-                        } else if (optplya.threadruntime == 3)
-                            plya.RunTBB(state, move, log, log2);
-                        else if (optplya.threadruntime == 4)
-                            plya.RunCilkFor(state, move, log, log2);
+                        //__cilkview_query(d);
+                        plya.Run(state, move, log, log2);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                        
                     } else {
 
-                        if (optplyb.threadruntime == 0)
-                            plyb.Run(state, move, log, log2);
-#ifdef THREADPOOL
-                        else if (optplyb.threadruntime == 1)
-                            plyb.RunThreadPool(state, move, log, log2, thread_pool);
-#endif
-                        else if (optplyb.threadruntime == 2)
-                            plyb.RunCilk(state, move, log, log2);
-                        else if (optplyb.threadruntime == 3)
-                            plyb.RunTBB(state, move, log, log2);
-                        else if (optplyb.threadruntime == 4)
-                            plyb.RunCilkFor(state, move, log, log2);
-
+                        //__cilkview_query(d);
+                        plyb.Run(state, move, log, log2);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
                     }
-
                 }
 
                 state.SetMove(move);
@@ -305,6 +240,7 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
 
 template <typename T>
 void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
+
     vector<unsigned int> seeda(optplya.nthreads);
     std::random_device dev;
     std::stringstream strVisit;
@@ -315,7 +251,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
         T state(rstate);
         string log = " ";
         string log2 = " ";
-        int m;
+        int move;
         for (int j = 0; j < optplya.nthreads; j++) {
             seeda[j] = (unsigned int) dev();
             assert(seeda[j] > 0 && "seed can not be negative\n");
@@ -362,13 +298,17 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                 for (int i = 0; i < moves.size(); i++)
                     strVisit << moves[i] << ",";
                 strVisit << endl;
-            }            
-            plya.Run(state, m, log, log2);
-            state.SetMove(m);
+            }
+            
+            //__cilkview_query(d);
+            plya.Run(state, move, log, log2);
+            //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+            
+            state.SetMove(move);
             if (verbose) {
                 cout << setw(10) << state.GetPlyJM() << ",";
                 cout << log;
-                cout << setw(10) << m << endl;
+                cout << setw(10) << move << endl;
             }
             if (verbose == 2)
                 state.Print();
@@ -378,12 +318,13 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                         << log2 << endl;
             }
             if (verbose == 4) {
-                std::sprintf(fileName, "%d.csv", m);
+                std::sprintf(fileName, "%d.csv", move);
                 state.PrintToFile(fileName);
             }
             j++;
         }
-        res[i] = state.Evaluate();
+        state.Evaluate();
+        res[i] = state.GetResult(WHITE);
         //res[i]=state.GetResult(WHITE);
         //std::cout << std::endl << res[i] << std::endl;
         state.Reset(); //TODO: New game is not impelemented yet.
@@ -471,7 +412,7 @@ static void ShowUsage(std::string name) {
     cerr << "Usage: " << name << " <option(s)> \n"
             << "Options:\n"
             //<< "\t-x\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4)\n"
-            << "\t-p\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4)\n"
+            << "\t-p\t\tThe game to play (default=0,hex=1,p-Game=2,horner=3,15-puzzle=4)\n"
             << "\t-b\t\tBreath of the tree\n"
             << "\t-d\t\tDepth of the tree or dimension of the board\n"
             << "\t-o\t\tMax number of playouts(default=5000) for player a\n"
@@ -487,7 +428,7 @@ static void ShowUsage(std::string name) {
             << "\t-f\t\tThe value of cp(default=0) for player b\n"
             << "\t-v\t\tShow the output on screen(default=0)\n"
             << "\t-s\t\tSeed to be used by random number generator\n"
-            << "\t-r\t\tThreading runtime for both players (default=2 none=0, boost thread pool=1, cilkplus=2, TBB=3)\n"
+            << "\t-r\t\tThreading runtime for both players (default=0 c++11=1, boost threadpool=2, cilk_spawn=2, Tbb_taskgroup=4, cilk_for=5)\n"
             << "\t-a\t\tNumber of moves in a game\n"
             << "\t-c\t\tTurn off swap rule(set to 0)\n"
             //<< "\t-j\t\tHorner(3),15puzzle(4)\n"
@@ -497,28 +438,23 @@ static void ShowUsage(std::string name) {
 
 int main(int argc, char** argv) {
 
-    int b = 4, d = 6, seed = -1, ngames = 1, vflag = 0, nmoves = 99999, swap = 1;
-    int gIndex = 0;
-    char* game;
-    char* par_a;
-    char* par_b;
-    char* fileName = "";
+    int b = 4, d = 6, seed = -1, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
+    char* game=const_cast<char*>("");
+    char* par_a=const_cast<char*>("");
+    char* par_b=const_cast<char*>("");
+    char* threadlib=const_cast<char*>("");
+    char* fileName=const_cast<char*>("");
     PlyOptions optplya, optplyb;
 
-    int opt;
-
-
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
-    char* gflag = "x";
-    int hflag = 0;
     while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
                 break;
             case 'p':
-                //gflag = "p";
-                gIndex = atoi(optarg);
+                optplya.game=atoi(optarg);
+                optplyb.game=atoi(optarg);
                 break;
             case 'b':
                 b = atoi(optarg);
@@ -570,8 +506,8 @@ int main(int argc, char** argv) {
                 optplyb.cp = atof(optarg);
                 break;
             case 'r':
-                optplya.threadruntime = atoi(optarg);
-                optplyb.threadruntime = atoi(optarg);
+                optplya.threadruntime=atoi(optarg);
+                optplyb.threadruntime=atoi(optarg);
                 break;
             case 'a':
                 nmoves = atoi(optarg);
@@ -580,7 +516,7 @@ int main(int argc, char** argv) {
                 swap = atoi(optarg);
                 break;
             case 'i':
-                fileName = optarg;
+                fileName = const_cast<char*>(optarg);
                 break;
             case '?':
                 if (optopt == 'g' || optopt == 'b' || optopt == 'd' || optopt == 'n' || optopt == 's')
@@ -601,23 +537,19 @@ int main(int argc, char** argv) {
         ShowUsage(argv[0]);
         exit(1);
     }
-    //    if (gflag == "x") {
-    //        game = "Hex";
-    //    } else if (gflag == "p") {
-    //        game = "p-game";
-    //    }
-    switch (gIndex) {
+
+    switch (optplya.game) {
         case 1:
-            game = "Hex";
+            game = const_cast<char*>("hex");
             break;
         case 2:
-            game = "P-game";
+            game = const_cast<char*>("p-game");
             break;
         case 3:
-            game = "Horner";
+            game = const_cast<char*>("horner");
             break;
         case 4:
-            game = "15-puzzle";
+            game = const_cast<char*>("15-puzzle");
             break;
         default:
             std::cerr << "No game is specified to be played!\n";
@@ -625,99 +557,115 @@ int main(int argc, char** argv) {
 
     switch (optplya.par) {
         case 1:
-            par_a = "tree";
+            par_a = const_cast<char*>("tree");
             break;
         case 2:
-            par_a = "root";
+            par_a = const_cast<char*>("root");
             break;
         default:
-            par_a = "seq";
+            par_a = const_cast<char*>("seq");
             break;
     }
-    //    if (optplya.par == 1) {
-    //        par_a = "tree";
-    //    } else if (optplya.par == 2) {
-    //        par_a = "root";
-    //    } else {
-    //        par_a = "seq";
-    //    }
-    if (optplyb.par == 1) {
-        par_b = "tree";
-    } else if (optplyb.par == 2) {
-        par_b = "root";
-    } else {
-        par_b = "seq";
+    
+        switch (optplyb.par) {
+        case 1:
+            par_b = const_cast<char*>("tree");
+            break;
+        case 2:
+            par_b = const_cast<char*>("root");
+            break;
+        default:
+            par_b = const_cast<char*>("seq");
+            break;
     }
+
     if (optplya.par == 0) {
         optplya.nthreads = 1;
     }
     if (optplyb.par == 0) {
         optplyb.nthreads = 1;
     }
+
+    switch (optplya.threadruntime) {
+        case THPOOL:
+            threadlib = const_cast<char*> ("threadpool");
+            break;
+        case CILKPSPAWN:
+            threadlib = const_cast<char*> ("cilk_spawn");
+            break;
+        case TBBTASKGROUP:
+            threadlib = const_cast<char*> ("tbb_taskgroup");
+            break;
+        case CILKPFOR:
+            threadlib = const_cast<char*> ("cilk_for");
+            break;
+        case CPP11:
+            threadlib = const_cast<char*> ("c++11");
+            break;
+        default:
+            threadlib = const_cast<char*> ("none");
+            break;
+    }
+    
     if (nmoves == 0) {
         cout << "Can not run a game with zero moves\n";
         exit(0);
     }
 
-    if (gIndex == 1) {
+    if (optplya.game == HEX) {
         printf("# plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
                 game, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
         printf("# plyb game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
                 game, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b, optplyb.cp);
-    } else if (gIndex == 2) {
+    } else if (optplya.game == PGAME) {
         printf("# plya game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
                 game, b, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
         printf("# plyb game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
                 game, b, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b);
-    } else if (gIndex == 3) {
-        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,cp\n");
-        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%0.2f\n",
-                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
-    } else if (gIndex == 4) {
+    } else if (optplya.game == HORNER) {
+        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f\n",
+                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a,threadlib, optplya.cp);
+    } else if (optplya.game == GEMPUZZLE) {
         printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
                 game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
     }
 
-
     for (int index = optind; index < argc; index++)
         printf("Non-option argument %s\n", argv[index]); // </editor-fold>
 
-
-    //        timeval time;
-    //        gettimeofday(&time, NULL);
-    //        seed = time.tv_sec + time.tv_usec;
-    //    srand(seed);
-    //    ENG engine(seed);
-    //    DIST dist(0,1);
-    //    GEN gen(engine, dist);
-    //    cout<<"***"<<rand()<<endl;
-
-    if (gIndex == 1) {
+    // <editor-fold defaultstate="collapsed" desc="play game">
+    if (optplya.game == HEX) {
         HexGameState state(d);
         UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
-    } else if (gIndex == 2) {
+    } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
-    } else if (gIndex == 3) {
+    } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;
         polynomial poly = parser.parseFile(fileName);
         PolyState state(poly);
-        if (vflag == 4)
-            state.PrintToFile("orig.csv");
 
+        if (vflag == 4)
+            state.PrintToFile(const_cast<char*> ("orig.csv"));
+
+        optplya.minReward = 4100;
         UCTPlayHorner<PolyState>(state, optplya, ngames, vflag);
-    } else if (gIndex == 4) {
+    } else if (optplya.game == GEMPUZZLE) {
         std::cerr << "15-puzzle is not implemented!\n";
         exit(0);
         //pars input file for puzzle
         //GemPuzzleState state("14,1,9,6,4,8,12,5,7,2,3,0,10,11,13,15");
 
         //UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
+    } else {
+        std::cerr << "Select a game to play!\n";
+        exit(0);
     }
     //TODO a new method to get input from user is required. 
 
-    //NegamaxPlayGame(state,b,d,1,1,seed,false);
+    //NegamaxPlayGame(state,b,d,1,1,seed,false);// </editor-fold>
 
     return 0;
 }
