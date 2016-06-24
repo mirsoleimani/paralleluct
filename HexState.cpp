@@ -7,6 +7,10 @@
 
 #include "HexState.h"
 
+HexGameState::HexGameState(){
+    
+}
+
 HexGameState::HexGameState(int d) {
     dim = d;
     size = d*d;

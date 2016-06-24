@@ -22,6 +22,7 @@ struct BItem{
 
 class HexGameState {
 public:
+    HexGameState();
     HexGameState(int d);
     HexGameState(const HexGameState& orig);
     HexGameState& operator=(const HexGameState& orig);

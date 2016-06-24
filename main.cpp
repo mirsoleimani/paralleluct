@@ -325,9 +325,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
         }
         state.Evaluate();
         res[i] = state.GetResult(WHITE);
-        //res[i]=state.GetResult(WHITE);
-        //std::cout << std::endl << res[i] << std::endl;
-        state.Reset(); //TODO: New game is not impelemented yet.
+
+        state.Reset();
         if (verbose) {
             cout << "# end game" << ","
                     << setw(10) << i << ","
@@ -587,6 +586,9 @@ int main(int argc, char** argv) {
     }
 
     switch (optplya.threadruntime) {
+        case TBBSPSPIPELINE:
+            threadlib = const_cast<char*> ("tbb_sps_pipeline");
+            break;
         case THPOOL:
             threadlib = const_cast<char*> ("threadpool");
             break;

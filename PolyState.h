@@ -16,6 +16,7 @@ using namespace std;
 
 class PolyState {
 public:
+    PolyState();
     PolyState(const polynomial poly);
     void Reset();
     void SetMove(int move);

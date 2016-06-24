@@ -103,12 +103,18 @@ void UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
         } else if (plyOpt.threadruntime == CILKPFOR) {
 #ifdef __INTEL_COMPILER
             cilk_for(int i = 0; i < plyOpt.nthreads; i++) {
-                UCTSearch(lstate, i, 0, tmr);
+                UCTSearchTBBSPSPipe(lstate, i, 0, tmr);
             }
 #else
             std::cerr<<"No Intel compiler for cilk plus!\n";
             exit(0);
 #endif            
+        } else if (plyOpt.threadruntime == TBBSPSPIPELINE) {
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                auto Search = std::bind(&UCT::UCTSearchTBBSPSPipe, std::ref(*this), std::cref(lstate), i, 0, tmr);
+                threads.push_back(std::thread(Search));
+                assert(threads[i].joinable());
+            }
         } else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
@@ -190,6 +196,8 @@ void UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
 #endif
     } else if (plyOpt.threadruntime == TBBTASKGROUP) {
         g.wait();
+    } else if (plyOpt.threadruntime == TBBSPSPIPELINE) {
+        std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
     }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="collect">
@@ -398,6 +406,132 @@ void UCT<T>::Backup(UCT<T>::Node* node,T& state) {
 
 // </editor-fold>
 
+// <editor-fold defaultstate="collapsed" desc="MCTS steps for pipeline">
+
+template <class T>
+typename UCT<T>::Token* UCT<T>::Select(Token* token) {
+    
+    vector<UCT<T>::Node*> &path=(*token)._path;
+    T &state = (*token)._state;
+    
+    path.clear();
+    
+    /*the first node in the path is root node*/
+    UCT<T>::Node* n = roots[0];
+    path.push_back(n);
+    while (n->IsFullExpanded()) {
+#ifdef VIRTUALLOSS
+        //TODO implement virtual loss
+#endif
+        
+        // <editor-fold defaultstate="collapsed" desc="initializing">
+        UCT<T>::Node* next=NULL;
+        assert(n->_children.size()>0&&"_children can not be empty!\n");
+        float l = 2.0 * logf((float) n->_visits);
+        int index = -1;
+        float cp=plyOpt.cp;
+        std::vector<float> UCT; // </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
+        for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
+
+            int visits = (*itr)->_visits;
+            float wins = (*itr)->_wins;
+            assert(wins >= 0);
+            assert(visits > 0);
+
+            float exploit=0;
+            if (plyOpt.game == HORNER) {
+                float score = state.GetResult(WHITE);
+                assert(score > 0);
+                exploit = score / (wins / (float) (visits));
+            } else if (plyOpt.game == HEX) {
+                exploit = wins / (float) (visits);
+            }
+            float explore = cp * sqrtf(l / (float) (visits));
+
+            UCT.push_back(exploit + explore);
+
+        }// </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
+        index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
+        assert(index<n->_children.size() && "index is out of range\n");
+        next = n->_children[index]; // </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="update path and state">
+        n = next;
+        path.push_back(n);
+        state.SetMove(n->_move); /*this line could be removed*/// </editor-fold>
+    }
+    return token;
+}
+
+template <class T>
+typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
+
+    vector<UCT<T>::Node*> &path = (*token)._path;
+    T &state = (*token)._state;
+    
+    UCT<T>::Node* n = path.back();
+    if (!state.IsTerminal()) {
+        // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
+        vector<int> moves;
+        //set the number of untried moves for n based on the current state
+        state.GetMoves(moves);
+        std::random_shuffle(moves.begin(), moves.end()); //TODO it is just for test not thread safe
+        n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
+        // </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="add new node child to n">
+        n = n->AddChild();
+        if (n != path.back()) {
+            int m = n->_move;
+            assert(m > 0 && "move is not valid!\n");
+            state.SetMove(n->_move);    /*this line could be removed*/
+        }
+        // </editor-fold>
+    }
+    return token;
+}
+
+template <class T>
+typename UCT<T>::Token* UCT<T>::Playout(Token* token) {
+
+    vector<UCT<T>::Node*> &path = (*token)._path;
+    T &state = (*token)._state;
+
+    // <editor-fold defaultstate="collapsed" desc="find untried moves and randomly suffle them">
+    vector<int> moves;
+    state.GetPlayoutMoves(moves);
+    std::random_shuffle(moves.begin(), moves.end());
+    //TODO it is just for test not thread safe// </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached, then evaluate">
+    state.SetPlayoutMoves(moves);
+    state.Evaluate();
+    // </editor-fold>
+    
+    return token;
+    
+}
+
+template <class T>
+void UCT<T>::Backup(Token* token) {
+
+    vector<UCT<T>::Node*> &path = (*token)._path;
+    T &state = (*token)._state;
+
+    UCT<T>::Node* n = path.back();
+    float rewardWhite = state.GetResult(WHITE);
+    float rewardBlack = state.GetResult(BLACK);
+    while (n != NULL) {
+        n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        n = n->_parent;
+    }
+    
+}// </editor-fold>
+
 // <editor-fold defaultstate="collapsed" desc="Search">
 
 template <class T>
@@ -522,6 +656,86 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     //_mm_free(random);
 #endif
 }// </editor-fold>
+
+template <class T>
+void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
+
+    /*Create a copy of the current state for each thread*/
+    UCT<T>::Token* t = new UCT<T>::Token(rstate, roots[rid]);
+    vector<UCT<T>::Node*> &path = (*t)._path;
+    T &state = (*t)._state;
+    int origMoveCounter = state.GetMoveCounter();
+    float reward = std::numeric_limits<float>::infinity();
+
+    UCT<T>::Node* n;
+    TimeOptions* timeopt = statistics[sid];
+
+    timeopt->nrand = 0;
+
+#ifdef TIMING
+    timeopt->stime = 0;
+    timeopt->btime = 0;
+    timeopt->ptime = 0;
+    timeopt->etime = 0;
+    double time = 0.0;
+#endif
+
+    int itr = 0;
+    //TODO is it thread safe to calculate max here?
+    float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
+    int max = ceil(nsims);
+
+    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs 
+            && itr < max 
+            && reward > plyOpt.minReward) {
+//        n = roots[rid];
+//        assert(n != NULL && "Root of the tree is zero!\n");
+
+#ifdef TIMING
+        time = tmr.elapsed();
+#endif
+        t = Select(t);    
+#ifdef TIMING
+        timeopt->stime += tmr.elapsed() - time;
+#endif
+
+#ifdef TIMING
+        time = tmr.elapsed();
+#endif
+        t = Expand(t);
+#ifdef TIMING
+        timeopt->etime += tmr.elapsed() - time;
+#endif
+
+#ifdef TIMING
+        time = tmr.elapsed();
+#endif
+        t=Playout(t);
+#ifdef TIMING
+        timeopt->ptime += tmr.elapsed() - time;
+#endif
+
+#ifdef TIMING
+        time = tmr.elapsed();
+#endif
+        Backup(t);
+#ifdef TIMING
+        timeopt->btime += tmr.elapsed() - time;
+#endif
+
+        itr++;
+        //reward = lstate.GetResult(WHITE);
+        
+#ifdef COPYSTATE
+        //lstate = rstate;
+#else
+        t->_state.UndoMoves(origMoveCounter);
+#endif
+
+    }
+    
+}
+
 
 // <editor-fold defaultstate="collapsed" desc="Printing">
 

@@ -7,6 +7,10 @@
 
 #include "PolyState.h"
 
+PolyState::PolyState(){
+
+}
+
 PolyState::PolyState(const polynomial poly) {
     _pjm = WHITE;
     _poly = poly;

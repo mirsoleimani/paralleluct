@@ -229,6 +229,21 @@ public:
         std::vector<Node*> _children;
     }; // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="token of the pipeline">
+
+    class Token {
+    public:
+        Token(const T s,Node* n) {
+            _state=s; //copy the state
+            _path.push_back(n);
+        }
+
+        ~Token();
+
+        T _state;
+        vector<Node*> _path;
+    }; // </editor-fold>
+
     typedef Node* NodePtr;
     typedef typename std::vector<NodePtr>::const_iterator const_iterator;
     typedef typename std::vector<NodePtr>::iterator iterator;
@@ -238,7 +253,7 @@ public:
     virtual ~UCT();
     
     void UCTSearch(const T& state, int sid, int rid, Timer tmr);
-    void UCTSearchTBBSPSPipe(const T& state, int sid, int rid, Timer& tmr);
+    void UCTSearchTBBSPSPipe(const T& state, int sid, int rid, Timer tmr);
 
     /*MCTS functions*/
     NodePtr Select(NodePtr node, T& state);
@@ -252,9 +267,10 @@ public:
     void PlayoutVecRand(T& state, int* random, int& randIndex);
 
     /*Pipeline functions*/
-    vector<NodePtr>* SelectExpandPath(T& state,vector<NodePtr>*);
-    vector<NodePtr>* PlayoutPath(vector<NodePtr> *path);
-    void BackupPath(vector<NodePtr> *path);
+    Token* Select(Token* token);
+    Token* Expand(Token* token);
+    Token* Playout(Token* token);
+    void Backup(Token* token);
     
     /*Print functions*/
     void PrintSubTree(NodePtr root);

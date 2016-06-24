@@ -71,7 +71,7 @@ typedef int MOVE;
 typedef std::vector<int> term;
 typedef std::vector<term> polynomial;
 
-enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR};
+enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
 enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR};
 enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};
 
