@@ -256,6 +256,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             seeda[j] = (unsigned int) dev();
             assert(seeda[j] > 0 && "seed can not be negative\n");
         }
+        optplya.seed = (unsigned int) dev();
         if (verbose) {
             cout << "# start game" << ","
                     << setw(8) << i << ","
@@ -272,7 +273,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                     << setw(10) << "playout(%)" << ","
                     << setw(10) << "backup(%)" << ","
                     << setw(10) << "nrandvec" << ","
-                    << setw(10) << "move" << endl;
+                    << setw(10) << "move" << ","
+                    << setw(10) << "reward" << endl;
         }
         if (verbose == 3) {
             strVisit.str().clear();
@@ -285,7 +287,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
 
         UCT<T> plya(optplya, verbose, seeda);
         int j = 0;
-        while (!state.IsTerminal()) {
+        T bestState;
+        while (!state.IsTerminal()&& j < 1) {
             if (verbose) {
                 cout << setw(9) << j << ",";
             }
@@ -301,14 +304,15 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             }
             
             //__cilkview_query(d);
-            plya.Run(state, move, log, log2);
+            bestState = plya.Run(state, move, log, log2);
             //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
             
             state.SetMove(move);
             if (verbose) {
                 cout << setw(10) << state.GetPlyJM() << ",";
                 cout << log;
-                cout << setw(10) << move << endl;
+                cout << setw(10) << move << ",";
+                cout <<setw(10)<<bestState.GetResult(WHITE)<<endl;
             }
             if (verbose == 2)
                 state.Print();
@@ -321,6 +325,10 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                 std::sprintf(fileName, "%d.csv", move);
                 state.PrintToFile(fileName);
             }
+            //TODO dynamic cp  more exploitation as the tree become smaller
+//            if(optplya.cp > 0.1){
+//            optplya.cp=optplya.cp-0.1;
+//            }
             j++;
         }
         state.Evaluate();

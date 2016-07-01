@@ -39,6 +39,8 @@ struct PlyOptions {
     int threadruntime=0;
     int game=0;
     bool verbose = false;
+    unsigned int seed=1;
+    int bestreward=4200;
 };
 
 struct TimeOptions {
@@ -59,7 +61,7 @@ class UCT {
 public:
      
     // <editor-fold defaultstate="collapsed" desc="node of the tree">
-    class Node {
+    struct Node {
     public:
         typedef typename std::vector<Node*>::const_iterator constItr;
 
@@ -178,8 +180,7 @@ public:
                 _isExpandable.store(true, std::memory_order_release);
             }
             /*wait for the _isExpandable signal*/
-            while (!_isParent&&!_isExpandable.load(std::memory_order_acquire)) {
-            }
+            //while (!_isParent&&!_isExpandable.load(std::memory_order_acquire)) {}
         }
 
         /**
@@ -190,23 +191,28 @@ public:
          * @return A pointer to the new expanded child.
          */
         Node* AddChild() {
-            int index = -1;
+            int index = 0;
 
             /* wait for the _isExpandable signal
              * http://en.cppreference.com/w/cpp/atomic/memory_order
              */
-            while (!_isParent&&!_isExpandable.load(std::memory_order_acquire)) {
-            }
+            //while (!_isParent&&!_isExpandable.load(std::memory_order_acquire)) {}
+            //while (!_isExpandable.load(std::memory_order_acquire)) {}
+            //TODO is it sufficient to check the following if condition?
+            if (_isParent&&_isExpandable.load(std::memory_order_acquire)) {
 
-            if ((index = --_untriedMoves) == 0) {
-                _isFullExpanded = true;
-            }
+                if ((index = --_untriedMoves) == 0) {
+                    _isFullExpanded = true;
+                }
 
-            if (index < 0) {
-                return this;
+                if (index < 0) {
+                    return this;
+                } else {
+                    assert(index >= 0 && "AddChild: There is no more child to expand!\n");
+                    return _children[index];
+                }
             } else {
-                assert(index >= 0 && "AddChild: There is no more child to expand!\n");
-                return _children[index];
+                return this;
             }
         }
 #endif
@@ -230,20 +236,43 @@ public:
     }; // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="token of the pipeline">
-
-    class Token {
+    
+    struct Identity{
     public:
-        Token(const T s,Node* n) {
-            _state=s; //copy the state
-            _path.push_back(n);
+        Identity(){
+            _id =0;
+            _index=0;
+        }
+        Identity(int id):_id(id),_index(0){}
+        Identity& operator=(const Identity& orig){
+            if(this == &orig){
+                return *this;
+            }
+            _id = orig._id;
+            _index = orig._index;
+            
+            return *this;
+        }
+        int _id;
+        unsigned int _index;
+    };
+    
+    struct Token {
+    public:
+        Token(const T state, Identity id) {
+            _state=state; //copy the state
+            _identity=id;
         }
 
-        ~Token();
+        ~Token() {
+            _path.clear();
+        }
 
+        Identity _identity;
         T _state;
         vector<Node*> _path;
     }; // </editor-fold>
-
+    
     typedef Node* NodePtr;
     typedef typename std::vector<NodePtr>::const_iterator const_iterator;
     typedef typename std::vector<NodePtr>::iterator iterator;
@@ -270,23 +299,60 @@ public:
     Token* Select(Token* token);
     Token* Expand(Token* token);
     Token* Playout(Token* token);
+    Token* Evaluate(Token* token);
     void Backup(Token* token);
     
     /*Print functions*/
     void PrintSubTree(NodePtr root);
     void PrintTree();
     void PrintRootChildren();
-    void PrintStats_1(std::string& log1,double total);
+    void PrintStats_1(std::string& log1, double total);
     void PrintStats_2(std::string& log2);
 
     /*Multithreaing section*/
-    void Run(const T& state, int& m, std::string &log1, std::string &log2);
+    T Run(const T& state, int& m, std::string &log1, std::string &log2);
 
     /*َUtility functions*/
     static bool SortChildern(NodePtr a, NodePtr b) {
         return (b->_move > a->_move);
     }
-    
+
+    inline unsigned int NextUniformInt(Identity& tid) {
+
+#define IRNGBUF (*_iRNGBuf)
+        unsigned int i;
+        if (tid._index == 0) {
+            /*The first call to NextUniformInt or _dRNGBuf has been completely used*/
+            /* Generate double-precision uniforms from [0;1) */
+            viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, _stream[tid._id], MAXRNGBUFSIZE, (int*)_iRNGBuf[tid._id], 0, RAND_MAX);
+        }
+
+        /* Return next random integer from buffer */
+        i = IRNGBUF[tid._index];
+        tid._index = tid._index + 1;
+
+        /* Check if buffer has been completely used */
+        if (tid._index == MAXRNGBUFSIZE)
+            tid._index = 0;
+        return i;
+        
+    }
+    /**
+     * Randomly permutes elements in the range [first,last). Functionality is
+     * the same as C++'s "random_shuffle", but it uses customized RNG.
+     * @param first
+     * @param last
+     */
+    template <class RandomAccessIterator>
+    inline void RandomShuffle(RandomAccessIterator first, RandomAccessIterator last, Identity& tid) {
+        int i;
+        int n;
+        n = (last - first);
+        for (i = n - 1; i > 0; --i){
+            swap(first[i], first[ NextUniformInt(tid) % (i + 1)]);
+        }
+    }
+T _bestState;
 private:
 
     int verbose;
@@ -294,8 +360,13 @@ private:
     std::vector<TimeOptions*> statistics;
     PlyOptions plyOpt;
     std::vector<ENG> gengine;
+//    T _bestState;
 #ifdef VECRAND
     VSLStreamStatePtr gstream[NSTREAMS];
+#endif
+#ifdef MKLRNG
+    VSLStreamStatePtr _stream[MAXNUMSTREAMS];  /* Each token is associated with an unique stream*/
+    unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
 #endif
 
 };

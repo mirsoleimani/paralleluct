@@ -35,37 +35,37 @@ using namespace std;
 #ifndef UTILITIES_H
 #define	UTILITIES_H
 
-//#define MKLRAND
-//#define VECRAND
-
-//#define CILKSELECT
-#define MAXNUMVISITS
-
-//#define TIMING
-
 #define NDEBUG
 #include <assert.h>
 
+#define MKLRNG
+//#define VECRAND
+//#define CILKSELECT
+//#define TIMING
+#define MAXNUMVISITS
 #define LOCKFREE
-
-//#define COPYSTATE
+#define COPYSTATE
+#define VECTORIZEDBACKUP
 
 #define POS(i,j,dim) i*dim+j       
 #define MAX(n,m) ((n)>(m)?(n):(m))
 
 #define NSTREAMS 6024
-static const int MAXRAND_N=10000;
-static const int SIMDALIGN= 64;  
-static const int NTHREADS= 244;
-//static const int MAXTHREAD = 273;
+static const int MAXNUMSTREAMS = 6024;
+static const int MAXRNGBUFSIZE = 1024;
+static const int MAXRAND_N = 10000;
+static const int SIMDALIGN = 64;
+static const int NTHREADS = 244;
+static const int MAXTHREAD = 273;
+
 static const int TOPDOWN = 11;
 static const int LEFTRIGHT = 22;
 static const int BLACK = 1;
 static const int WHITE = 2;
 static const int CLEAR = 3;
-static const float WIN=1.0;
-static const float LOST=0.0;
-static const float DRAW=0.5;
+static const float WIN = 1.0;
+static const float LOST = 0.0;
+static const float DRAW = 0.5;
 
 typedef int MOVE;
 typedef std::vector<int> term;
@@ -75,9 +75,6 @@ enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE
 enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR};
 enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};
 
-//#define RandInt(n) ((int)((float)(n)*rand()/(RAND_MAX+1.0)))
-//#define RandChar(n) ((char)((float)(n)*rand()/(RAND_MAX+1.0)))
-//#define RandFloat(n) ((float)(v)*rand()/(RAND_MAX+1.0))
 
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
@@ -86,31 +83,6 @@ enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};
 typedef boost::mt19937 ENG; // Mersenne Twister
 typedef boost::uniform_int<int> DIST;
 typedef boost::variate_generator<ENG, DIST > GEN;
-
-//const FP_TYPE NUM_ONE = 1.0;
-//static inline FP_TYPE RandDouble(FP_TYPE low, FP_TYPE high){
-//    double t = (FP_TYPE)rand() / (FP_TYPE)RAND_MAX;
-//    return (NUM_ONE - t) * low + t * high;
-//}
-
-//static inline float RandFloat_T(float low, float high, unsigned int *seed){
-//    float t = (float)rand_r(seed) / (float)RAND_MAX;
-//    return (1.0 - t) * low + t * high;
-//}
-
-template<typename _RandomAccessIterator>
-inline void
-random_shuffle_custome(_RandomAccessIterator __first, _RandomAccessIterator __last, int rand) {
-    // concept requirements
-    __glibcxx_function_requires(_Mutable_RandomAccessIteratorConcept<
-            _RandomAccessIterator>)
-            __glibcxx_requires_valid_range(__first, __last);
-
-    if (__first != __last)
-        for (_RandomAccessIterator __i = __first + 1; __i != __last; ++__i)
-            std::iter_swap(__i, __first + (rand % ((__i - __first) + 1)));
-}
-
 
 class Timer {
 public:
@@ -139,7 +111,6 @@ public:
 private:
     timespec beg_;//, end_;
 };
-
 
 template <typename T>
 string NumToStr(T num) {
