@@ -17,18 +17,7 @@
 #include <sys/time.h>
 #include <stddef.h>
 
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int.hpp>
-#include <boost/random/variate_generator.hpp>
-
-//#define THREADPOOL
-#ifdef THREADPOOL
-#include <boost/thread/thread.hpp>
-#include "threadpool.hpp"
 #include <boost/assert.hpp>
-#include <boost/asio.hpp>
-#endif
 
 using namespace std;
 
@@ -38,14 +27,32 @@ using namespace std;
 #define NDEBUG
 #include <assert.h>
 
+//#define THREADPOOL
+#ifdef THREADPOOL
+#include <boost/thread/thread.hpp>
+#include "threadpool.hpp"
+#include <boost/assert.hpp>
+#include <boost/asio.hpp>
+#endif
+
 #define MKLRNG
-//#define VECRAND
+#ifndef MKLRNG
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
+typedef boost::mt19937 ENG; // Mersenne Twister
+typedef boost::uniform_int<int> DIST;
+typedef boost::variate_generator<ENG, DIST > GEN;
+#endif
+
 //#define CILKSELECT
 //#define TIMING
 #define MAXNUMVISITS
 #define LOCKFREE
-#define COPYSTATE
-#define VECTORIZEDBACKUP
+//#define FINEDGRAINED
+//#define COARSEGRAINED
+//#define COPYSTATE
+//#define VECTORIZEDBACKUP
 
 #define POS(i,j,dim) i*dim+j       
 #define MAX(n,m) ((n)>(m)?(n):(m))
@@ -70,19 +77,15 @@ static const float DRAW = 0.5;
 typedef int MOVE;
 typedef std::vector<int> term;
 typedef std::vector<term> polynomial;
+static vector<vector<int>> _poly;
 
 enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
-enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR};
+enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR};
 enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};
-
 
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
 //typedef std::variate_generator<ENG&, DIST> GEN; // Variate generator
-
-typedef boost::mt19937 ENG; // Mersenne Twister
-typedef boost::uniform_int<int> DIST;
-typedef boost::variate_generator<ENG, DIST > GEN;
 
 class Timer {
 public:

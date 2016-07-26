@@ -23,7 +23,7 @@ public:
     int DoMove(int move);
     int UndoMove();
     void UndoMoves(int beg);
-    int GetMoves(vector<int>& moves, GEN& engine);
+//    int GetMoves(vector<int>& moves, GEN& engine);
     int GetMoves(vector<int>& moves);
     int GetMoves();
     float GetResult(int pjm);
@@ -34,7 +34,7 @@ public:
     long int NextIdx(int c);
     long int PrevIdx();
     int GetRandMove();
-    void DoRandGame(GEN& engine);
+ //   void DoRandGame(GEN& engine);
     float Result(int v);
     float GetValue();
     int MoveValue();

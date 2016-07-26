@@ -4,19 +4,8 @@
 
 template <class T>
 UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(vb) {//TODO remove verbose from class property use plyopt
+
     plyOpt = opt;
-#ifdef VECRAND
-    int errcode;
-    for (int i = 0; i < NSTREAMS /*plyOpt.nthreads/*opt.nthreads*/; i++) {
-        //errcode = vslNewStream(&stream, VSL_BRNG_NONDETERM, VSL_BRNG_RDRAND);
-        errcode = vslNewStream(&gstream[i], VSL_BRNG_MT2203 + i, seed[0]);
-        //errcode = vslNewStream(&gstream[i], VSL_BRNG_SFMT19937, seed[i]);
-        CheckVslError(errcode);
-    }
-#else 
-    for (int i = 0; i < plyOpt.nthreads; i++)
-        gengine.push_back(ENG(seed[i]));
-#endif
 #ifdef MKLRNG
     if (plyOpt.nthreads > MAXNUMSTREAMS) {
         std::cerr << "MKLRNG can not support more than " << MAXNUMSTREAMS << " threads!\n";
@@ -29,14 +18,17 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
                 exit(0);
             }
         }
-        int RNGBUFSIZE = 1024;
+        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
         for (int i = 0; i < plyOpt.nthreads; i++) {
             if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
-                std::cerr<<"MKLRNG: Memory allocation failed for buffer "<<i<<"threads!\n";
+                std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
                 exit(0);
             }
         }
     }
+#else 
+    for (int i = 0; i < plyOpt.nthreads; i++)
+        gengine.push_back(ENG(seed[i]));
 #endif
 
 }
@@ -48,23 +40,13 @@ UCT<T>::UCT(const UCT<T>& orig) {
 
 template <class T>
 UCT<T>::~UCT() {
-#ifdef VECRAND
-    mkl_free_buffers();
-    int errcode;
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        errcode = vslDeleteStream(&gstream[i]);
-        CheckVslError(errcode);
-    }
-#endif
-    
+   
 #ifdef MKLRNG
     mkl_free_buffers();
     for(int i=0;i<plyOpt.nthreads;i++){
         vslDeleteStream(&_stream[i]);
         mkl_free(_iRNGBuf[i]);
     }
-    
-    //TODO free buffer and stream
 #endif
 }
 
@@ -80,9 +62,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
     tbb::task_group g;
 
     T lstate(state);
+    _finish=false;
     double ttime = 0;
     Timer tmr;
     for (int i = 0; i < plyOpt.nthreads; i++) {
+        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+        _bestState.emplace_back(state);
         statistics.push_back(new TimeOptions());
     }// </editor-fold>
 
@@ -90,7 +75,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
     // <editor-fold defaultstate="collapsed" desc="sequential">
     if (plyOpt.par == SEQUENTIAL) {
         /*create root of the tree*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+        //roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
         tmr.reset();
         UCTSearch(lstate, 0, 0, tmr);
         ttime = tmr.elapsed();
@@ -99,10 +84,10 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
         // <editor-fold defaultstate="collapsed" desc="tree parallelization">
     else if (plyOpt.par == TREEPAR) {
         /*create the root*/
-        roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        tmr.reset();
+        //roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+//        tmr.reset();
         if (plyOpt.threadruntime == CPP11) {
-
+            tmr.reset();
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 auto Search = std::bind(&UCT::UCTSearch, std::ref(*this), std::cref(lstate), i, 0, tmr);
                 threads.push_back(std::thread(Search));
@@ -111,6 +96,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
             }
 
         } else if (plyOpt.threadruntime == THPOOL) {
+            tmr.reset();
 #ifdef THREADPOOL
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, 0, tmr));
@@ -120,6 +106,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
             exit(0);
 #endif           
         } else if (plyOpt.threadruntime == CILKPSPAWN) {
+            tmr.reset();
 #ifdef __INTEL_COMPILER
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 cilk_spawn UCTSearch(lstate, i, 0, tmr);
@@ -129,10 +116,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
             exit(0);
 #endif
         } else if (plyOpt.threadruntime == TBBTASKGROUP) {
+            tmr.reset();
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, 0, tmr));
             }
         } else if (plyOpt.threadruntime == CILKPFOR) {
+            tmr.reset();
 #ifdef __INTEL_COMPILER
 
             cilk_for(int i = 0; i < plyOpt.nthreads; i++) {
@@ -142,16 +131,8 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
             std::cerr << "No Intel compiler for cilk plus!\n";
             exit(0);
 #endif            
-        } else if (plyOpt.threadruntime == TBBSPSPIPELINE) {
-            //tmr.reset();
-            UCTSearchTBBSPSPipe(lstate, 0, 0, tmr);
-            //ttime = tmr.elapsed();
-        
-//                auto Search = std::bind(&UCT::UCTSearchTBBSPSPipe, std::ref(*this), std::cref(lstate), 0, 0, tmr);
-//                threads.push_back(std::thread(Search));
-//                assert(threads[i].joinable());
-//            }
-        } else {
+        }           
+        else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
         }
@@ -160,11 +141,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
         // <editor-fold defaultstate="collapsed" desc="root parallelization">
     else if (plyOpt.par == ROOTPAR) {
         /*create the roots among threads*/
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        }
-        tmr.reset();
+        //        for (int i = 0; i < plyOpt.nthreads; i++) {
+        //            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+        //        }
+//        tmr.reset();
         if (plyOpt.threadruntime == CPP11) {
+            tmr.reset();
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 auto Search = std::bind(&UCT::UCTSearch, std::ref(*this), std::cref(lstate), i, 0, tmr);
                 threads.push_back(std::thread(Search));
@@ -172,6 +154,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
                 assert(threads[i].joinable());
             }
         } else if (plyOpt.threadruntime == THPOOL) {
+            tmr.reset();
 #ifdef THREADPOOL
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 thread_pool.schedule(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, i, tmr));
@@ -181,6 +164,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
             exit(0);
 #endif            
         } else if (plyOpt.threadruntime == CILKPSPAWN) {
+            tmr.reset();
 #ifdef __INTEL_COMPILER
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 cilk_spawn UCTSearch(lstate, i, i, tmr);
@@ -190,10 +174,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
             exit(0);
 #endif          
         } else if (plyOpt.threadruntime == TBBTASKGROUP) {
+            tmr.reset();
             for (int i = 0; i < plyOpt.nthreads; i++) {
                 g.run(std::bind(std::mem_fn(&UCT<T>::UCTSearch), std::ref(*this), std::cref(lstate), i, i, tmr));
             }
         } else if (plyOpt.threadruntime == CILKPFOR) {
+            tmr.reset();
             std::cerr < "Cilk plus for for root parallelization is not implemented!\n";
             exit(0);
 
@@ -202,6 +188,23 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
               }*/
         } else {
             std::cerr << "No threading library is selected for root parallelization!\n";
+            exit(0);
+        }
+    }// </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="pipe parallelization">
+    else if (plyOpt.par == PIPEPAR) {
+        if (plyOpt.threadruntime == TBBSPSPIPELINE) {
+            tmr.reset();
+            UCTSearchTBBSPSPipe(lstate, 0, 0, tmr);
+            //ttime = tmr.elapsed();
+
+            //                auto Search = std::bind(&UCT::UCTSearchTBBSPSPipe, std::ref(*this), std::cref(lstate), 0, 0, tmr);
+            //                threads.push_back(std::thread(Search));
+            //                assert(threads[i].joinable());
+            //            }
+        } else {
+            std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
         }
     }// </editor-fold>
@@ -240,7 +243,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
 //    }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="collect">
-    if (plyOpt.par == TREEPAR) {
+    if (plyOpt.par == TREEPAR || plyOpt.par == PIPEPAR) {
         ttime = tmr.elapsed();
     }
     if (plyOpt.par == ROOTPAR) {
@@ -258,6 +261,15 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
         }
         ttime = tmr.elapsed();
     }
+
+    int reward = _bestState[0].GetResult(WHITE);
+    T bestState = _bestState[0];
+    for (int i = 1; i < plyOpt.nthreads; i++) {
+        if (_bestState[i].GetResult(WHITE) < reward) {
+            reward = _bestState[i].GetResult(WHITE);
+            bestState = _bestState[i];
+        }
+    }       
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="select best child">
@@ -294,170 +306,26 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
     roots.clear();
     for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
         delete (*itr);
-    statistics.clear(); // </editor-fold>
-
-    return _bestState;
-}
-// </editor-fold>
-
-// <editor-fold defaultstate="collapsed" desc="MCTS steps">
-
-template <class T>
-typename UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* n, T& state) {
-
-    while (n->IsFullExpanded()) {
-        // <editor-fold defaultstate="collapsed" desc="initializing">
-        assert(n->_children.size() > 0 && "_children can not be empty!\n");
-        float l = 2.0 * logf((float) n->_visits);
-        int index = -1;
-        float cp = plyOpt.cp;
-        std::vector<float> UCT; // </editor-fold>
-
-        // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
-        for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
-
-            int visits = (*itr)->_visits;
-            float wins = (*itr)->_wins;
-            assert(wins >= 0);
-            assert(visits > 0);
-
-            float exploit = 0;
-            if (plyOpt.game == HORNER) {
-                float score = state.GetResult(WHITE);
-                assert(score > 0);
-                exploit = score / (wins / (float) (visits));
-            } else if (plyOpt.game == HEX) {
-                exploit = wins / (float) (visits);
-            }
-            float explore = cp * sqrtf(l / (float) (visits));
-
-            UCT.push_back(exploit + explore);
-
-        }// </editor-fold>
-
-        // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
-        index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end())); //TODO: why max is better than min?
-        assert(index < n->_children.size() && "index is out of range\n");
-        n = n->_children[index]; // </editor-fold>
-
-        //TODO: Add child to current trajectory
-        state.SetMove(n->_move); /*this line could be removed*/
-    }
-    return n;
-
-}
-
-template <class T>
-typename UCT<T>::Node* UCT<T>::SelectVecRand(UCT<T>::Node* node, T& state, float cp, int* random, int &randIndex) {
-
-    //    UCT<T>::Node* n = node;
-    //    //while (n->GetUntriedMoves() == 0 && !n->_children.empty()) {
-    //    while (n->GetUntriedMoves() == 0) {
-    //        n = n->UCTSelectChild(cp, random[randIndex++]);
-    //        state.SetMove(n->_move);
-    //    }
-    //    return n;
-}
-
-template <class T>
-typename UCT<T>::Node* UCT<T>::Expand(UCT<T>::Node* node, T& state, GEN& engine) {
-
-    UCT<T>::Node* n = node;
-    if (!state.IsTerminal()) {
-        // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
-        vector<int> moves;
-        //set the number of untried moves for n based on the current state
-        state.GetMoves(moves);
-        std::random_shuffle(moves.begin(), moves.end(), engine);
-        n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
-        // </editor-fold>
-
-        //TODO: Appending child could be happened in update phase.
-        //TODO: Append new node the trajectory
-        // <editor-fold defaultstate="collapsed" desc="add new node child to n">
-        n = n->AddChild();
-        if (n != node) {
-            int m = n->_move;
-            assert(m > 0 && "move is not valid!\n");
-            state.SetMove(n->_move); /*this line could be removed*/
-        }
-        // </editor-fold>
-    }
-    return n;
-}
-
-template <class T>
-typename UCT<T>::Node* UCT<T>::ExpandVecRand(UCT<T>::Node* node, T& state, int* random, int &randIndex) {
-
-    //    UCT<T>::Node* n = NULL;
-    //    n = node->AddChild2(state, random, randIndex);
-    //    assert(n != NULL && "The node to be expanded is NULL");
-    //
-    //    return n;
-}
-
-template <class T>
-void UCT<T>::Playout(T& state, GEN& engine) {
-    vector<int> moves;
-    state.GetPlayoutMoves(moves);
-    std::random_shuffle(moves.begin(), moves.end(), engine);
-
-    // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached">
-    state.SetPlayoutMoves(moves);
+    statistics.clear(); 
+    _bestState.clear();
     // </editor-fold>
 
-    //TODO: Evaluate the current state
-    state.Evaluate();
+    return bestState;
 }
-
-template <class T>
-void UCT<T>::PlayoutVecRand(T& state, int* random, int& randIndex) {
-    //    vector<int> moves;
-    //    state.GetMoves(moves);
-    //
-    //    vector<int>::iterator __first = moves.begin();
-    //    vector<int>::iterator __last = moves.end();
-    //
-    //    if (__first != __last)
-    //        for (vector<int>::iterator __i = __first + 1; __i != __last; ++__i) {
-    //            int rand = random[randIndex++];
-    //            assert(rand >= 0 && "random number is negative.");
-    //            std::iter_swap(__i, __first + (rand % ((__i - __first) + 1)));
-    //        }
-    //
-    //    int m = 0;
-    //    while (!state.GameOver()) {
-    //        state.SetMove(moves[m]);
-    //        m++;
-    //    }
-}
-
-template <class T>
-void UCT<T>::Backup(UCT<T>::Node* node, T& state) {
-    //TODO: Using trajectory makes it possible to do vectorization.
-    UCT<T>::Node* n = node;
-    float rewardWhite = state.GetResult(WHITE);
-    float rewardBlack = state.GetResult(BLACK);
-    while (n != NULL) {
-        n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
-        n = n->_parent;
-    }
-}
-
 // </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="MCTS steps for pipeline">
-
+#ifdef MKLRNG
 template <class T>
 typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
-
+    UCT<T>::Identity& tid = (*token)._identity;
     path.clear();
 
     /*the first node in the path is root node*/
-    UCT<T>::Node* n = roots[0];
+    UCT<T>::Node* n = roots[tid._rid];
     path.push_back(n);
     while (n->IsFullExpanded()) {
 #ifdef VIRTUALLOSS
@@ -590,23 +458,134 @@ void UCT<T>::Backup(Token* token) {
     }
 #endif
     
-}// </editor-fold>
+}
+
+#else
+
+template <class T>
+typename UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* n, T& state) {
+
+    while (n->IsFullExpanded()) {
+        // <editor-fold defaultstate="collapsed" desc="initializing">
+        assert(n->_children.size() > 0 && "_children can not be empty!\n");
+        float l = 2.0 * logf((float) n->_visits);
+        int index = -1;
+        float cp = plyOpt.cp;
+        std::vector<float> UCT; // </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
+        for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
+
+            int visits = (*itr)->_visits;
+            float wins = (*itr)->_wins;
+            assert(wins >= 0);
+            assert(visits > 0);
+
+            float exploit = 0;
+            if (plyOpt.game == HORNER) {
+                float score = state.GetResult(WHITE);
+                assert(score > 0);
+                exploit = score / (wins / (float) (visits));
+            } else if (plyOpt.game == HEX) {
+                exploit = wins / (float) (visits);
+            }
+            float explore = cp * sqrtf(l / (float) (visits));
+
+            UCT.push_back(exploit + explore);
+
+        }// </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
+        index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end())); //TODO: why max is better than min?
+        assert(index < n->_children.size() && "index is out of range\n");
+        n = n->_children[index]; // </editor-fold>
+
+        //TODO: Add child to current trajectory
+        state.SetMove(n->_move); /*this line could be removed*/
+    }
+    return n;
+
+}
+
+template <class T>
+typename UCT<T>::Node* UCT<T>::Expand(UCT<T>::Node* node, T& state, GEN& engine) {
+
+    UCT<T>::Node* n = node;
+    if (!state.IsTerminal()) {
+        // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
+        vector<int> moves;
+        //set the number of untried moves for n based on the current state
+        state.GetMoves(moves);
+        std::random_shuffle(moves.begin(), moves.end(), engine);
+        n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
+        // </editor-fold>
+
+        //TODO: Appending child could be happened in update phase.
+        //TODO: Append new node the trajectory
+        // <editor-fold defaultstate="collapsed" desc="add new node child to n">
+        n = n->AddChild();
+        if (n != node) {
+            int m = n->_move;
+            assert(m > 0 && "move is not valid!\n");
+            state.SetMove(n->_move); /*this line could be removed*/
+        }
+        // </editor-fold>
+    }
+    return n;
+}
+
+template <class T>
+void UCT<T>::Playout(T& state, GEN& engine) {
+    vector<int> moves;
+    state.GetPlayoutMoves(moves);
+    std::random_shuffle(moves.begin(), moves.end(), engine);
+
+    // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached">
+    state.SetPlayoutMoves(moves);
+    // </editor-fold>
+
+    //TODO: Evaluate the current state
+    state.Evaluate();
+}
+
+template <class T>
+void UCT<T>::Backup(UCT<T>::Node* node, T& state) {
+    //TODO: Using trajectory makes it possible to do vectorization.
+    UCT<T>::Node* n = node;
+    float rewardWhite = state.GetResult(WHITE);
+    float rewardBlack = state.GetResult(BLACK);
+    while (n != NULL) {
+        n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        n = n->_parent;
+    }
+}
+#endif
+// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="Search">
 
 template <class T>
 void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 
+#ifdef MKLRNG
+        UCT<T>::Identity tId(sid,rid);
+        UCT<T>::Token* t = new UCT<T>::Token(rstate,tId);
+#else    
     /*Create a copy of the current state for each thread*/
     T lstate(rstate);
-    int origMoveCounter = lstate.GetMoveCounter();
+    //int origMoveCounter = lstate.GetMoveCounter();
+    UCT<T>::Node* n = NULL;
+    DIST dist(0, 1);
+    GEN gen(gengine[sid], dist);
+#endif
+    
     float reward = std::numeric_limits<float>::max();
-
-    UCT<T>::Node* n;
     TimeOptions* timeopt = statistics[sid];
-
     timeopt->nrand = 0;
-
+    int itr = 0;
+    //TODO is it thread safe to calculate max here?
+    float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
+    int max = ceil(nsims);
 #ifdef TIMING
     timeopt->stime = 0;
     timeopt->btime = 0;
@@ -615,51 +594,19 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     double time = 0.0;
 #endif
 
-    int itr = 0;
-    //TODO is it thread safe to calculate max here?
-    float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
-    int max = ceil(nsims);
-
-#ifdef VECRAND
-    int umoves = lstate.GetMoves();
-    int nRandItr = umoves * 2;
-    int RAND_N = max * 2 * umoves;
-    if (RAND_N > 16384 * 4)
-        RAND_N = 16384 * 4;
-    int random[RAND_N] __attribute__((aligned(SIMDALIGN)));
-    //int * random = (int *)_mm_malloc(RAND_N*sizeof(int), SIMDALIGN);
-
-    int errCode;
-
-    int limit = RAND_N - nRandItr;
-    int randIndex = 0;
-
-    timeopt->nrand++;
-    errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random, 0, RAND_MAX);
-    CheckVslError(errCode);
-#else
-    DIST dist(0, 1);
-    GEN gen(gengine[sid], dist);
-#endif
-
-    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs && itr < max && reward > plyOpt.minReward) {
-
-#ifdef VECRAND
-        if (randIndex > limit) {
-            timeopt->nrand++;
-            errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random, 1, RAND_MAX);
-            CheckVslError(errCode);
-            randIndex = 0;
-        }
-#endif
+    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs &&
+            itr < max &&
+            !_finish) {
+#ifndef MKLRNG
         n = roots[rid];
         assert(n != NULL && "Root of the tree is zero!\n");
+#endif
 
 #ifdef TIMING
         time = tmr.elapsed();
 #endif
-#ifdef VECRAND
-        n = SelectVecRand(n, lstate, plyOpt.cp, random, randIndex);
+#ifdef MKLRNG
+        t = Select(t);
 #else
         n = Select(n, lstate);
 #endif        
@@ -670,8 +617,8 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 #ifdef TIMING
         time = tmr.elapsed();
 #endif
-#ifdef VECRAND
-        n = ExpandVecRand(n, lstate, random, randIndex);
+#ifdef MKLRNG
+        t = Expand(t);
 #else
         n = Expand(n, lstate, gen);
 #endif
@@ -682,8 +629,9 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 #ifdef TIMING
         time = tmr.elapsed();
 #endif
-#ifdef VECRAND
-        PlayoutVecRand(lstate, random, randIndex);
+#ifdef MKLRNG
+        t=Playout(t);
+        t=Evaluate(t);
 #else
         Playout(lstate, gen);
 #endif
@@ -694,26 +642,39 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 #ifdef TIMING
         time = tmr.elapsed();
 #endif
+#ifdef MKLRNG
+        Backup(t);
+#else
         Backup(n, lstate);
+#endif
 #ifdef TIMING
         timeopt->btime += tmr.elapsed() - time;
 #endif
 
         itr++;
-#ifdef VECRAND
-        assert(randIndex < RAND_N && "not enough random numbers");
-#endif
-
-        reward = lstate.GetResult(WHITE);
-#ifdef COPYSTATE
-        lstate = rstate;
+#ifdef MKLRNG
+        reward = t->_state.GetResult(WHITE);
+        if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
+            _bestState[t->_identity._id] = t->_state;
+            _finish = true;
+        }
+        t->_state = rstate;
 #else
-        lstate.UndoMoves(origMoveCounter); //TODO undo moves is wrong 
+        reward = lstate.GetResult(WHITE);
+        //#ifdef COPYSTATE
+        if (lstate.GetResult(WHITE) < plyOpt.bestreward) {
+            //_bestState[t->_identity._id] = lstate;
+            //finish = true;
+        }
+        lstate = rstate;
+        //#else
+        //lstate.UndoMoves(origMoveCounter); //TODO undo moves is wrong 
+        //#endif     
 #endif
 
     }
-#ifdef VECRAND
-    //_mm_free(random);
+#ifdef MKLRNG
+    delete t;
 #endif
 }
 
@@ -728,10 +689,9 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     }
             
     //TODO use circular buffer to create and use tokens.
-    std::atomic<int> itr = plyOpt.nsims;
+    int itr = plyOpt.nsims;
     int index=0;
     int ntokens=plyOpt.nthreads;
-    _bestState = rstate;
     bool finish=false;
     tbb::parallel_pipeline(
             ntokens,
@@ -770,7 +730,7 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
                 if(t->_state.GetResult(WHITE) < plyOpt.bestreward){
-                    _bestState = t->_state;
+                    _bestState[t->_identity._id] = t->_state;
                     finish=true;
                 }
                 t->_state = rstate;
@@ -778,108 +738,7 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
             
     for(int i=0;i<ntokens;i++)
         delete buffer[i];          
-//                /*Create a copy of the current state for each thread*/
-//    UCT<T>::Token t(rstate,roots[0]);
-////    int origMoveCounter = lstate.GetMoveCounter();
-//    float reward = std::numeric_limits<float>::max();
-//
-//    UCT<T>::Node* n;
-//    TimeOptions* timeopt = statistics[sid];
-//
-//    timeopt->nrand = 0;
-//
-//#ifdef TIMING
-//    timeopt->stime = 0;
-//    timeopt->btime = 0;
-//    timeopt->ptime = 0;
-//    timeopt->etime = 0;
-//    double time = 0.0;
-//#endif
-//
-//    int itr = 0;
-//    //TODO is it thread safe to calculate max here?
-//    float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
-//    int max = ceil(nsims);
-//
-//#ifdef VECRAND
-//    int umoves = lstate.GetMoves();
-//    int nRandItr = umoves * 2;
-//    int RAND_N = max * 2 * umoves;
-//    if (RAND_N > 16384 * 4)
-//        RAND_N = 16384 * 4;
-//    int random[RAND_N] __attribute__((aligned(SIMDALIGN)));
-//    //int * random = (int *)_mm_malloc(RAND_N*sizeof(int), SIMDALIGN);
-//
-//    int errCode;
-//
-//    int limit = RAND_N - nRandItr;
-//    int randIndex = 0;
-//
-//    timeopt->nrand++;
-//    errCode = viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, gstream[sid], RAND_N, random, 0, RAND_MAX);
-//    CheckVslError(errCode);
-//#else
-//    DIST dist(0, 1);
-//    GEN gen(gengine[sid], dist);
-//#endif
-//
-//    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs && itr < max && reward > plyOpt.minReward) {
-//
-//        //n = roots[rid];
-//        //assert(n != NULL && "Root of the tree is zero!\n");
-//
-//#ifdef TIMING
-//        time = tmr.elapsed();
-//#endif
-//
-//        t = Select(t);
-//       
-//#ifdef TIMING
-//        timeopt->stime += tmr.elapsed() - time;
-//#endif
-//
-//#ifdef TIMING
-//        time = tmr.elapsed();
-//#endif
-//
-//        t = Expand(t);
-//
-//#ifdef TIMING
-//        timeopt->etime += tmr.elapsed() - time;
-//#endif
-//
-//#ifdef TIMING
-//        time = tmr.elapsed();
-//#endif
-//
-//        t=Playout(t);
-//
-//#ifdef TIMING
-//        timeopt->ptime += tmr.elapsed() - time;
-//#endif
-//
-//#ifdef TIMING
-//        time = tmr.elapsed();
-//#endif
-//        Backup(t);
-//#ifdef TIMING
-//        timeopt->btime += tmr.elapsed() - time;
-//#endif
-//
-//        itr++;
-//#ifdef VECRAND
-//        assert(randIndex < RAND_N && "not enough random numbers");
-//#endif
-//
-//        //reward = lstate.GetResult(WHITE);
-//#ifdef COPYSTATE
-//        t->_state = rstate;
-//#else
-//        //lstate.UndoMoves(origMoveCounter); //TODO undo moves is wrong 
-//#endif
-//
-//    }
-
+            
 }// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="Printing">

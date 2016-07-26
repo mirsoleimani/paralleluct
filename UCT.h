@@ -34,13 +34,15 @@ struct PlyOptions {
     unsigned int nsims = 1048576;
     float nsecs = 999999;
     float cp = 1.0;
-    float minReward=std::numeric_limits<float>::min();
     int par = 0;    
     int threadruntime=0;
     int game=0;
     bool verbose = false;
     unsigned int seed=1;
     int bestreward=4200;
+    int nmoves = 0;
+    bool virtualloss=0;
+    char* locking="";
 };
 
 struct TimeOptions {
@@ -239,21 +241,21 @@ public:
     
     struct Identity{
     public:
-        Identity(){
-            _id =0;
-            _index=0;
-        }
-        Identity(int id):_id(id),_index(0){}
+        Identity():_id(0),_rid(0),_index(0){}
+        Identity(int id):_id(id),_rid(0),_index(0){}
+        Identity(int id,int rid):_id(id),_rid(rid),_index(0){}
         Identity& operator=(const Identity& orig){
             if(this == &orig){
                 return *this;
             }
             _id = orig._id;
+            _rid = orig._rid;
             _index = orig._index;
             
             return *this;
         }
         int _id;
+        int _rid;
         unsigned int _index;
     };
     
@@ -280,27 +282,26 @@ public:
     UCT(const PlyOptions opt, int vb, const std::vector<unsigned int> seed);
     UCT(const UCT<T>& orig);
     virtual ~UCT();
-    
+
+    /*Multithreaing section*/
+    T Run(const T& state, int& m, std::string &log1, std::string &log2);
+
     void UCTSearch(const T& state, int sid, int rid, Timer tmr);
     void UCTSearchTBBSPSPipe(const T& state, int sid, int rid, Timer tmr);
 
     /*MCTS functions*/
-    NodePtr Select(NodePtr node, T& state);
-    NodePtr Expand(NodePtr node, T& state, GEN& engine);
-    void Playout(T& state, GEN& engine);
-    void Backup(NodePtr node, T& state);
-
-    /*Vector functions*/
-    NodePtr SelectVecRand(NodePtr node, T& state, float cp, int *random, int& randIndex);
-    NodePtr ExpandVecRand(NodePtr node, T& state, int* random, int& randIndex);
-    void PlayoutVecRand(T& state, int* random, int& randIndex);
-
-    /*Pipeline functions*/
+#ifdef MKLRNG
     Token* Select(Token* token);
     Token* Expand(Token* token);
     Token* Playout(Token* token);
     Token* Evaluate(Token* token);
     void Backup(Token* token);
+#else
+    NodePtr Select(NodePtr node, T& state);
+    NodePtr Expand(NodePtr node, T& state, GEN& engine);
+    void Playout(T& state, GEN& engine);
+    void Backup(NodePtr node, T& state);
+#endif
     
     /*Print functions*/
     void PrintSubTree(NodePtr root);
@@ -309,14 +310,15 @@ public:
     void PrintStats_1(std::string& log1, double total);
     void PrintStats_2(std::string& log2);
 
-    /*Multithreaing section*/
-    T Run(const T& state, int& m, std::string &log1, std::string &log2);
+    int NumPlayoutsRoot() {
+        return roots[0]->_visits;
+    }
 
     /*َUtility functions*/
     static bool SortChildern(NodePtr a, NodePtr b) {
         return (b->_move > a->_move);
     }
-
+#ifdef MKLRNG
     inline unsigned int NextUniformInt(Identity& tid) {
 
 #define IRNGBUF (*_iRNGBuf)
@@ -352,23 +354,23 @@ public:
             swap(first[i], first[ NextUniformInt(tid) % (i + 1)]);
         }
     }
-T _bestState;
+#endif 
+    
 private:
 
     int verbose;
+    PlyOptions plyOpt;
     std::vector<NodePtr> roots;
     std::vector<TimeOptions*> statistics;
-    PlyOptions plyOpt;
-    std::vector<ENG> gengine;
-//    T _bestState;
-#ifdef VECRAND
-    VSLStreamStatePtr gstream[NSTREAMS];
-#endif
+    std::vector<T> _bestState;
+    int _nPlayouts;
 #ifdef MKLRNG
     VSLStreamStatePtr _stream[MAXNUMSTREAMS];  /* Each token is associated with an unique stream*/
     unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
+#else
+        std::vector<ENG> gengine;
 #endif
-
+        std::atomic<bool> _finish;
 };
 
 

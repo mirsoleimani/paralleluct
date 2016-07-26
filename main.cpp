@@ -244,7 +244,9 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     vector<unsigned int> seeda(optplya.nthreads);
     std::random_device dev;
     std::stringstream strVisit;
-    std::vector<int> res(ngames);
+    std::vector<int> result(ngames);
+    std::vector<vector<int>> nplayouts(optplya.nmoves);
+    std::vector<vector<int>> reward(optplya.nmoves);
     char fileName[100];
 
     for (int i = 0; i < ngames; i++) {
@@ -252,17 +254,20 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
         string log = " ";
         string log2 = " ";
         int move;
+#ifdef MKLRNG
+        optplya.seed = (unsigned int) dev();
+#else
         for (int j = 0; j < optplya.nthreads; j++) {
             seeda[j] = (unsigned int) dev();
             assert(seeda[j] > 0 && "seed can not be negative\n");
         }
-        optplya.seed = (unsigned int) dev();
+#endif
         if (verbose) {
             cout << "# start game" << ","
-                    << setw(8) << i << ","
-                    << setw(10) << BLACK << ","
-                    << setw(10) << WHITE << ","
-                    << setw(10) << "?" << endl;
+                    << setw(8) << i << endl;
+//                    << setw(10) << BLACK << ","
+//                    << setw(10) << WHITE << ","
+//                    << setw(10) << "?" << endl;
 
             cout << setw(9) << "# move no." << ","
                     << setw(10) << "player" << ","
@@ -279,16 +284,16 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
         if (verbose == 3) {
             strVisit.str().clear();
             strVisit.str(std::string());
-            strVisit << "# start visit,"
-                    << setw(9) << i << ","
-                    << setw(10) << BLACK << ","
-                    << setw(10) << WHITE << endl;
+            strVisit << "# start visit"<<","
+                    << setw(9) << i << endl;
+//                    << setw(10) << BLACK << ","
+//                    << setw(10) << WHITE << endl;
         }
 
         UCT<T> plya(optplya, verbose, seeda);
         int j = 0;
         T bestState;
-        while (!state.IsTerminal()&& j < 1) {
+        while (!state.IsTerminal()&& j < optplya.nmoves) {
             if (verbose) {
                 cout << setw(9) << j << ",";
             }
@@ -326,29 +331,35 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                 state.PrintToFile(fileName);
             }
             //TODO dynamic cp  more exploitation as the tree become smaller
-//            if(optplya.cp > 0.1){
-//            optplya.cp=optplya.cp-0.1;
-//            }
+            //            if(optplya.cp > 0.1){
+            //            optplya.cp=optplya.cp-0.1;
+            //            }
+            if (i > 0) {
+                nplayouts[j].push_back(plya.NumPlayoutsRoot());
+                reward[j].push_back(bestState.GetResult(WHITE));
+            }
             j++;
         }
         state.Evaluate();
-        res[i] = state.GetResult(WHITE);
+        result[i] = state.GetResult(WHITE);
 
         state.Reset();
         if (verbose) {
-            cout << "# end game" << ","
-                    << setw(10) << i << ","
-                    << setw(10) << BLACK << ","
-                    << setw(10) << WHITE << ","
-                    << setw(10) << res[i] << endl;
+            cout << "# end game" << endl;
+//                    << setw(10) << i << ","
+//                    << setw(10) << BLACK << ","
+//                    << setw(10) << WHITE << ","
+//                    << setw(10) << res[i] << endl;
 
             std::cout << "# start result" << std::endl;
             std::cout << "# game no" << ","
                     << setw(10) << "player" << ","
+                    << setw(10) << "seed"   << ","
                     << setw(10) << "result" << std::endl;
             std::cout << setw(10) << i << ","
                     << setw(10) << WHITE << ","
-                    << setw(10) << res[i] << std::endl;
+                    << setw(10)  << optplya.seed << ","
+                    << setw(10) << result[i] << std::endl;
             std::cout << "# end result" << std::endl;
         }
         if (verbose == 3) {
@@ -361,12 +372,34 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     }
 
     std::cout << "# start statistic" << std::endl;
-    std::cout << "# Avg" << ","
-            << setw(5) << "Std" << ","
-            << setw(5) << "Err" << std::endl;
-    std::cout << setw(5) << getAverage(res) << ","
-            << setw(5) << getStdDev(res) << ","
-            << setw(5) << getStdDev(res) / sqrt(ngames) << std::endl;
+    std::cout << "# Avg(result)" << ","
+            << setw(10) << "Std(result)" << ","
+            << setw(10) << "Err(result)" << std::endl;
+    std::cout << setw(10) << getAverage(result) << ","
+            << setw(10) << getStdDev(result) << ","
+            << setw(10) << getStdDev(result) / sqrt(ngames) << std::endl;
+    int i = 0;
+    std::cout << "# Avg(playouts)" << ","
+            << setw(10) << "Std(playouts)" << ","
+            << setw(10) << "Err(playouts)" << ","
+            << "move no." << std::endl;
+    for (auto itr : nplayouts) {
+        std::cout << setw(10) << getAverage(itr) << ","
+                << setw(10) << getStdDev(itr) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames) << ","
+                << setw(10) << i++ << std::endl;
+    }
+    std::cout << "# Avg(reward)" << ","
+            << setw(10) << "Std(reward)" << ","
+            << setw(10) << "Err(reward)" << ","
+            << "move no." << std::endl;
+    i = 0;
+    for (auto itr : reward) {
+        std::cout << setw(10) << getAverage(itr) << ","
+                << setw(10) << getStdDev(itr) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames) << ","
+                << setw(10) << i++ << std::endl;
+    }
     std::cout << "# end statistic" << std::endl;
 }
 
@@ -470,10 +503,20 @@ int main(int argc, char** argv) {
                 d = atoi(optarg);
                 break;
             case 'o':
-                optplya.nsims = atoi(optarg);
+                if (atoi(optarg) > 1) {
+                    optplya.nsims = atoi(optarg);
+                } else {
+                    std::cerr << "ERROR:(-o) number of playouts should be more than 1.\n";
+                    exit(0);
+                }
                 break;
             case 't':
-                optplyb.nsims = atoi(optarg);
+                if (atoi(optarg) > 1) {
+                    optplyb.nsims = atoi(optarg);
+                } else {
+                    std::cerr << "ERROR:(-o) number of playouts should be more than 1.\n";
+                    exit(0);
+                }
                 break;
             case 'm':
                 optplya.nthreads = atoi(optarg);
@@ -518,6 +561,8 @@ int main(int argc, char** argv) {
                 break;
             case 'a':
                 nmoves = atoi(optarg);
+                optplya.nmoves = atoi(optarg);
+                optplya.nmoves = atoi(optarg);
                 break;
             case 'c':
                 swap = atoi(optarg);
@@ -563,11 +608,14 @@ int main(int argc, char** argv) {
     }
 
     switch (optplya.par) {
-        case 1:
+        case TREEPAR:
             par_a = const_cast<char*>("tree");
             break;
-        case 2:
+        case ROOTPAR:
             par_a = const_cast<char*>("root");
+            break;
+        case PIPEPAR:
+            par_a = const_cast<char*>("pipe");
             break;
         default:
             par_a = const_cast<char*>("seq");
@@ -575,21 +623,24 @@ int main(int argc, char** argv) {
     }
     
         switch (optplyb.par) {
-        case 1:
-            par_b = const_cast<char*>("tree");
+        case TREEPAR:
+            par_b = const_cast<char*> ("tree");
             break;
-        case 2:
-            par_b = const_cast<char*>("root");
+        case ROOTPAR:
+            par_b = const_cast<char*> ("root");
+            break;
+        case PIPEPAR:
+            par_a = const_cast<char*> ("pipe");
             break;
         default:
-            par_b = const_cast<char*>("seq");
+            par_b = const_cast<char*> ("seq");
             break;
     }
 
-    if (optplya.par == 0) {
+    if (optplya.par == SEQUENTIAL) {
         optplya.nthreads = 1;
     }
-    if (optplyb.par == 0) {
+    if (optplyb.par == SEQUENTIAL) {
         optplyb.nthreads = 1;
     }
 
@@ -621,6 +672,14 @@ int main(int argc, char** argv) {
         cout << "Can not run a game with zero moves\n";
         exit(0);
     }
+    
+#ifdef LOCKFREE
+    optplya.locking=const_cast<char*>("lock_free");
+#elif COARSEGRAINED
+    optplya.locking=const_cast<char*>("coarse_grained");
+#elif FINEGRAINED
+    optplya.locking=const_cast<char*>("fine_grained");
+#endif
 
     if (optplya.game == HEX) {
         printf("# plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
@@ -633,9 +692,9 @@ int main(int argc, char** argv) {
         printf("# plyb game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
                 game, b, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b);
     } else if (optplya.game == HORNER) {
-        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp\n");
-        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f\n",
-                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a,threadlib, optplya.cp);
+        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
+                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a,threadlib, optplya.cp, optplya.virtualloss,optplya.locking);
     } else if (optplya.game == GEMPUZZLE) {
         printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
                 game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
@@ -656,11 +715,14 @@ int main(int argc, char** argv) {
         Parser parser;
         polynomial poly = parser.parseFile(fileName);
         PolyState state(poly);
-
+        if(optplya.nmoves == 0){
+            vector<int> moves;
+            optplya.nmoves=state.GetMoves(moves);
+        }
+            
         if (vflag == 4)
             state.PrintToFile(const_cast<char*> ("orig.csv"));
 
-        optplya.minReward = 4100;
         UCTPlayHorner<PolyState>(state, optplya, ngames, vflag);
     } else if (optplya.game == GEMPUZZLE) {
         std::cerr << "15-puzzle is not implemented!\n";

@@ -45,7 +45,7 @@ private:
     int _polyNumOps;
     int _polyNumMult;
     int _polyForward;
-    vector<vector<int>> _poly;
+//    vector<vector<int>> _poly;
     vector<int> _polyOrder; // This is the order of the variables   
 };
 #endif	/* POLYSTATE_H */
