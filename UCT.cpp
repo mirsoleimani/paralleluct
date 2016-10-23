@@ -55,7 +55,7 @@ UCT<T>::~UCT() {
 // <editor-fold defaultstate="collapsed" desc="Run">
 
 template <class T>
-T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
+T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, double& ttime) {
 
     // <editor-fold defaultstate="collapsed" desc="initialize">
     std::vector<std::thread> threads;
@@ -63,7 +63,8 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2) {
 
     T lstate(state);
     _finish=false;
-    double ttime = 0;
+    //double ttime = 0;
+    ttime = 0;
     Timer tmr;
     for (int i = 0; i < plyOpt.nthreads; i++) {
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
@@ -377,7 +378,9 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
 template <class T>
 typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
-
+#ifdef COARSELOCK
+    std::lock_guard<std::mutex> lock(_mtxExpand);
+#endif
     UCT<T>::Token& t = (*token);
     vector<UCT<T>::Node*> &path = t._path;
     T &state = (*token)._state;

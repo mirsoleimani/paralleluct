@@ -35,6 +35,7 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
         std::random_device dev;
         vector<unsigned int> seeda(optplya.nthreads);
         vector<unsigned int> seedb(optplyb.nthreads);
+        double time=0;
 
         while (i < ngames) {
             T state(rstate);
@@ -126,13 +127,13 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                         
                         //cin>>move;
                         //__cilkview_query(d);
-                        plya.Run(state, move, log, log2);
+                        plya.Run(state, move, log, log2,time);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
                         
                     } else {
                         
                         //__cilkview_query(d);
-                        plyb.Run(state, move, log, log2);
+                        plyb.Run(state, move, log, log2,time);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
                         
                     }
@@ -142,13 +143,13 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                         
                         //cin>>move;
                         //__cilkview_query(d);
-                        plya.Run(state, move, log, log2);
+                        plya.Run(state, move, log, log2,time);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
                         
                     } else {
 
                         //__cilkview_query(d);
-                        plyb.Run(state, move, log, log2);
+                        plyb.Run(state, move, log, log2,time);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
                     }
                 }
@@ -247,6 +248,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     std::vector<int> result(ngames);
     std::vector<vector<int>> nplayouts(optplya.nmoves);
     std::vector<vector<int>> reward(optplya.nmoves);
+    std::vector<vector<double>> time(optplya.nmoves);
+    double ttime;
     char fileName[100];
 
     for (int i = 0; i < ngames; i++) {
@@ -309,7 +312,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             }
             
             //__cilkview_query(d);
-            bestState = plya.Run(state, move, log, log2);
+            bestState = plya.Run(state, move, log, log2,ttime);
             //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
             
             state.SetMove(move);
@@ -337,6 +340,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             if (i > 0) {
                 nplayouts[j].push_back(plya.NumPlayoutsRoot());
                 reward[j].push_back(bestState.GetResult(WHITE));
+                time[j].push_back(ttime);
             }
             j++;
         }
@@ -372,32 +376,43 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     }
 
     std::cout << "# start statistic" << std::endl;
-    std::cout << "# Avg(result)" << ","
-            << setw(10) << "Std(result)" << ","
-            << setw(10) << "Err(result)" << std::endl;
+    std::cout << "# avg(result)" << ","
+            << setw(10) << "atd(result)" << ","
+            << setw(10) << "err(result)" << std::endl;
     std::cout << setw(10) << getAverage(result) << ","
             << setw(10) << getStdDev(result) << ","
-            << setw(10) << getStdDev(result) / sqrt(ngames) << std::endl;
+            << setw(10) << getStdDev(result) / sqrt(ngames-1) << std::endl;
     int i = 0;
-    std::cout << "# Avg(playouts)" << ","
-            << setw(10) << "Std(playouts)" << ","
-            << setw(10) << "Err(playouts)" << ","
+    std::cout << "# avg(playout)" << ","
+            << setw(10) << "std(playout)" << ","
+            << setw(10) << "srr(playout)" << ","
             << "move no." << std::endl;
     for (auto itr : nplayouts) {
         std::cout << setw(10) << getAverage(itr) << ","
                 << setw(10) << getStdDev(itr) << ","
-                << setw(10) << getStdDev(itr) / sqrt(ngames) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
                 << setw(10) << i++ << std::endl;
     }
-    std::cout << "# Avg(reward)" << ","
-            << setw(10) << "Std(reward)" << ","
-            << setw(10) << "Err(reward)" << ","
+    std::cout << "# avg(reward)" << ","
+            << setw(10) << "std(reward)" << ","
+            << setw(10) << "err(reward)" << ","
             << "move no." << std::endl;
     i = 0;
     for (auto itr : reward) {
         std::cout << setw(10) << getAverage(itr) << ","
                 << setw(10) << getStdDev(itr) << ","
-                << setw(10) << getStdDev(itr) / sqrt(ngames) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
+                << setw(10) << i++ << std::endl;
+    }
+    std::cout << "# avg(time)" << ","
+            << setw(10) << "std(time)" << ","
+            << setw(10) << "err(time)" << ","
+            << "move no." << std::endl;
+    i = 0;
+    for (auto itr : time) {
+        std::cout << setw(10) << getAverage(itr) << ","
+                << setw(10) << getStdDev(itr) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
                 << setw(10) << i++ << std::endl;
     }
     std::cout << "# end statistic" << std::endl;
@@ -675,7 +690,7 @@ int main(int argc, char** argv) {
     
 #ifdef LOCKFREE
     optplya.locking=const_cast<char*>("lock_free");
-#elif COARSEGRAINED
+#elif defined(COARSEGRAINED)
     optplya.locking=const_cast<char*>("coarse_grained");
 #elif FINEGRAINED
     optplya.locking=const_cast<char*>("fine_grained");

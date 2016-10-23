@@ -48,9 +48,11 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 //#define CILKSELECT
 //#define TIMING
 #define MAXNUMVISITS
+
 #define LOCKFREE
-//#define FINEDGRAINED
-//#define COARSEGRAINED
+//#define FINELOCK
+//#define COARSELOCK
+
 //#define COPYSTATE
 //#define VECTORIZEDBACKUP
 

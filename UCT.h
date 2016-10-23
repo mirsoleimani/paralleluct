@@ -108,7 +108,6 @@ public:
                 return true;
             return false;
         }
-
 #else
 
         bool IsFullExpanded() {
@@ -135,7 +134,7 @@ public:
             _visits.fetch_add(1, std::memory_order_seq_cst);
             _wins.fetch_add(result, std::memory_order_seq_cst);
         }
-#ifndef LOCKFREE
+#ifdef FINELOCK
 
         void CreatChildren(std::vector<int>& moves, int pjm) {
             std::lock_guard<std::mutex> lock(mtx1);
@@ -163,6 +162,31 @@ public:
             }
         }
 
+#elif defined(COARSELOCK)
+
+        void CreatChildren(std::vector<int>& moves, int pjm) {
+            if (!IsParent()) {
+                for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); itr++) {
+                    _children.push_back(new Node(*itr, this, pjm));
+                }
+                _untriedMoves = moves.size();
+            }
+        }
+
+        /**
+         * Expand a new child from _children. 
+         * _untriedMoves-1 will be the index 
+         * of the new child.
+         * @return A pointer to the new expanded child.
+         */
+        Node* AddChild() {
+            if (!IsFullExpanded()) {
+                assert(_untriedMoves > 0 && "AddChild: There is no more child to expand!\n");
+                return _children[--_untriedMoves];
+            } else {
+                return this;
+            }
+        }
 #else
 
         /**
@@ -284,7 +308,7 @@ public:
     virtual ~UCT();
 
     /*Multithreaing section*/
-    T Run(const T& state, int& m, std::string &log1, std::string &log2);
+    T Run(const T& state, int& m, std::string &log1, std::string &log2, double& ttime);
 
     void UCTSearch(const T& state, int sid, int rid, Timer tmr);
     void UCTSearchTBBSPSPipe(const T& state, int sid, int rid, Timer tmr);
@@ -365,12 +389,15 @@ private:
     std::vector<T> _bestState;
     int _nPlayouts;
 #ifdef MKLRNG
-    VSLStreamStatePtr _stream[MAXNUMSTREAMS];  /* Each token is associated with an unique stream*/
+    VSLStreamStatePtr _stream[MAXNUMSTREAMS]; /* Each token is associated with an unique stream*/
     unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
 #else
-        std::vector<ENG> gengine;
+    std::vector<ENG> gengine;
 #endif
-        std::atomic<bool> _finish;
+    std::atomic<bool> _finish; 
+#ifdef COARSELOCK
+    std::mutex _mtxExpand;
+#endif
 };
 
 
