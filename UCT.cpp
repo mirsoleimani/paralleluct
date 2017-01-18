@@ -6,6 +6,7 @@ template <class T>
 UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(vb) {//TODO remove verbose from class property use plyopt
 
     plyOpt = opt;
+    _score = 0;
 #ifdef MKLRNG
     if (plyOpt.nthreads > MAXNUMSTREAMS) {
         std::cerr << "MKLRNG can not support more than " << MAXNUMSTREAMS << " threads!\n";
@@ -40,10 +41,10 @@ UCT<T>::UCT(const UCT<T>& orig) {
 
 template <class T>
 UCT<T>::~UCT() {
-   
+
 #ifdef MKLRNG
     mkl_free_buffers();
-    for(int i=0;i<plyOpt.nthreads;i++){
+    for (int i = 0; i < plyOpt.nthreads; i++) {
         vslDeleteStream(&_stream[i]);
         mkl_free(_iRNGBuf[i]);
     }
@@ -62,7 +63,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     tbb::task_group g;
 
     T lstate(state);
-    _finish=false;
+    _finish = false;
     //double ttime = 0;
     ttime = 0;
     Timer tmr;
@@ -86,7 +87,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     else if (plyOpt.par == TREEPAR) {
         /*create the root*/
         //roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-//        tmr.reset();
+        //        tmr.reset();
         if (plyOpt.threadruntime == CPP11) {
             tmr.reset();
             for (int i = 0; i < plyOpt.nthreads; i++) {
@@ -132,7 +133,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
             std::cerr << "No Intel compiler for cilk plus!\n";
             exit(0);
 #endif            
-        }           
+        }
         else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
@@ -145,7 +146,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         //        for (int i = 0; i < plyOpt.nthreads; i++) {
         //            roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
         //        }
-//        tmr.reset();
+        //        tmr.reset();
         if (plyOpt.threadruntime == CPP11) {
             tmr.reset();
             for (int i = 0; i < plyOpt.nthreads; i++) {
@@ -237,11 +238,11 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     } else if (plyOpt.threadruntime == TBBTASKGROUP) {
         g.wait();
     }
-//    }else if (plyOpt.threadruntime == TBBSPSPIPELINE) {
-//        if (threads.size() > 0) {
-//            std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
-//        }
-//    }// </editor-fold>
+    //    }else if (plyOpt.threadruntime == TBBSPSPIPELINE) {
+    //        if (threads.size() > 0) {
+    //            std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
+    //        }
+    //    }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="collect">
     if (plyOpt.par == TREEPAR || plyOpt.par == PIPEPAR) {
@@ -270,7 +271,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
             reward = _bestState[i].GetResult(WHITE);
             bestState = _bestState[i];
         }
-    }       
+    }
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="select best child">
@@ -289,7 +290,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     int index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
     nn = nn->_children[index]; // </editor-fold>
 #else
-    nn = Select(roots[0], rootState);//TODO the cp value should be zero
+    nn = Select(roots[0], rootState); //TODO the cp value should be zero
 #endif
     m = nn->_move; // </editor-fold>
 
@@ -307,7 +308,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     roots.clear();
     for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
         delete (*itr);
-    statistics.clear(); 
+    statistics.clear();
     _bestState.clear();
     // </editor-fold>
 
@@ -317,6 +318,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
 
 // <editor-fold defaultstate="collapsed" desc="MCTS steps for pipeline">
 #ifdef MKLRNG
+
 template <class T>
 typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
@@ -327,12 +329,21 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
     /*the first node in the path is root node*/
     UCT<T>::Node* n = roots[tid._rid];
+    
+    if (plyOpt.game == HORNER) {
+        _score = state.GetResult(WHITE);
+    } else {
+        assert("_score is not initialized!\n");
+    }
+    
+    //add virtual loss to root node
+    if (plyOpt.virtualloss) {
+        n->Update(_score,1);
+    }
+    
     path.push_back(n);
+    
     while (n->IsFullExpanded()) {
-#ifdef VIRTUALLOSS
-        //TODO implement virtual loss
-#endif
-
         // <editor-fold defaultstate="collapsed" desc="initializing">
         UCT<T>::Node* next = NULL;
         assert(n->_children.size() > 0 && "_children can not be empty!\n");
@@ -351,9 +362,9 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
             float exploit = 0;
             if (plyOpt.game == HORNER) {
-                float score = state.GetResult(WHITE);
-                assert(score > 0);
-                exploit = score / (wins / (float) (visits));
+                //_score = state.GetResult(WHITE);
+                assert(_score > 0&&"_score is not initialized!\n");
+                exploit = _score / (wins / (float) (visits));
             } else if (plyOpt.game == HEX) {
                 exploit = wins / (float) (visits);
             }
@@ -367,6 +378,10 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
         assert(index < n->_children.size() && "index is out of range\n");
         next = n->_children[index]; // </editor-fold>
+
+        if (plyOpt.virtualloss) {
+            next->Update(_score,1);
+        }
 
         // <editor-fold defaultstate="collapsed" desc="update path and state">
         n = next;
@@ -392,7 +407,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         vector<int> moves;
         //set the number of untried moves for n based on the current state
         state.GetMoves(moves);
-        RandomShuffle(moves.begin(),moves.end(),tId);
+        RandomShuffle(moves.begin(), moves.end(), tId);
         n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
         // </editor-fold>
 
@@ -418,7 +433,7 @@ typename UCT<T>::Token* UCT<T>::Playout(Token* token) {
     vector<int> moves;
     state.GetPlayoutMoves(moves);
     //std::random_shuffle(moves.begin(), moves.end());
-    RandomShuffle(moves.begin(),moves.end(),tId);
+    RandomShuffle(moves.begin(), moves.end(), tId);
     //TODO it is just for test not thread safe// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached, then evaluate">
@@ -434,9 +449,9 @@ template <class T>
 typename UCT<T>::Token* UCT<T>::Evaluate(UCT<T>::Token* token) {
 
     T &state = (*token)._state;
-    
+
     state.Evaluate();
-    
+
     return token;
 }
 
@@ -445,22 +460,32 @@ void UCT<T>::Backup(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
+    int score = (*token)._score;
 
     UCT<T>::Node* n = path.back();
     float rewardWhite = state.GetResult(WHITE);
     float rewardBlack = state.GetResult(BLACK);
 
 #ifdef VECTORIZEDBACKUP
+    if (plyOpt.virtualloss) {
+        assert("virtual loss is not implemented!");
+    } else {
 #pragma simd
-    for (int i = 0; i < path.size(); i++)
-        path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        for (int i = 0; i < path.size(); i++)
+            path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
+    }
 #else
     while (n != NULL) {
-        n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        if (plyOpt.virtualloss) {
+            n->Update(-_score,-1); //remove virtual loss
+            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        } else {
+            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        }
         n = n->_parent;
     }
 #endif
-    
+
 }
 
 #else
@@ -571,8 +596,8 @@ template <class T>
 void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 
 #ifdef MKLRNG
-        UCT<T>::Identity tId(sid,rid);
-        UCT<T>::Token* t = new UCT<T>::Token(rstate,tId);
+    UCT<T>::Identity tId(sid, rid);
+    UCT<T>::Token* t = new UCT<T>::Token(rstate, tId);
 #else    
     /*Create a copy of the current state for each thread*/
     T lstate(rstate);
@@ -581,7 +606,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     DIST dist(0, 1);
     GEN gen(gengine[sid], dist);
 #endif
-    
+
     float reward = std::numeric_limits<float>::max();
     TimeOptions* timeopt = statistics[sid];
     timeopt->nrand = 0;
@@ -596,7 +621,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     timeopt->etime = 0;
     double time = 0.0;
 #endif
-
+    
     while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs &&
             itr < max &&
             !_finish) {
@@ -633,8 +658,8 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
         time = tmr.elapsed();
 #endif
 #ifdef MKLRNG
-        t=Playout(t);
-        t=Evaluate(t);
+        t = Playout(t);
+        t = Evaluate(t);
 #else
         Playout(lstate, gen);
 #endif
@@ -686,24 +711,24 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
 
     vector<UCT<T>::Token*> buffer;
     buffer.reserve(plyOpt.nthreads);
-    for(int i=0;i<plyOpt.nthreads;i++){
+    for (int i = 0; i < plyOpt.nthreads; i++) {
         UCT<T>::Identity tId(i);
-        buffer.emplace_back(new UCT<T>::Token(rstate,tId));
+        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
     }
-            
+
     //TODO use circular buffer to create and use tokens.
     int itr = plyOpt.nsims;
-    int index=0;
-    int ntokens=plyOpt.nthreads;
-    bool finish=false;
+    int index = 0;
+    int ntokens = plyOpt.nthreads;
+    bool finish = false;
     tbb::parallel_pipeline(
             ntokens,
             tbb::make_filter<void, UCT<T>::Token*>(
             tbb::filter::serial_in_order, [&](tbb::flow_control & fc)->UCT<T>::Token* {
                 //UCT<T>::Token *t = new UCT<T>::Token(rstate, roots[0]);
                 UCT<T>::Token* t = buffer[index];
-                index = (index+1)%ntokens;
-                if (--itr == 0||finish) {
+                index = (index + 1) % ntokens;
+                if (--itr == 0 || finish) {
                     fc.stop();
                     return NULL;
 
@@ -732,16 +757,16 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     tbb::make_filter<UCT<T>::Token*, void>(
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
-                if(t->_state.GetResult(WHITE) < plyOpt.bestreward){
+                if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
                     _bestState[t->_identity._id] = t->_state;
-                    finish=true;
+                            finish = true;
                 }
                 t->_state = rstate;
             }));
-            
-    for(int i=0;i<ntokens;i++)
-        delete buffer[i];          
-            
+
+    for (int i = 0; i < ntokens; i++)
+        delete buffer[i];
+
 }// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="Printing">

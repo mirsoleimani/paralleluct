@@ -118,7 +118,7 @@ public:
         }
 #endif
 
-                /**
+        /**
          * Update the values of a node with reward that
          * comes from the evaluation of a non-terminal 
          * state after the playout operation.
@@ -132,6 +132,16 @@ public:
              * http://en.cppreference.com/w/cpp/atomic/memory_order
              */
             _visits.fetch_add(1, std::memory_order_seq_cst);
+            _wins.fetch_add(result, std::memory_order_seq_cst);
+        }
+        void Update(int result,int c) {
+            //std::lock_guard<std::mutex> lock(mtx1);
+            //_visits++;
+            //_wins += result;
+            /* multiple producer multiple consumer 
+             * http://en.cppreference.com/w/cpp/atomic/memory_order
+             */
+            _visits.fetch_add(c, std::memory_order_seq_cst);
             _wins.fetch_add(result, std::memory_order_seq_cst);
         }
 #ifdef FINELOCK
@@ -288,6 +298,7 @@ public:
         Token(const T state, Identity id) {
             _state=state; //copy the state
             _identity=id;
+            _score = 0;
         }
 
         ~Token() {
@@ -297,6 +308,7 @@ public:
         Identity _identity;
         T _state;
         vector<Node*> _path;
+        int _score;
     }; // </editor-fold>
     
     typedef Node* NodePtr;
@@ -388,6 +400,7 @@ private:
     std::vector<TimeOptions*> statistics;
     std::vector<T> _bestState;
     int _nPlayouts;
+    float _score;
 #ifdef MKLRNG
     VSLStreamStatePtr _stream[MAXNUMSTREAMS]; /* Each token is associated with an unique stream*/
     unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/

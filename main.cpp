@@ -502,7 +502,7 @@ int main(int argc, char** argv) {
     PlyOptions optplya, optplyb;
 
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
-    while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:l:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
@@ -584,6 +584,10 @@ int main(int argc, char** argv) {
                 break;
             case 'i':
                 fileName = const_cast<char*>(optarg);
+                break;
+            case 'l':
+                optplya.virtualloss = 1;
+                optplyb.virtualloss = 1;
                 break;
             case '?':
                 if (optopt == 'g' || optopt == 'b' || optopt == 'd' || optopt == 'n' || optopt == 's')
