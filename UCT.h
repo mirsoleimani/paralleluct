@@ -293,7 +293,8 @@ public:
         unsigned int _index;
     };
     
-    struct Token {
+#ifdef __MIC__
+    struct __attribute__((target(mic))) Token {
     public:
         Token(const T state, Identity id) {
             _state=state; //copy the state
@@ -309,7 +310,9 @@ public:
         T _state;
         vector<Node*> _path;
         int _score;
-    }; // </editor-fold>
+    }; 
+#endif
+    // </editor-fold>
     
     typedef Node* NodePtr;
     typedef typename std::vector<NodePtr>::const_iterator const_iterator;
