@@ -293,8 +293,7 @@ public:
         unsigned int _index;
     };
     
-#ifdef __MIC__
-    struct __attribute__((target(mic))) Token {
+    struct Token {
     public:
         Token(const T state, Identity id) {
             _state=state; //copy the state
@@ -311,7 +310,6 @@ public:
         vector<Node*> _path;
         int _score;
     }; 
-#endif
     // </editor-fold>
     
     typedef Node* NodePtr;
@@ -384,7 +382,7 @@ public:
      * @param first
      * @param last
      */
-    template <class RandomAccessIterator>
+    template <class RandomAccessIterator> 
     inline void RandomShuffle(RandomAccessIterator first, RandomAccessIterator last, Identity& tid) {
         int i;
         int n;
@@ -394,7 +392,7 @@ public:
         }
     }
 #endif 
-    
+
 private:
 
     int verbose;

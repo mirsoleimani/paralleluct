@@ -433,6 +433,7 @@ typename UCT<T>::Token* UCT<T>::Playout(Token* token) {
     vector<int> moves;
     state.GetPlayoutMoves(moves);
     //std::random_shuffle(moves.begin(), moves.end());
+//#pragma offload target(mic) in(tId) in(moves:moves.size()) out(moves:moves.size())
     RandomShuffle(moves.begin(), moves.end(), tId);
     //TODO it is just for test not thread safe// </editor-fold>
 
