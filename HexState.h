@@ -5,7 +5,7 @@
  * Created on 6 november 2014, 16:23
  */
 #include "Utilities.h"
-
+#include "State.h"
 
 #ifndef HEXSTATE_H
 #define	HEXSTATE_H
@@ -20,7 +20,7 @@ struct BItem{
     bool right;
 };
 
-class HexGameState {
+class HexGameState : public State {
 public:
     HexGameState();
     HexGameState(int d);
@@ -28,17 +28,17 @@ public:
     HexGameState& operator=(const HexGameState& orig);
     HexGameState& operator =(HexGameState&& orig);
     virtual ~HexGameState();
-    void Reset();
-    void SetMove(int move);
-    int GetPlyJM();
-    int GetMoves(vector<int>& moves);
-    void SetPlayoutMoves(vector<int>& moves);
-    int GetPlayoutMoves(vector<int>& moves);   
+    void Reset() override;
+    void SetMove(int move) override;
+    int GetPlyJM() override;
+    int GetMoves(vector<int>& moves) override;
+    void SetPlayoutMoves(vector<int>& moves) override;
+    int GetPlayoutMoves(vector<int>& moves) override;   
     
-    float GetResult(int plyjm);
-    bool IsTerminal();
-    void Print();
-    void PrintToFile(char* fileName);
+    float GetResult(int plyjm) override;
+    bool IsTerminal() override;
+    void Print() override;
+    void PrintToFile(char* fileName) override;
     void PrintDSet();
     void PrintDSet2(int pos);
 
@@ -50,7 +50,7 @@ public:
     void ClearStone(int pos);
     int PutStone(int pos);
     
-    void Evaluate();
+    void Evaluate() override;
     float EvaluateBoard(int plyjm, int direction);
     
     //dijkstra method
@@ -64,8 +64,8 @@ public:
     int Find(int pos);
     void Union(int pos1, int pos2);
 
-        void UndoMoves(int beg);
-        int GetMoveCounter();
+        void UndoMoves(int beg) override;
+        int GetMoveCounter() override;
     //    int UndoMove();
     //int CurrIndicator();
     

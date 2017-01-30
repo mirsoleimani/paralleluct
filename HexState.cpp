@@ -5,6 +5,7 @@
  * Created on 6 november 2014, 16:23
  */
 
+#include "State.h"
 #include "HexState.h"
 
 HexGameState::HexGameState(){
