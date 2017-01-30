@@ -17,8 +17,9 @@ using namespace std;
 class State {
 public:
 
-    State() {
-    }
+    State() {}
+    virtual ~State(){}
+    
     virtual void Reset() = 0;
 
     virtual void SetMove(MoveType move) = 0;
