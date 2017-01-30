@@ -8,11 +8,11 @@
 #include "State.h"
 #include "PolyState.h"
 
-PolyState::PolyState(){
+PolyState::PolyState()
+: State(){}
 
-}
-
-PolyState::PolyState(const polynomial poly) {
+PolyState::PolyState(const polynomial poly)
+: State(){
     _pjm = WHITE;
     _poly = poly;
     _polyNumTerms = _poly.size();

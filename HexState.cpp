@@ -8,11 +8,11 @@
 #include "State.h"
 #include "HexState.h"
 
-HexGameState::HexGameState(){
-    
-}
+HexGameState::HexGameState()
+:State(){}
 
-HexGameState::HexGameState(int d) {
+HexGameState::HexGameState(int d)
+:State(){
     dim = d;
     size = d*d;
     pjm = 2;

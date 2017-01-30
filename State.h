@@ -17,10 +17,10 @@ using namespace std;
 class State {
 public:
 
-    State() {}
-    virtual ~State(){}
+    State();
+    virtual ~State();
     
-    virtual void Reset() = 0;
+    virtual void Reset();
 
     virtual void SetMove(MoveType move) = 0;
     virtual void SetPlayoutMoves(vector<MoveType>& moves) = 0;
@@ -36,8 +36,8 @@ public:
     virtual int GetMoveCounter() = 0;
     virtual void UndoMoves(int origMoveCounter) = 0;
     
-    virtual void Print();
-    virtual void PrintToFile(char* fileName);
+    virtual void Print() = 0;
+    virtual void PrintToFile(char* fileName) = 0;
 
 };
 

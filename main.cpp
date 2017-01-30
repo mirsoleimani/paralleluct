@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include "UCT.h"
+#include "State.h"
 #include "PGameState.h"
 #include "HexState.h"
 #include "PolyState.h"
@@ -724,8 +725,8 @@ int main(int argc, char** argv) {
 
     // <editor-fold defaultstate="collapsed" desc="play game">
     if (optplya.game == HEX) {
-        HexGameState state(d);
-        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
+        //HexGameState state(d);
+        //UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
