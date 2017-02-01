@@ -8,7 +8,10 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#pragma offload_attribute (push, _Cilk_shared)
 #include <vector>
+#include "offload.h"
+#pragma offload_attribute (pop)
 #include <time.h>
 #include <chrono>
 #include <random>
@@ -78,9 +81,10 @@ static const float LOST = 0.0;
 static const float DRAW = 0.5;
 
 typedef int MOVE;
-typedef std::vector<int> term;
-typedef std::vector<term> polynomial;
-static vector<vector<int>> _poly;
+//typedef std::vector<int> term;
+//typedef std::vector<term> polynomial;
+//static vector<vector<int>> _poly;
+//#define SharedVec _Cilk_shared vector<Move, __offload::shared_allocator<Move> > * _Cilk_shared
 
 enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
 enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR};

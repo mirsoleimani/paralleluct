@@ -9,9 +9,9 @@
 #include "UCT.h"
 #include "PGameState.h"
 #include "HexState.h"
-#include "PolyState.h"
+//#include "PolyState.h"
 #include "GemPuzzleState.h"
-#include "Parser.h"
+//#include "Parser.h"
 //#include <cilk/cilk.h>
 //#include <cilktools/cilkview.h>
 using namespace std;
@@ -730,26 +730,26 @@ int main(int argc, char** argv) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
     } else if (optplya.game == HORNER) {
-        //pars input file for polynomial
-        Parser parser;
-        polynomial poly = parser.parseFile(fileName);
-        PolyState state(poly);
-        if(optplya.nmoves == 0){
-            vector<int> moves;
-            optplya.nmoves=state.GetMoves(moves);
-        }
-            
-        if (vflag == 4)
-            state.PrintToFile(const_cast<char*> ("orig.csv"));
-
-        UCTPlayHorner<PolyState>(state, optplya, ngames, vflag);
-    } else if (optplya.game == GEMPUZZLE) {
-        std::cerr << "15-puzzle is not implemented!\n";
-        exit(0);
-        //pars input file for puzzle
-        //GemPuzzleState state("14,1,9,6,4,8,12,5,7,2,3,0,10,11,13,15");
-
-        //UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
+//        //pars input file for polynomial
+//        Parser parser;
+//        polynomial poly = parser.parseFile(fileName);
+//        PolyState state(poly);
+//        if(optplya.nmoves == 0){
+//            vector<int> moves;
+//            optplya.nmoves=state.GetMoves(moves);
+//        }
+//            
+//        if (vflag == 4)
+//            state.PrintToFile(const_cast<char*> ("orig.csv"));
+//
+//       //UCTPlayHorner<PolyState>(state, optplya, ngames, vflag);
+//    } else if (optplya.game == GEMPUZZLE) {
+//        std::cerr << "15-puzzle is not implemented!\n";
+//        exit(0);
+//        //pars input file for puzzle
+//        //GemPuzzleState state("14,1,9,6,4,8,12,5,7,2,3,0,10,11,13,15");
+//
+//        UCTPlayGemPuzzle<GemPuzzleState>(state,optplya, ngames,vflag);
     } else {
         std::cerr << "Select a game to play!\n";
         exit(0);
