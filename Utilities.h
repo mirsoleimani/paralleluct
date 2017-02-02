@@ -8,10 +8,10 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#pragma offload_attribute (push, _Cilk_shared)
+//#pragma offload_attribute (push, _Cilk_shared)
 #include <vector>
 #include "offload.h"
-#pragma offload_attribute (pop)
+//#pragma offload_attribute (pop)
 #include <time.h>
 #include <chrono>
 #include <random>
