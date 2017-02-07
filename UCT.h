@@ -7,6 +7,7 @@
 
 #include "PGameState.h"
 #include "HexState.h"
+#include "SampleGameState.h"
 #include "Utilities.h"
 #include <thread>
 #include <mutex>

@@ -404,10 +404,10 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
     UCT<T>::Node* n = path.back();
     if (!state.IsTerminal()) {
         // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
-        vector<int> moves;
+        SHAREDVEC(int) moves;
         //set the number of untried moves for n based on the current state
         state.GetMoves(moves);
-        RandomShuffle(moves.begin(), moves.end(), tId);
+        RandomShuffle((*moves).begin(), (*moves).end(), tId);
         n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
         // </editor-fold>
 
@@ -430,7 +430,7 @@ typename UCT<T>::Token* UCT<T>::Playout(Token* token) {
     UCT<T>::Identity& tId = t._identity;
 
     // <editor-fold defaultstate="collapsed" desc="find untried moves and randomly suffle them">
-    vector<int> moves;
+    SHAREDVEC(int) moves;
     state.GetPlayoutMoves(moves);
     //std::random_shuffle(moves.begin(), moves.end());
 //#pragma offload target(mic) in(tId) in(moves:moves.size()) out(moves:moves.size())

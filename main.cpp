@@ -11,13 +11,18 @@
 #include "HexState.h"
 //#include "PolyState.h"
 #include "GemPuzzleState.h"
+#include "SampleGameState.h"
 //#include "Parser.h"
 //#include <cilk/cilk.h>
 //#include <cilktools/cilkview.h>
 using namespace std;
+SHAREDVEC(int) moves;
 
 template <typename T>
 void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
+    moves = new (_Offload_shared_malloc(sizeof (vector<int>)))
+            _Cilk_shared
+            vector<int, __offload::shared_allocator<int> >;
     if (twoPly) {
         //cilkview_data_t d;
 #ifdef THREADPOOL
@@ -112,13 +117,13 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                     cout << setw(9) << j << ",";
                 }
                 if (verbose == 3) {
-                    vector<MOVE> moves;
+                    //vector<MOVE> moves;
                     state.GetMoves(moves);
 
                     strVisit << setw(9) << "# move no." << ","
                             << setw(10) << "player" << ",";
-                    for (int i = 0; i < moves.size(); i++)
-                        strVisit << moves[i] << ",";
+                    for (int i = 0; i < (*moves).size(); i++)
+                        strVisit << (*moves)[i] << ",";
                     strVisit << endl;
                 }
                 if (state.GetPlyJM() == BLACK) {
@@ -241,7 +246,9 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
 
 template <typename T>
 void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
-
+    moves = new (_Offload_shared_malloc(sizeof (vector<int>)))
+            _Cilk_shared
+            vector<int, __offload::shared_allocator<int> >;
     vector<unsigned int> seeda(optplya.nthreads);
     std::random_device dev;
     std::stringstream strVisit;
@@ -301,7 +308,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                 cout << setw(9) << j << ",";
             }
             if (verbose == 3) {
-                vector<MOVE> moves;
+                //vector<MOVE> moves;
                 state.GetMoves(moves);
 
                 strVisit << setw(9) << "move no." << ","
@@ -724,11 +731,13 @@ int main(int argc, char** argv) {
 
     // <editor-fold defaultstate="collapsed" desc="play game">
     if (optplya.game == HEX) {
-        HexGameState state(d);
-        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
+//        HexGameState state(d);
+//        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
+        SampleGameState state;
+        UCTPlayPGame<SampleGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
     } else if (optplya.game == HORNER) {
 //        //pars input file for polynomial
 //        Parser parser;

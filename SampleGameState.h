@@ -23,7 +23,7 @@ public:
 
     void Reset(){}
     void SetMove(int move){}
-    int GetPlyJM(){}
+    int GetPlyJM(){return 1;}
     int GetMoves(SHAREDVEC(int)& moves){moves=_moves;}
     void SetPlayoutMoves(SHAREDVEC(int)& moves){_moves=moves;}
     int GetPlayoutMoves(SHAREDVEC(int)& moves){moves=_moves;}
