@@ -418,6 +418,455 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     std::cout << "# end statistic" << std::endl;
 }
 
+template <typename T>
+void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
+
+    //cilkview_data_t d;
+#ifdef THREADPOOL
+    boost::threadpool::pool thread_pool(NTHREADS);
+#endif
+    std::random_device dev;
+    std::stringstream strVisit;
+
+    std::vector<int> result(ngames);
+    std::vector<vector<int>> nplayouts(optplya.nmoves);
+    std::vector<vector<int>> reward(optplya.nmoves);
+    std::vector<vector<double>> time(optplya.nmoves);
+    string ply = "none";
+    string black;
+    string white;
+    vector<int> plywin(3);
+    vector<int> plywina(3);
+    vector<int> plywinb(3);
+
+    double ttime = 0;
+    char fileName[100];
+    int move = 0;
+    int i = 0;
+    char buffer[100];
+
+    if (twoPly) {
+        vector<unsigned int> seeda(optplya.nthreads);
+        vector<unsigned int> seedb(optplyb.nthreads);
+
+        while (i < ngames) {
+            T state(rstate);
+
+            if (swap) {
+                if (i % 2 == 0) {
+                    black = "plya(B)";
+                    white = "plyb(W)";
+                } else {
+                    black = "plyb(B)";
+                    white = "plya(W)";
+                }
+            } else {
+                black = "plya(B)";
+                white = "plyb(W)";
+            }
+
+#ifdef MKLRNG
+            optplya.seed = (unsigned int) dev();
+            optplyb.seed = (unsigned int) dev();
+#else
+            for (int j = 0; j < optplya.nthreads; j++) {
+                seeda[j] = (unsigned int) dev();
+                assert(seeda[j] > 0 && "seed can not be negative\n");
+            }
+            for (int j = 0; j < optplyb.nthreads; j++) {
+                seedb[j] = (unsigned int) dev();
+                assert(seedb[j] > 0 && "seed can not be negative\n");
+            }
+#endif
+            if (verbose) {
+                cout << "# start game" << ","
+                        << setw(8) << i << ","
+                        << setw(10) << black << ","
+                        << setw(10) << white << ","
+                        << setw(10) << "?" << endl;
+
+                cout << setw(9) << "# move no." << ","
+                        << setw(10) << "player" << ","
+                        << setw(10) << "playout" << ","
+                        << setw(10) << "time" << ","
+                        << setw(10) << "select(%)" << ","
+                        << setw(10) << "expand(%)" << ","
+                        << setw(10) << "playout(%)" << ","
+                        << setw(10) << "backup(%)" << ","
+                        << setw(10) << "nrandvec" << ","
+                        << setw(10) << "move" << endl;               
+            }
+            if (verbose == 3) {
+                strVisit.str().clear();
+                strVisit.str(std::string());
+                strVisit << "# start visit,"
+                        << setw(9) << i << ","
+                        << setw(10) << black << ","
+                        << setw(10) << white << endl;
+                                strVisit.str().clear();
+            }
+
+            UCT<T> plya(optplya, verbose, seeda);
+            UCT<T> plyb(optplyb, verbose, seedb);
+            T bestState;
+            int j = 0;
+            while (!state.IsTerminal() && j < optplya.nmoves) {
+                string log = " ";
+                string log2 = " ";
+
+                if (verbose) {
+                    cout << setw(9) << j << ",";
+                }
+                if (verbose == 3) {
+                    vector<MOVE> moves;
+                    state.GetMoves(moves);
+
+                    strVisit << setw(9) << "move no." << ","
+                            << setw(10) << "player" << ",";
+                    for (int i = 0; i < moves.size(); i++)
+                        strVisit << moves[i] << ",";
+                    strVisit << endl;
+                }
+                
+                if (state.GetPlyJM() == BLACK) {
+                    ply = white;
+                    if (white == "plya(W)") {
+
+                        //cin>>move;
+                        //__cilkview_query(d);
+                        bestState = plya.Run(state, move, log, log2, ttime);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+
+                    } else {
+
+                        //__cilkview_query(d);
+                        bestState = plyb.Run(state, move, log, log2, ttime);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+
+                    }
+                } else {
+                    ply = black;
+                    if (black == "plya(B)") {
+
+                        //cin>>move;
+                        //__cilkview_query(d);
+                        bestState = plya.Run(state, move, log, log2, ttime);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+
+                    } else {
+
+                        //__cilkview_query(d);
+                        bestState = plyb.Run(state, move, log, log2, ttime);
+                        //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                    }
+                }
+
+                state.SetMove(move);
+
+                if (verbose) {
+                    cout << setw(10) << ply << ",";
+                    cout << log;
+                    cout << setw(10) << move << endl;
+                }
+                if (verbose == 2)
+                    state.Print();
+                if (verbose == 3) {
+                    strVisit << setw(9) << j << ","
+                            << setw(10) << ply << ","
+                            << log2 << endl;
+                }
+                if (i > 0) {
+                    //nplayouts[j].push_back(plya.NumPlayoutsRoot());
+                    //reward[j].push_back(bestState.GetResult(WHITE));
+                    time[j].push_back(ttime);
+                }
+                j++;
+            }
+
+            state.Evaluate();
+            int pjm = state.GetPlyJM();
+            result[i] = state.GetResult(pjm);
+            
+            state.Reset();            
+            if (result[i] == WIN) {
+                const char *c = pjm == BLACK ? "+B " : "+W ";
+                sprintf(buffer, c);
+
+                if (i % 2 == 0) {
+                    pjm == BLACK ? plywina[pjm]++ : plywinb[pjm]++;
+                } else {
+                    pjm == BLACK ? plywinb[pjm]++ : plywina[pjm]++;
+                }
+                plywin[pjm]++;
+            } else if (result[i] == LOST) {
+                const char *c = (CLEAR - pjm == BLACK ? "+B " : "+W ");
+                sprintf(buffer, c);
+
+                if (i % 2 == 0) {
+                    (CLEAR - pjm == BLACK) ? plywina[CLEAR - pjm]++ : plywinb[CLEAR - pjm]++;
+                } else {
+                    (CLEAR - pjm == BLACK) ? plywinb[CLEAR - pjm]++ : plywina[CLEAR - pjm]++;
+                }
+                plywin[CLEAR - pjm]++;
+            } else if (result[i] == DRAW) {
+                sprintf(buffer, "+Draw");
+            }
+            if (verbose) {
+                cout << "# end game" << ","
+                        << setw(10) << i << ","
+                        << setw(10) << black << ","
+                        << setw(10) << white << ","
+                        << setw(10) << buffer << endl;
+
+                std::cout << "# start result" << std::endl;
+                std::cout << "# game no" << ","
+                        << setw(10) << "player" << ","
+                        << setw(10) << "seed" << ","
+                        << setw(10) << "result" << std::endl;
+                std::cout << setw(10) << i << ","
+                        << setw(10) << "plya" << ","
+                        << setw(10) << optplya.seed << ","
+                        << setw(10) << result[i] << std::endl;
+                std::cout << setw(10) << i << ","
+                        << setw(10) << "plyb" << ","
+                        << setw(10) << optplyb.seed << ","
+                        << setw(10) << result[i] << std::endl;
+                std::cout << "# end result" << std::endl;
+            }
+            if (verbose == 3) {
+                cout << strVisit.str()
+                        << "# end visit,"
+                        << setw(10) << i << ","
+                        << setw(10) << black << ","
+                        << setw(10) << white << endl;
+            }
+            i++;
+        }
+    } else {
+        vector<unsigned int> seeda(optplya.nthreads);
+
+        for (i = 0; i < ngames; i++) {
+            T state(rstate);
+            string log = " ";
+            string log2 = " ";
+            int move;
+#ifdef MKLRNG
+            optplya.seed = (unsigned int) dev();
+#else
+            for (int j = 0; j < optplya.nthreads; j++) {
+                seeda[j] = (unsigned int) dev();
+                assert(seeda[j] > 0 && "seed can not be negative\n");
+            }
+#endif
+            if (verbose) {
+                cout << "# start game" << ","
+                        << setw(8) << i << endl;
+
+                cout << setw(9) << "# move no." << ","
+                        << setw(10) << "player" << ","
+                        << setw(10) << "playout" << ","
+                        << setw(10) << "time" << ","
+                        << setw(10) << "select(%)" << ","
+                        << setw(10) << "expand(%)" << ","
+                        << setw(10) << "playout(%)" << ","
+                        << setw(10) << "backup(%)" << ","
+                        << setw(10) << "nrandvec" << ","
+                        << setw(10) << "move" << ","
+                        << setw(10) << "reward" << endl;
+            }
+            if (verbose == 3) {
+                strVisit.str().clear();
+                strVisit.str(std::string());
+                strVisit << "# start visit" << ","
+                        << setw(9) << i << endl;
+            }
+
+            UCT<T> plya(optplya, verbose, seeda);
+            int j = 0;
+            T bestState;
+            while (!state.IsTerminal() && j < optplya.nmoves) {
+                if (verbose) {
+                    cout << setw(9) << j << ",";
+                }
+                if (verbose == 3) {
+                    vector<MOVE> moves;
+                    state.GetMoves(moves);
+
+                    strVisit << setw(9) << "move no." << ","
+                            << setw(10) << "player" << ",";
+                    for (int i = 0; i < moves.size(); i++)
+                        strVisit << moves[i] << ",";
+                    strVisit << endl;
+                }
+
+                //__cilkview_query(d);
+                bestState = plya.Run(state, move, log, log2, ttime);
+                //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+
+                state.SetMove(move);
+                if (verbose) {
+                    cout << setw(10) << state.GetPlyJM() << ",";
+                    cout << log;
+                    cout << setw(10) << move << ",";
+                    cout << setw(10) << bestState.GetResult(WHITE) << endl;
+                }
+                if (verbose == 2)
+                    state.Print();
+                if (verbose == 3) {
+                    strVisit << setw(9) << j << ","
+                            << setw(10) << state.GetPlyJM() << ","
+                            << log2 << endl;
+                }
+                if (verbose == 4) {
+                    std::sprintf(fileName, "%d.csv", move);
+                    state.PrintToFile(fileName);
+                }
+                //TODO dynamic cp  more exploitation as the tree become smaller
+                //            if(optplya.cp > 0.1){
+                //            optplya.cp=optplya.cp-0.1;
+                //            }
+                if (i > 0) {
+                    nplayouts[j].push_back(plya.NumPlayoutsRoot());
+                    reward[j].push_back(bestState.GetResult(WHITE));
+                    time[j].push_back(ttime);
+                }
+                j++;
+            }
+            state.Evaluate();
+            result[i] = state.GetResult(WHITE);
+
+            state.Reset();
+            if (verbose) {
+                cout << "# end game" << endl;
+
+                std::cout << "# start result" << std::endl;
+                std::cout << "# game no" << ","
+                        << setw(10) << "player" << ","
+                        << setw(10) << "seed" << ","
+                        << setw(10) << "result" << std::endl;
+                std::cout << setw(10) << i << ","
+                        << setw(10) << WHITE << ","
+                        << setw(10) << optplya.seed << ","
+                        << setw(10) << result[i] << std::endl;
+                std::cout << "# end result" << std::endl;
+            }
+            if (verbose == 3) {
+                cout << strVisit.str()
+                        << "# end visit,"
+                        << setw(10) << i << ","
+                        << setw(10) << BLACK << ","
+                        << setw(10) << WHITE << endl;
+            }
+        }
+    }
+
+    if (twoPly) {
+        std::cout << "# start statistic" << std::endl;
+                std::cout << "# avg(result)" << ","
+                << setw(10) << "atd(result)" << ","
+                << setw(10) << "err(result)" << std::endl;
+        std::cout << setw(10) << getAverage(result) << ","
+                << setw(10) << getStdDev(result) << ","
+                << setw(10) << getStdDev(result) / sqrt(ngames - 1) << std::endl;
+        int i = 0;
+        std::cout << "# avg(playout)" << ","
+                << setw(10) << "std(playout)" << ","
+                << setw(10) << "srr(playout)" << ","
+                << "move no." << std::endl;
+        for (auto itr : nplayouts) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }
+        std::cout << "# avg(reward)" << ","
+                << setw(10) << "std(reward)" << ","
+                << setw(10) << "err(reward)" << ","
+                << "move no." << std::endl;
+        i = 0;
+        for (auto itr : reward) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }
+        std::cout << "# avg(time)" << ","
+                << setw(10) << "std(time)" << ","
+                << setw(10) << "err(time)" << ","
+                << "move no." << std::endl;
+        i = 0;
+        for (auto itr : time) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }
+        cout << setw(6) << "# player" << ","
+                << setw(10) << "wins(%)" << ","
+                << setw(10) << "wins" << ","
+                << setw(10) << "Black" << ","
+                << setw(10) << "White" << endl;
+        cout << setw(6) << "plya" << ","
+                << setw(10) << ((plywina[1] + plywina[2]) / (float) ngames)*100 << ","
+                << setw(10) << (plywina[1] + plywina[2]) << ","
+                << setw(10) << plywina[1] << ","
+                << setw(10) << plywina[2] << "," << endl;
+        cout << setw(6) << "plyb" << ","
+                << setw(10) << ((plywinb[1] + plywinb[2]) / (float) ngames)*100 << ","
+                << setw(10) << (plywinb[1] + plywinb[2]) << ","
+                << setw(10) << plywinb[1] << ","
+                << setw(10) << plywinb[2] << "," << endl;
+        cout << setw(6) << " " << ","
+                << setw(10) << " " << ","
+                << setw(10) << " " << ","
+                << setw(10) << plywin[1] << ","
+                << setw(10) << plywin[2] << "," << endl;
+        std::cout << "# end statistic" << std::endl;
+    } else {
+        std::cout << "# start statistic" << std::endl;
+        std::cout << "# avg(result)" << ","
+                << setw(10) << "atd(result)" << ","
+                << setw(10) << "err(result)" << std::endl;
+        std::cout << setw(10) << getAverage(result) << ","
+                << setw(10) << getStdDev(result) << ","
+                << setw(10) << getStdDev(result) / sqrt(ngames - 1) << std::endl;
+        int i = 0;
+        std::cout << "# avg(playout)" << ","
+                << setw(10) << "std(playout)" << ","
+                << setw(10) << "srr(playout)" << ","
+                << "move no." << std::endl;
+        for (auto itr : nplayouts) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }
+        std::cout << "# avg(reward)" << ","
+                << setw(10) << "std(reward)" << ","
+                << setw(10) << "err(reward)" << ","
+                << "move no." << std::endl;
+        i = 0;
+        for (auto itr : reward) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }
+        std::cout << "# avg(time)" << ","
+                << setw(10) << "std(time)" << ","
+                << setw(10) << "err(time)" << ","
+                << "move no." << std::endl;
+        i = 0;
+        for (auto itr : time) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }
+        std::cout << "# end statistic" << std::endl;
+    }
+}
+
 // <editor-fold defaultstate="collapsed" desc="Negamax">
 //void NegamaxPlayGame(PGameState &s, int b, int d, int itr, int ntry, int seed, int verbose) {
 //    PGameState state(s);
@@ -485,7 +934,8 @@ static void ShowUsage(std::string name) {
             << "\t-s\t\tSeed to be used by random number generator\n"
             << "\t-r\t\tThreading runtime for both players (default=0 c++11=1, boost threadpool=2, cilk_spawn=2, Tbb_taskgroup=4, cilk_for=5)\n"
             << "\t-a\t\tNumber of moves in a game\n"
-            << "\t-c\t\tTurn off swap rule(set to 0)\n"
+            << "\t-c\t\tswap rule(default=1,turn off set to 0)\n"
+            << "\t-l\t\tvirtual loss(default=0,turn on set to 1)\n"
             //<< "\t-j\t\tHorner(3),15puzzle(4)\n"
             << "\t-i\t\tInput file\n"
             << endl;
@@ -577,7 +1027,7 @@ int main(int argc, char** argv) {
             case 'a':
                 nmoves = atoi(optarg);
                 optplya.nmoves = atoi(optarg);
-                optplya.nmoves = atoi(optarg);
+                optplyb.nmoves = atoi(optarg);
                 break;
             case 'c':
                 swap = atoi(optarg);
@@ -586,8 +1036,8 @@ int main(int argc, char** argv) {
                 fileName = const_cast<char*>(optarg);
                 break;
             case 'l':
-                optplya.virtualloss = 1;
-                optplyb.virtualloss = 1;
+                optplya.virtualloss = atoi(optarg);
+                optplyb.virtualloss = atoi(optarg);
                 break;
             case '?':
                 if (optopt == 'g' || optopt == 'b' || optopt == 'd' || optopt == 'n' || optopt == 's')
@@ -694,17 +1144,26 @@ int main(int argc, char** argv) {
     
 #ifdef LOCKFREE
     optplya.locking=const_cast<char*>("lock_free");
+    optplyb.locking=const_cast<char*>("lock_free");
 #elif defined(COARSEGRAINED)
     optplya.locking=const_cast<char*>("coarse_grained");
+    optplyb.locking=const_cast<char*>("coarse_grained");
 #elif FINEGRAINED
     optplya.locking=const_cast<char*>("fine_grained");
+    optplyb.locking=const_cast<char*>("fine_grained");
 #endif
 
     if (optplya.game == HEX) {
-        printf("# plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
-                game, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
-        printf("# plyb game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
-                game, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b, optplyb.cp);
+        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
+                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, threadlib, optplya.cp, optplya.virtualloss, optplya.locking);
+        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
+                "b", game, fileName, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b, threadlib, optplyb.cp, optplyb.virtualloss, optplyb.locking);
+//        printf("# plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
+//                game, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
+//        printf("# plyb game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
+//                game, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b, optplyb.cp);
     } else if (optplya.game == PGAME) {
         printf("# plya game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
                 game, b, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
@@ -724,8 +1183,15 @@ int main(int argc, char** argv) {
 
     // <editor-fold defaultstate="collapsed" desc="play game">
     if (optplya.game == HEX) {
+        optplya.twoply=1;
+        optplyb.twoply=1;
+        if(optplya.nmoves == 0){
+            optplya.nmoves = d*d;
+        }
+//                HexGameState state(d);
+//                UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
         HexGameState state(d);
-        UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
+        UCTPlayGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
@@ -738,7 +1204,7 @@ int main(int argc, char** argv) {
             vector<int> moves;
             optplya.nmoves=state.GetMoves(moves);
         }
-            
+        optplya.twoply=0;    
         if (vflag == 4)
             state.PrintToFile(const_cast<char*> ("orig.csv"));
 

@@ -681,12 +681,15 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 
         itr++;
 #ifdef MKLRNG
-        reward = t->_state.GetResult(WHITE);
-        if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-            _bestState[t->_identity._id] = t->_state;
-            _finish = true;
+        if (plyOpt.game == HORNER) {
+            reward = t->_state.GetResult(WHITE);
+            if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
+                _bestState[t->_identity._id] = t->_state;
+                _finish = true;
+            }
         }
         t->_state = rstate;
+        
 #else
         reward = lstate.GetResult(WHITE);
         //#ifdef COPYSTATE
@@ -757,9 +760,11 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     tbb::make_filter<UCT<T>::Token*, void>(
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
-                if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                    _bestState[t->_identity._id] = t->_state;
-                            finish = true;
+                if (plyOpt.game == HORNER) {
+                    if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
+                        _bestState[t->_identity._id] = t->_state;
+                                finish = true;
+                    }
                 }
                 t->_state = rstate;
             }));

@@ -43,6 +43,7 @@ struct PlyOptions {
     int nmoves = 0;
     bool virtualloss=0;
     char* locking="";
+    int twoply=1;
 };
 
 struct TimeOptions {
