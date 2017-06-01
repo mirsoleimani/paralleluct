@@ -283,7 +283,7 @@ public:
             int64_t wnp;
             wnp = _wins_visits.load(std::memory_order_relaxed);
             w = wnp >> 32; //high 32 bits;
-            return;
+            return w;
         }
 
         int GetVisits() const {
