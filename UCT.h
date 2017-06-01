@@ -130,8 +130,6 @@ public:
             /* multiple producer multiple consumer 
              * http://en.cppreference.com/w/cpp/atomic/memory_order
              */
-            _visits.fetch_add(1, std::memory_order_seq_cst);
-            _wins.fetch_add(result, std::memory_order_seq_cst);
             int w=result;
             int n=1;
             int64_t wnp;
@@ -280,7 +278,7 @@ public:
 
 #ifdef LOCKFREE
 
-        int Wins() {
+        int GetWins() const {
             int w;
             int64_t wnp;
             wnp = _wins_visits.load(std::memory_order_relaxed);
@@ -288,13 +286,20 @@ public:
             return;
         }
 
-        int Visits() {
+        int GetVisits() const {
             int n;
             int64_t wnp;
             wnp = _wins_visits.load(std::memory_order_relaxed);
             n = wnp & 0x00000000FFFFFFFF; //low 32 bit
             return n;
         }
+        
+        void SetWinsVisits(int w, int n) {
+            int64_t wnp;
+            wnp = (((int64_t) w) << 32) | ((int64_t) n);
+            _wins_visits.store(wnp, std::memory_order_relaxed);
+        }
+        
 #else
         int Wins(){
             return _wins;
@@ -303,6 +308,13 @@ public:
         int Visits(){
             return _visits;
         }
+        
+        void SetWinsVisit(int w, int n){
+            std::lock_guard<std::mutex> lock(mtx1);
+            _wins = w;
+            _visits = n;
+        }
+        
 #endif
         std::atomic_int _move;
         int _pjm;
