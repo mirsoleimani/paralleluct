@@ -250,13 +250,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     }
     if (plyOpt.par == ROOTPAR) {
         for (int j = 1; j < roots.size(); j++) {
-            roots[0]->_wins += roots[j]->_wins;
-            roots[0]->_visits += roots[j]->_visits;
+            roots[0]->Update(roots[j]->GetWins(),roots[j]->GetVisits());
             for (int i = 0; i < roots[0]->_children.size(); i++) {
                 for (int k = 0; k < roots[j]->_children.size(); k++) {
                     if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
-                        roots[0]->_children[i]->_wins += roots[j]->_children[k]->_wins;
-                        roots[0]->_children[i]->_visits += roots[j]->_children[k]->_visits;
+                        roots[0]->_children[i]->Update(roots[j]->_children[k]->GetWins(),
+                                roots[j]->_children[k]->GetVisits());
                     }
                 }
             }
@@ -355,8 +354,8 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
         //TODO vectorized UCT calculation
         for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
-            int visits = (*itr)->_visits;
-            float wins = (*itr)->_wins;
+            int visits = (*itr)->GetVisits();
+            float wins = (*itr)->GetWins();
             assert(wins >= 0);
             assert(visits > 0);
 
@@ -504,8 +503,8 @@ typename UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* n, T& state) {
         // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
         for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
 
-            int visits = (*itr)->_visits;
-            float wins = (*itr)->_wins;
+            int visits = (*itr)->GetVisits;
+            float wins = (*itr)->GetWins;
             assert(wins >= 0);
             assert(visits > 0);
 
@@ -790,7 +789,7 @@ template <class T>
 void UCT<T>::PrintRootChildren() {
     for (iterator itr = roots[0]->_children.begin(); itr != roots[0]->_children.end(); itr++) {
         //cout << (*itr)->_move << "," << (*itr)->_visits << "," << (*itr)->_wins / (*itr)->_visits << " | ";
-        cout << (*itr)->_move << "," << (*itr)->_visits << ",";
+        cout << (*itr)->_move << "," << (*itr)->GetVisits << ",";
     }
 }
 

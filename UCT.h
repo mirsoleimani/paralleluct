@@ -119,6 +119,35 @@ public:
         }
 #endif
 
+#ifdef LOCKFREE
+         /**
+         * Update the values of a node with reward that
+         * comes from the evaluation of a non-terminal 
+         * state after the playout operation.
+         * @param result
+         */
+        void Update(int result) {
+            /* multiple producer multiple consumer 
+             * http://en.cppreference.com/w/cpp/atomic/memory_order
+             */
+            int w=result;
+            int n=1;
+            int64_t wnp;
+            wnp = (((int64_t) w) << 32) | ((int64_t) n);
+            _wins_visits.fetch_add(wnp, std::memory_order_relaxed);
+        }
+        void Update(int result,int c) {
+            /* multiple producer multiple consumer 
+             * http://en.cppreference.com/w/cpp/atomic/memory_order
+             */
+            int w=result;
+            int n=c;
+            int64_t wnp;
+            wnp = (((int64_t) w) << 32) | ((int64_t) n);
+            _wins_visits.fetch_add(wnp, std::memory_order_relaxed);
+        }
+#else
+
         /**
          * Update the values of a node with reward that
          * comes from the evaluation of a non-terminal 
@@ -126,25 +155,18 @@ public:
          * @param result
          */
         void Update(int result) {
-            //std::lock_guard<std::mutex> lock(mtx1);
-            //_visits++;
-            //_wins += result;
-            /* multiple producer multiple consumer 
-             * http://en.cppreference.com/w/cpp/atomic/memory_order
-             */
-            _visits.fetch_add(1, std::memory_order_seq_cst);
-            _wins.fetch_add(result, std::memory_order_seq_cst);
+            std::lock_guard<std::mutex> lock(mtx1);
+            _visits++;
+            _wins += result;
         }
-        void Update(int result,int c) {
-            //std::lock_guard<std::mutex> lock(mtx1);
-            //_visits++;
-            //_wins += result;
-            /* multiple producer multiple consumer 
-             * http://en.cppreference.com/w/cpp/atomic/memory_order
-             */
-            _visits.fetch_add(c, std::memory_order_seq_cst);
-            _wins.fetch_add(result, std::memory_order_seq_cst);
+
+        void Update(int result, int c) {
+            std::lock_guard<std::mutex> lock(mtx1);
+            _visits+=c;
+            _wins += result;
         }
+#endif
+
 #ifdef FINELOCK
 
         void CreatChildren(std::vector<int>& moves, int pjm) {
@@ -254,6 +276,46 @@ public:
         }
 #endif
 
+#ifdef LOCKFREE
+
+        int GetWins() const {
+            int w;
+            int64_t wnp;
+            wnp = _wins_visits.load(std::memory_order_relaxed);
+            w = wnp >> 32; //high 32 bits;
+            return w;
+        }
+
+        int GetVisits() const {
+            int n;
+            int64_t wnp;
+            wnp = _wins_visits.load(std::memory_order_relaxed);
+            n = wnp & 0x00000000FFFFFFFF; //low 32 bit
+            return n;
+        }
+        
+        void SetWinsVisits(int w, int n) {
+            int64_t wnp;
+            wnp = (((int64_t) w) << 32) | ((int64_t) n);
+            _wins_visits.store(wnp, std::memory_order_relaxed);
+        }
+        
+#else
+        int Wins(){
+            return _wins;
+        }
+        
+        int Visits(){
+            return _visits;
+        }
+        
+        void SetWinsVisit(int w, int n){
+            std::lock_guard<std::mutex> lock(mtx1);
+            _wins = w;
+            _visits = n;
+        }
+        
+#endif
         std::atomic_int _move;
         int _pjm;
         std::atomic_int _wins;
@@ -267,6 +329,7 @@ public:
         std::atomic<bool> _isParent;
         std::atomic<bool> _isExpandable;
         std::atomic<bool> _isFullExpanded;
+        std::atomic<int_fast64_t> _wins_visits;
 #endif
         Node* _parent;
         std::vector<Node*> _children;
