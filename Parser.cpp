@@ -23,7 +23,7 @@ polynomial Parser::parseFile(const char* filename) {
 
     if (!f.is_open()) {
         std::cerr << "Could not read file " << std::string(filename) << std::endl;
-        BOOST_ASSERT(false);
+        assert(false);
         exit(0);
     }
 
