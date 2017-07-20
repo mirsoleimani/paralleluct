@@ -32,10 +32,8 @@ public:
     void Print();
     void PrintToFile(char* fileName);
 
-protected:
-    int CountMultiplications();
-
 private:
+    bool PropertyViolated();
 };
 #endif	/* PINS_STATE_H */
 

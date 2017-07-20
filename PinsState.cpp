@@ -6,12 +6,24 @@
 
 #include "PinsState.h"
 
+extern "C" {
 #include "ltsmin/src/hre/config.h"
 #include "ltsmin/src/pins-lib/pins.h"
 #include "ltsmin/src/mc-lib/cctables.h"
 #undef Print
+}
 
-model_t             model;
+#define CUTOFF INT_MAX // control with nmoves (-a ?)
+
+static int          lowest = CUTOFF;
+
+model_t             model;      // PINS implementation
+int                 n;          // nr of state slots
+int                 k;          // nr of transition groups
+int                 logk;       // log k
+int                 kmask;      // (1 << logk) - 1
+int                *current;    // state of n slots
+int                 depth;
 
 PinsState::PinsState(){
 }
@@ -19,20 +31,67 @@ PinsState::PinsState(){
 PinsState::PinsState(const char *fileName) {
     model = GBcreateBase ();
 
-    
-    cct_map_t *tables = cct_create_map (false); // HRE-aware object
-    
+    // TODO: support multi-threaded code
+    cct_map_t *tables = cct_create_map (false); // HRE-aware object  
     table_factory_t     factory = cct_create_table_factory  (tables);
     GBsetChunkMap (model, factory); //HREgreyboxTableFactory());
 
     std::cout << "Loading model from "<< fileName;
 
     GBloadFile (model, fileName, &model);
+    
+    lts_type_t lts = GBgetLTStype(model);
+    n = lts_type_get_state_length(lts);
+    matrix_t *m = GBgetDMInfo(model);
+    k = dm_nrows (m);
+    logk = ceil(log(k) / log(2));
+    kmask = (1 << logk) - 1;
+    assert (n = dm_ncols(m));
+    current = (int *) malloc(sizeof(int[n]));
+    GBgetInitialState(model, current);
+    
+    depth = 0;
 }
 
-int PinsState::CountMultiplications() {
-    return 1;
+typedef struct cb_last_s {
+    int     group;
+    int     occurence;
+} cb_last_t;
+
+static cb_last_t LAST_INIT = { .group = -1, .occurence = -1 };
+
+/**
+ * Store transition group _occurences_ in moves, e.g.:
+ * <(3,0), (4,0), (4,1), (4,2), (8,0), (8,1), (10,0)  >
+ * 
+ * Assumes group occurrences are consecutive.
+ */
+static void
+cb_last(void *context, transition_info_t *ti, int *dst, int *cpy)
+{
+    cb_last_t *ctx = (cb_last_t *) context;
+    if (ctx->group == ti->group) {
+        ctx->occurence++;
+    } else {
+        ctx->occurence = 0;
+    }
+    (void) cpy; (void) dst;
 }
+
+typedef struct cb_moves_s {
+    cb_last_t    last;
+    vector<int> &moves;
+} cb_moves_t;
+
+static void
+cb_moves(void *context, transition_info_t *ti, int *dst, int *cpy)
+{
+    cb_moves_t *ctx = (cb_moves_t *) context;
+    cb_last (&ctx->last, ti, dst, cpy);
+    ctx->moves.push_back(ctx->last.occurence << logk | ctx->last.group);
+    (void) cpy; (void) dst;
+}
+
 
 /**
  * Find the untried moves in the current state.
@@ -41,34 +100,69 @@ int PinsState::CountMultiplications() {
  */
 int PinsState::GetMoves(vector<int>& moves) {
     assert(moves.size() == 0 && "The moves vector should be empty!\n");
+    cb_moves_t ctx = { .last = LAST_INIT, .moves = moves };
+    int total = GBgetTransitionsAll (model, current, cb_moves, &ctx);
+    assert (total == modes.size());
     return moves.size();
 }
 
 float PinsState::GetResult(int plyjm) {
-    if (plyjm == WHITE)
-        return 1;
-    else
-        return 1;
+   return CUTOFF - lowest;
 }
 
-void PinsState::Evaluate() {
-    //Tree building assumes that var 0 is constant
+void PinsState::Evaluate() { // done in SetMove (bad?)
+}
+
+static void
+cb_dummy(void *context, transition_info_t *ti, int *dst, int *cpy)
+{
+    (void) context; (void) ti; (void) dst; (void) cpy; 
+}
+
+/*
+ * Currently we check only for deadlocks
+ * 
+ * TODO: other safety properties.
+*/
+bool PinsState::PropertyViolated() {
+    return GBgetTransitionsAll (model, current, cb_dummy, NULL) == 0;
 }
 
 bool PinsState::IsTerminal() {
-    if (true) {
-        return true;
-    } else {
-        return false;
-    }
+    return depth == CUTOFF || PropertyViolated();
 }
 
 int PinsState::GetPlyJM() {
-    return 1;
+    return WHITE;
 }
 
-void PinsState::SetMove(int move) {
+typedef struct cb_move_s {
+    int         group;
+    int         occurence;
+    cb_last_t   last;
+} cb_move_t;
 
+static void
+cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
+{
+    cb_move_t *ctx = (cb_move_t *) context;
+    cb_last (&ctx->last, ti, dst, cpy);
+    if (ctx->group == ctx->last.group && ctx->occurence == ctx->last.occurence) {
+        memcpy (current, dst, sizeof(int[n]));
+    }
+    (void) cpy; (void) dst;
+}
+
+/**
+ * ALFONS: Assuming here that the move integer comes from the moves vector
+ * supplied by GetMoves.
+ */
+void PinsState::SetMove(int move) {
+    cb_move_t ctx = { .group = move & kmask,
+                      .occurence = move >> logk,
+                      .last = LAST_INIT
+    };
+    int total = GBgetTransitionsAll (model, current, cb_move, &ctx);    
 }
 
 void PinsState::SetPlayoutMoves(vector<int>& moves) {
