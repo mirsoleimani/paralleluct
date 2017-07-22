@@ -8,7 +8,7 @@
 #include <bitset>
 #include "Utilities.h"
 #include "Alphabeta.h"
-#include "PGameState.h"
+#include "paralleluct/state/PGameState.h"
 
 Alphabeta::Alphabeta() {
 

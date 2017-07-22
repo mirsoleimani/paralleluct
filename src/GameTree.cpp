@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "GameTree.h"
+#include "paralleluct/state/GameTree.h"
 
 
 GameTree::GameTree(int b, int d, float mv) : breath(b),depth(d), maxMoveVal(mv) {

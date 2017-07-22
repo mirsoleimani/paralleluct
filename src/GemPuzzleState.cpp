@@ -10,7 +10,7 @@
 #include <thread>
 #include <string.h>
 
-#include "GemPuzzleState.h"
+#include "paralleluct/state/GemPuzzleState.h"
 
 GemPuzzleState::GemPuzzleState(const char* str):_reward(0),_pjm(WHITE) {
     MakeBoard(str);

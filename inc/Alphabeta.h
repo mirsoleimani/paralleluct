@@ -1,6 +1,6 @@
 #include <vector>
-#include "GameTree.h"
-#include "PGameState.h"
+#include "paralleluct/state/GameTree.h"
+#include "paralleluct/state/PGameState.h"
 using namespace std;
 
 #ifndef ALPHABETA_H

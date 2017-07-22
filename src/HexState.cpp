@@ -5,7 +5,7 @@
  * Created on 6 november 2014, 16:23
  */
 
-#include "HexState.h"
+#include "paralleluct/state/HexState.h"
 
 HexGameState::HexGameState(){
     

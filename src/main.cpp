@@ -6,12 +6,12 @@
  */
 
 #include <cstdlib>
-#include "UCT.h"
-#include "PGameState.h"
-#include "HexState.h"
-#include "PolyState.h"
-#include "GemPuzzleState.h"
-#include "Parser.h"
+#include "paralleluct/UCT.h"
+#include "paralleluct/state/PGameState.h"
+#include "paralleluct/state/HexState.h"
+#include "paralleluct/state/PolyState.h"
+#include "paralleluct/state/GemPuzzleState.h"
+#include "paralleluct/state/Parser.h"
 //#include <cilk/cilk.h>
 //#include <cilktools/cilkview.h>
 using namespace std;

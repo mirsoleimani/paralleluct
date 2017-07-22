@@ -5,8 +5,8 @@
  * Created on 17 september 2014, 16:32
  */
 
-#include "PGameState.h"
-#include "HexState.h"
+#include "paralleluct/state/PGameState.h"
+#include "paralleluct/state/HexState.h"
 #include "Utilities.h"
 #include <thread>
 #include <mutex>
