@@ -17,40 +17,54 @@ extern "C" {
 
 static int          lowest = CUTOFF;
 
-model_t             model;      // PINS implementation
-int                 n;          // nr of state slots
-int                 k;          // nr of transition groups
-int                 logk;       // log k
-int                 kmask;      // (1 << logk) - 1
-int                *current;    // state of n slots
-int                 depth;
+static table_factory_t    factory = NULL;
+static const char        *fname = NULL;
+
+
+static thread_local model_t model = NULL;      // PINS implementation
+static thread_local int                 n;          // nr of state slots
+static thread_local int                 k;          // nr of transition groups
+static thread_local int                 logk;       // log k
+static thread_local int                 kmask;      // (1 << logk) - 1
+
 
 PinsState::PinsState(){
 }
 
 PinsState::PinsState(const char *fileName) {
-    model = GBcreateBase ();
 
-    // TODO: support multi-threaded code
-    cct_map_t *tables = cct_create_map (false); // HRE-aware object  
-    table_factory_t     factory = cct_create_table_factory  (tables);
-    GBsetChunkMap (model, factory); //HREgreyboxTableFactory());
-
-    std::cout << "Loading model from "<< fileName;
-
-    GBloadFile (model, fileName, &model);
+    if (factory == NULL) {
+        // TODO: support multi-threaded code
+        fname = fileName;
+        cct_map_t *tables = cct_create_map (false); // HRE-aware object  
+        factory = cct_create_table_factory  (tables);
+        fileName = fname;
+    }
     
-    lts_type_t lts = GBgetLTStype(model);
-    n = lts_type_get_state_length(lts);
-    matrix_t *m = GBgetDMInfo(model);
-    k = dm_nrows (m);
-    logk = ceil(log(k) / log(2));
-    kmask = (1 << logk) - 1;
-    assert (n = dm_ncols(m));
+    
+    std::cout << "Loading model from "<< fname;
+
+    if (model == NULL) {
+        model = GBcreateBase ();
+        GBsetChunkMap (model, factory); //HREgreyboxTableFactory());
+        GBloadFile (model, fname, &model);   
+        lts_type_t lts = GBgetLTStype(model);
+        n = lts_type_get_state_length(lts);
+        matrix_t *m = GBgetDMInfo(model);
+        k = dm_nrows (m);
+        logk = ceil(log(k) / log(2));
+        kmask = (1 << logk) - 1;
+        assert (n = dm_ncols(m));
+    }
+
     current = (int *) malloc(sizeof(int[n]));
     GBgetInitialState(model, current);
-    
     depth = 0;
+}
+
+PinsState::PinsState(const PinsState &pins) {
+    memcpy (current, pins.current, sizeof(int[n]));
+    depth = pins.depth;
 }
 
 typedef struct cb_last_s {
@@ -137,6 +151,7 @@ int PinsState::GetPlyJM() {
 }
 
 typedef struct cb_move_s {
+    int        *current;
     int         group;
     int         occurence;
     cb_last_t   last;
@@ -148,7 +163,7 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
     cb_move_t *ctx = (cb_move_t *) context;
     cb_last (&ctx->last, ti, dst, cpy);
     if (ctx->group == ctx->last.group && ctx->occurence == ctx->last.occurence) {
-        memcpy (current, dst, sizeof(int[n]));
+        memcpy (ctx->current, dst, sizeof(int[n]));
     }
     (void) cpy; (void) dst;
 }
@@ -158,11 +173,13 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
  * supplied by GetMoves.
  */
 void PinsState::SetMove(int move) {
-    cb_move_t ctx = { .group = move & kmask,
+    depth++;
+    cb_move_t ctx = { .current = current,
+                      .group = move & kmask,
                       .occurence = move >> logk,
                       .last = LAST_INIT
     };
-    int total = GBgetTransitionsAll (model, current, cb_move, &ctx);    
+    int total = GBgetTransitionsAll (model, current, cb_move, &ctx);
 }
 
 void PinsState::SetPlayoutMoves(vector<int>& moves) {
@@ -172,7 +189,7 @@ void PinsState::SetPlayoutMoves(vector<int>& moves) {
 }
 
 int PinsState::GetPlayoutMoves(vector<int>& moves) {
-    return GetMoves(moves);
+    return 0;
 }
 
 int PinsState::GetMoveCounter(){
@@ -180,8 +197,13 @@ int PinsState::GetMoveCounter(){
 }
 
 void PinsState::UndoMoves(int origMoveCounter) {
+    assert (false && "not implemented");
 }
+
 void PinsState::Reset() {
+    assert (false && "not implemented");
+    GBgetInitialState(model, current);
+    depth = 0;
 }
 
 void PinsState::Print() {
