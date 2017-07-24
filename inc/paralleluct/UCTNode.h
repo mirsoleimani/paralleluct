@@ -37,7 +37,7 @@ public:
     string TreeToString(int indent);
     string NodeToString();
     string IndentString(int indent);
-
+    
     //UCTNode<T>* UCTSelect(T& state,float cp);
     //UCTNode<T>* AddChild();
     //UCTNode<T>* Expand(T& state, ENG& engine);

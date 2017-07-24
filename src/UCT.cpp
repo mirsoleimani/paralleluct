@@ -296,6 +296,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     // <editor-fold defaultstate="collapsed" desc="log">
     if (verbose) {
         PrintStats_1(log1, ttime);
+        SaveDot("test"+NumToStr(m)+".dot");
     }
     if (verbose == 3) {
         PrintStats_2(log2);
@@ -844,4 +845,16 @@ void UCT<T>::PrintStats_2(string& log2) {
     log2 = buffer.str();
 }
 
+template <class T>
+void UCT<T>::SaveDot(std::string fileName) {
+    std::ofstream fout;
+    fout.open(fileName);
+
+    fout << "digraph UCT{\n";
+    int idx=0;
+    roots[0]->SaveDot(fout,idx);
+    fout << "}\n";
+
+    fout.close();
+}
 // </editor-fold>

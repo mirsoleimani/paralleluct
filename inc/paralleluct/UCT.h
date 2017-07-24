@@ -316,6 +316,24 @@ public:
         }
         
 #endif
+
+        void SaveDot(std::ofstream& fout, int& idx) {
+                //fout << NumToStr(idx);
+                int id = idx;
+                fout << NumToStr(id)<<"[label="<<NumToStr(_wins.load())<<"/"<<NumToStr(_visits.load())<<"]\n";
+                if (_isParent) {
+                    for (auto c : _children) {
+                        idx++;
+                        fout << NumToStr(id) << "->" << NumToStr(idx) << ";\n";
+                        c->SaveDot(fout, idx);
+                    }
+                } else {
+                    //fout << "terminal" + NumToStr(idx) << "[shape=box]\n";
+                    fout << NumToStr(id) << "->" << "terminal" + NumToStr(id) << ";\n";
+                    return;
+                }
+        }
+        
         std::atomic_int _move;
         int _pjm;
         std::atomic_int _wins;
@@ -409,7 +427,7 @@ public:
     void PrintRootChildren();
     void PrintStats_1(std::string& log1, double total);
     void PrintStats_2(std::string& log2);
-
+    void SaveDot(std::string fileName);   
     int NumPlayoutsRoot() {
         return roots[0]->_visits;
     }
