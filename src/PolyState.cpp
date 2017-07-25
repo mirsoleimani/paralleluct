@@ -146,7 +146,7 @@ void PolyState::Reset() {
 
 void PolyState::Print() {
     std::string varnames = "abcdefghijklmnopqrstuvwxyz";
-    BOOST_ASSERT(_poly[0].size() - 1 <= varnames.size());
+    assert(_poly[0].size() - 1 <= varnames.size());
 
     for (int i = 0; i < _poly.size(); i++) {
         std::cout << _poly[i][0]; // constant

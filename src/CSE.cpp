@@ -123,7 +123,7 @@ CSE::Node* CSE::buildTree(const polynomial& pol, const std::vector<int> order) {
 
 CSE::Node* CSE::buildComAssocTree(Node* tree) {
     Operation* tt = dynamic_cast<Operation*> (tree);
-    BOOST_ASSERT(tt != NULL);
+    assert(tt != NULL);
 
     Operation::Operator curOp = tt->op;
     std::vector<Node*> list;
@@ -158,7 +158,7 @@ CSE::Node* CSE::buildComAssocTree(Node* tree) {
         return a->compare(b) < 0;
     });
 
-    BOOST_ASSERT(list.size() > 1);
+    assert(list.size() > 1);
 
     return new Operation(list, curOp);
 }
@@ -197,7 +197,7 @@ CSE::Node* CSE::findAndReplaceAll(Node* root, Node* target, Node* replaceBy, int
 
     Operation* tt = dynamic_cast<Operation*> (root);
     Operation* tat = dynamic_cast<Operation*> (target);
-    BOOST_ASSERT(tat != NULL);
+    assert(tat != NULL);
 
     if (tt == NULL) {
         return root;
@@ -236,7 +236,7 @@ CSE::Node* CSE::findAndReplaceAll(Node* root, Node* target, Node* replaceBy, int
                     }
                 }
 
-                BOOST_ASSERT(newchildren.size() == tt->children.size() - tat->children.size());
+                assert(newchildren.size() == tt->children.size() - tat->children.size());
 
                 tt->children.clear();
                 tt->children.insert(tt->children.end(), newchildren.begin(),
@@ -244,7 +244,7 @@ CSE::Node* CSE::findAndReplaceAll(Node* root, Node* target, Node* replaceBy, int
 
 
                 // at least one element should be left, else it is not a subset
-                BOOST_ASSERT(tt->children.size() > 0);
+                assert(tt->children.size() > 0);
                 // insert the new variable, sorted
                 sortedInsert(tt->children, replaceBy);
 
@@ -369,7 +369,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
     std::unordered_map < Node*, int, decltype(my_hash), decltype(my_eq) > csemap(0, my_hash, my_eq);
     std::unordered_set < Node*, decltype(my_hash), decltype(my_eq) > localmap(0, my_hash, my_eq);
 
-    BOOST_ASSERT(tt->children.size() > 1);
+    assert(tt->children.size() > 1);
 
     for (Node* c : tt->children) {
         Operation* cc = dynamic_cast<Operation*> (c);
@@ -379,7 +379,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
             continue;
         }
 
-        BOOST_ASSERT(cc->op == Operation::MUL);
+        assert(cc->op == Operation::MUL);
 
         localmap.clear();
         for (Node* k : cc->children) {
@@ -391,7 +391,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
         }
     }
 
-    BOOST_ASSERT(csemap.size() > 0);
+    assert(csemap.size() > 0);
 
     int max = 0;
     std::vector<Node*> cses;
@@ -414,7 +414,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
 
     csemap.clear(); // free some memory
 
-    BOOST_ASSERT(max > 0);
+    assert(max > 0);
 
     if (max == 1) { // not applicable
         return root;
@@ -441,7 +441,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
             continue;
         }
 
-        BOOST_ASSERT(ttt->op == Operation::MUL);
+        assert(ttt->op == Operation::MUL);
 
         int powcount = 0; // count occurrences
         for (Node* cc : ttt->children) {
@@ -467,7 +467,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
                     break;
                 }
             }
-            BOOST_ASSERT(i < ttt->children.size());
+            assert(i < ttt->children.size());
             // FIXME delete without ruining setup; delete ttt->children[i];
             ttt->children.erase(ttt->children.begin() + i);
             // if there is one left, extract it!
@@ -483,7 +483,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
 
     }
 
-    BOOST_ASSERT(sub.size() > 1);
+    assert(sub.size() > 1);
 
     // should sub be sorted? YES it should
     // it could be that the doGeneralisedHorner yields a MUL, merge!
@@ -515,7 +515,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
 
             // make sure there is no + stacking
             Operation* restOp = dynamic_cast<Operation*> (restHornered);
-            BOOST_ASSERT(restOp != NULL);
+            assert(restOp != NULL);
 
             if (restOp->op == Operation::ADD) {
                 sortedInsert(restOp->children, mulTerm);
@@ -558,7 +558,7 @@ CSE::Node* CSE::doMaths(Node* tree) {
         std::cout << std::endl;
     }
 
-    BOOST_ASSERT(i < tt->children.size()); // this case is still unsupported
+    assert(i < tt->children.size()); // this case is still unsupported
 
     if (i > 1) {
         int count = tt->op == Operation::MUL ? 1 : 0;
@@ -671,7 +671,7 @@ CSE::Node* CSE::doSimpleCSE(Node* tree,
 
     auto it = replaceMap.find(tree); // t from original tree
     if (it == replaceMap.end()) { // TODO: get correct order in instrTree
-        BOOST_ASSERT(o->children.size() == 2);
+        assert(o->children.size() == 2);
 
         std::vector<Node*> children;
         for (int i = 0; i < o->children.size(); i++) { // first go to children
@@ -718,7 +718,7 @@ unsigned int CSE::countSimpleCSE(Node* tree) {
             continue; // not an operator, skip
         }
 
-        BOOST_ASSERT(o->children.size() == 2); // only works on binary trees
+        assert(o->children.size() == 2); // only works on binary trees
 
         if (replaceMap.find(t) == replaceMap.end()) {
             replaceMap.insert(t);

@@ -182,7 +182,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
             }
         } else if (plyOpt.threadruntime == CILKPFOR) {
             tmr.reset();
-            std::cerr < "Cilk plus for for root parallelization is not implemented!\n";
+            std::cerr << "Cilk plus for for root parallelization is not implemented!\n";
             exit(0);
 
             /*cilk_for(int i = 0; i < plyOpt.nthreads; i++) {

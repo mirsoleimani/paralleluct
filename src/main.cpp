@@ -418,6 +418,186 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     std::cout << "# end statistic" << std::endl;
 }
 
+
+template <typename T>
+void UCTPlayPins(T &rstate, PlyOptions optplya, int ngames, int verbose) {
+
+    vector<unsigned int> seeda(optplya.nthreads);
+    std::random_device dev;
+    std::stringstream strVisit;
+    std::vector<int> result(ngames);
+    std::vector<vector<int>> nplayouts(optplya.nmoves);
+    std::vector<vector<int>> reward(optplya.nmoves);
+    std::vector<vector<double>> time(optplya.nmoves);
+    double ttime;
+    char fileName[100];
+
+    for (int i = 0; i < ngames; i++) {
+        T state(rstate);
+        string log = " ";
+        string log2 = " ";
+        int move;
+#ifdef MKLRNG
+        optplya.seed = (unsigned int) dev();
+#else
+        for (int j = 0; j < optplya.nthreads; j++) {
+            seeda[j] = (unsigned int) dev();
+            assert(seeda[j] > 0 && "seed can not be negative\n");
+        }
+#endif
+        if (verbose) {
+            cout << "# start game" << ","
+                    << setw(8) << i << endl;
+//                    << setw(10) << BLACK << ","
+//                    << setw(10) << WHITE << ","
+//                    << setw(10) << "?" << endl;
+
+            cout << setw(9) << "# move no." << ","
+                    << setw(10) << "player" << ","
+                    << setw(10) << "playout" << ","
+                    << setw(10) << "time" << ","
+                    << setw(10) << "select(%)" << ","
+                    << setw(10) << "expand(%)" << ","
+                    << setw(10) << "playout(%)" << ","
+                    << setw(10) << "backup(%)" << ","
+                    << setw(10) << "nrandvec" << ","
+                    << setw(10) << "move" << ","
+                    << setw(10) << "reward" << endl;
+        }
+        if (verbose == 3) {
+            strVisit.str().clear();
+            strVisit.str(std::string());
+            strVisit << "# start visit"<<","
+                    << setw(9) << i << endl;
+//                    << setw(10) << BLACK << ","
+//                    << setw(10) << WHITE << endl;
+        }
+
+        UCT<T> plya(optplya, verbose, seeda);
+        int j = 0;
+        T bestState;
+        while (!state.IsTerminal()&& j < optplya.nmoves) {
+            if (verbose) {
+                cout << setw(9) << j << ",";
+            }
+            if (verbose == 3) {
+                vector<MOVE> moves;
+                state.GetMoves(moves);
+
+                strVisit << setw(9) << "move no." << ","
+                        << setw(10) << "player" << ",";
+                for (int i = 0; i < moves.size(); i++)
+                    strVisit << moves[i] << ",";
+                strVisit << endl;
+            }
+            
+            //__cilkview_query(d);
+            bestState = plya.Run(state, move, log, log2,ttime);
+            //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+            
+            state.SetMove(move);
+            if (verbose) {
+                cout << setw(10) << state.GetPlyJM() << ",";
+                cout << log;
+                cout << setw(10) << move << ",";
+                cout <<setw(10)<<bestState.GetResult(WHITE)<<endl;
+            }
+            if (verbose == 2)
+                state.Print();
+            if (verbose == 3) {
+                strVisit << setw(9) << j << ","
+                        << setw(10) << state.GetPlyJM() << ","
+                        << log2 << endl;
+            }
+            if (verbose == 4) {
+                std::sprintf(fileName, "%d.csv", move);
+                state.PrintToFile(fileName);
+            }
+            //TODO dynamic cp  more exploitation as the tree become smaller
+            //            if(optplya.cp > 0.1){
+            //            optplya.cp=optplya.cp-0.1;
+            //            }
+            if (i > 0) {
+                nplayouts[j].push_back(plya.NumPlayoutsRoot());
+                reward[j].push_back(bestState.GetResult(WHITE));
+                time[j].push_back(ttime);
+            }
+            j++;
+        }
+        state.Evaluate();
+        result[i] = state.GetResult(WHITE);
+
+        state.Reset();
+        if (verbose) {
+            cout << "# end game" << endl;
+//                    << setw(10) << i << ","
+//                    << setw(10) << BLACK << ","
+//                    << setw(10) << WHITE << ","
+//                    << setw(10) << res[i] << endl;
+
+            std::cout << "# start result" << std::endl;
+            std::cout << "# game no" << ","
+                    << setw(10) << "player" << ","
+                    << setw(10) << "seed"   << ","
+                    << setw(10) << "result" << std::endl;
+            std::cout << setw(10) << i << ","
+                    << setw(10) << WHITE << ","
+                    << setw(10)  << optplya.seed << ","
+                    << setw(10) << result[i] << std::endl;
+            std::cout << "# end result" << std::endl;
+        }
+        if (verbose == 3) {
+            cout << strVisit.str()
+                    << "# end visit,"
+                    << setw(10) << i << ","
+                    << setw(10) << BLACK << ","
+                    << setw(10) << WHITE << endl;
+        }
+    }
+
+    std::cout << "# start statistic" << std::endl;
+    std::cout << "# avg(result)" << ","
+            << setw(10) << "atd(result)" << ","
+            << setw(10) << "err(result)" << std::endl;
+    std::cout << setw(10) << getAverage(result) << ","
+            << setw(10) << getStdDev(result) << ","
+            << setw(10) << getStdDev(result) / sqrt(ngames-1) << std::endl;
+    int i = 0;
+    std::cout << "# avg(playout)" << ","
+            << setw(10) << "std(playout)" << ","
+            << setw(10) << "srr(playout)" << ","
+            << "move no." << std::endl;
+    for (auto itr : nplayouts) {
+        std::cout << setw(10) << getAverage(itr) << ","
+                << setw(10) << getStdDev(itr) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
+                << setw(10) << i++ << std::endl;
+    }
+    std::cout << "# avg(reward)" << ","
+            << setw(10) << "std(reward)" << ","
+            << setw(10) << "err(reward)" << ","
+            << "move no." << std::endl;
+    i = 0;
+    for (auto itr : reward) {
+        std::cout << setw(10) << getAverage(itr) << ","
+                << setw(10) << getStdDev(itr) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
+                << setw(10) << i++ << std::endl;
+    }
+    std::cout << "# avg(time)" << ","
+            << setw(10) << "std(time)" << ","
+            << setw(10) << "err(time)" << ","
+            << "move no." << std::endl;
+    i = 0;
+    for (auto itr : time) {
+        std::cout << setw(10) << getAverage(itr) << ","
+                << setw(10) << getStdDev(itr) << ","
+                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
+                << setw(10) << i++ << std::endl;
+    }
+    std::cout << "# end statistic" << std::endl;
+}
+
 template <typename T>
 void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
 
@@ -590,7 +770,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
             state.Reset();            
             if (result[i] == WIN) {
                 const char *c = pjm == BLACK ? "+B " : "+W ";
-                sprintf(buffer, c);
+                sprintf(buffer, "%s", c);
 
                 if (i % 2 == 0) {
                     pjm == BLACK ? plywina[pjm]++ : plywinb[pjm]++;
@@ -600,7 +780,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                 plywin[pjm]++;
             } else if (result[i] == LOST) {
                 const char *c = (CLEAR - pjm == BLACK ? "+B " : "+W ");
-                sprintf(buffer, c);
+                sprintf(buffer, "%s", c);
 
                 if (i % 2 == 0) {
                     (CLEAR - pjm == BLACK) ? plywina[CLEAR - pjm]++ : plywinb[CLEAR - pjm]++;
@@ -990,11 +1170,11 @@ int main(int argc, char** argv) {
                 optplyb.nthreads = atoi(optarg);
                 break;
             case 'y':
-                if (0 < atoi(optarg) < 3)
+                if (0 < atoi(optarg) &&  atoi(optarg) < 3)
                     optplya.par = atoi(optarg);
                 break;
             case 'w':
-                if (0 < atoi(optarg) < 3)
+                if (0 < atoi(optarg) &&  atoi(optarg) < 3)
                     optplyb.par = atoi(optarg);
                 break;
             case 'x':
@@ -1071,6 +1251,9 @@ int main(int argc, char** argv) {
             break;
         case 4:
             game = const_cast<char*>("15-puzzle");
+            break;
+        case 5:
+            game = const_cast<char*>("pins");
             break;
         default:
             std::cerr << "No game is specified to be played!\n";
@@ -1195,6 +1378,15 @@ int main(int argc, char** argv) {
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
+    } else if (optplya.game == PINS) {
+        PinsState state(fileName);
+        if(optplya.nmoves == 0){
+            vector<int> moves;
+            optplya.nmoves = state.GetMoves(moves);
+        }
+        optplya.twoply=0;
+
+        UCTPlayPins<PinsState>(state, optplya, ngames, vflag);
     } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;
