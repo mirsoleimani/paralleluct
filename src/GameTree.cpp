@@ -141,7 +141,7 @@ void GameTree::PrintGame(FILE* f){
     sprintf(pre+i, "%3ld %2d", currIdx, currDepth);
     
     if(currIdx==0){
-        fprintf(f,"Size=%d\n",size);
+        fprintf(f,"Size=%zu\n",size);
         fprintf(f,"%s %d %d %0.1f\n",pre,MoveValue(),val,IsWin());
     }else{
         fprintf(f,"%s %d %d %0.1f\n",pre,MoveValue(),val,IsWin());

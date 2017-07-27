@@ -3,15 +3,36 @@
  * Author: Alfons Laarman
  *
  */
-
-#include "PinsState.h"
-
 extern "C" {
+#define SPINS
+
 #include "ltsmin/src/hre/config.h"
+#include "ltsmin/src/hre/user.h"
 #include "ltsmin/src/pins-lib/pins.h"
-#include "ltsmin/src/mc-lib/cctables.h"
+#include "pins-lib/pins-impl.h"
+#include "pins2lts-mc/parallel/options.h"
+#include "ltsmin/src/mc-lib/cctables2.h"
 #undef Print
 }
+#include "paralleluct/state/PinsState.h"
+
+
+#define FORCE_STRING "force-procs"
+static int HRE_PROCS = 0;
+
+static struct poptOption options_mc[] = {
+#ifdef OPAAL
+     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options_timed, 0, NULL, NULL},
+#else
+     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options, 0, NULL, NULL},
+#endif
+     {FORCE_STRING, 0, POPT_ARG_VAL | POPT_ARGFLAG_SHOW_DEFAULT | POPT_ARGFLAG_DOC_HIDDEN,
+      &HRE_PROCS, 1, "Force multi-process in favor of pthreads", NULL},
+     SPEC_POPT_OPTIONS,
+     POPT_TABLEEND
+};
+
+
 
 #define CUTOFF INT_MAX // control with nmoves (-a ?)
 
@@ -36,8 +57,27 @@ PinsState::PinsState(const char *fileName) {
     if (factory == NULL) {
         // TODO: support multi-threaded code
         fname = fileName;
-        cct_map_t *tables = cct_create_map (false); // HRE-aware object  
-        factory = cct_create_table_factory  (tables);
+        
+//        /* Init structures */
+//        HREinitBegin (fname);
+//
+//        HREaddOptions (options_mc, "Parallel UCT options");
+//
+//        lts_lib_setup ();
+//
+//        if (false) {
+//            HREenableFork (RTnumCPUs(), true);
+//        } else {
+//            HREenableThreads (RTnumCPUs(), true);
+//        }
+//
+//        // spawns threads:
+//        int argc = 0;
+//        char *argv[0];
+//        HREinitStart (&argc, &argv, 1, 2, fname, "<??????>");
+        
+        cct2_map_t *tables = cct2_create_map (false); // HRE-aware object  
+        factory = cct2_create_table_factory  (tables);
         fileName = fname;
     }
     

@@ -17,7 +17,7 @@
 #include <sys/time.h>
 #include <stddef.h>
 
-#include <boost/assert.hpp>
+//#include <boost/assert.hpp>
 
 using namespace std;
 
@@ -83,7 +83,7 @@ static vector<vector<int>> _poly;
 
 enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
 enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR};
-enum GAME{NOGAME=0,HEX,PGAME,HORNER,PINS,GEMPUZZLE};
+enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE,PINS};
 
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution

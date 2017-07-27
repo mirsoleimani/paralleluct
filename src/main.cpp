@@ -6,10 +6,12 @@
  */
 
 #include <cstdlib>
+#include <unistd.h>
 #include "paralleluct/UCT.h"
 #include "paralleluct/state/PGameState.h"
 #include "paralleluct/state/HexState.h"
 #include "paralleluct/state/PolyState.h"
+#include "paralleluct/state/PinsState.h"
 #include "paralleluct/state/GemPuzzleState.h"
 #include "paralleluct/state/Parser.h"
 //#include <cilk/cilk.h>
@@ -1359,6 +1361,10 @@ int main(int argc, char** argv) {
     } else if (optplya.game == GEMPUZZLE) {
         printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
                 game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
+    } else if (optplya.game == PINS) {
+                printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
+                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a,threadlib, optplya.cp, optplya.virtualloss,optplya.locking);
     }
 
     for (int index = optind; index < argc; index++)
@@ -1386,7 +1392,7 @@ int main(int argc, char** argv) {
         }
         optplya.twoply=0;
 
-        UCTPlayPins<PinsState>(state, optplya, ngames, vflag);
+        UCTPlayHorner<PinsState>(state, optplya, ngames, vflag);
     } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;
