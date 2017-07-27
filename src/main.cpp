@@ -6,10 +6,12 @@
  */
 
 #include <cstdlib>
+#include <unistd.h>
 #include "paralleluct/UCT.h"
 #include "paralleluct/state/PGameState.h"
 #include "paralleluct/state/HexState.h"
 #include "paralleluct/state/PolyState.h"
+#include "paralleluct/state/PinsState.h"
 #include "paralleluct/state/GemPuzzleState.h"
 #include "paralleluct/state/Parser.h"
 //#include <cilk/cilk.h>

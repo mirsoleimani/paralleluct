@@ -3,15 +3,15 @@
  * Author: Alfons Laarman
  *
  */
-
-#include "PinsState.h"
-
 extern "C" {
 #include "ltsmin/src/hre/config.h"
 #include "ltsmin/src/pins-lib/pins.h"
 #include "ltsmin/src/mc-lib/cctables.h"
 #undef Print
 }
+#include "paralleluct/state/PinsState.h"
+
+
 
 #define CUTOFF INT_MAX // control with nmoves (-a ?)
 
