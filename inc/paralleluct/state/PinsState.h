@@ -18,8 +18,8 @@ using namespace std;
 class PinsState {
 public:
     PinsState();
-    PinsState(const char *fileName);
-    PinsState(const PinsState &pins);
+    PinsState (const char *fileName);
+    PinsState (const PinsState &pins);
     void Reset();
     void SetMove(int move);
     int GetMoves(term& moves); //This method returns leftover variables
@@ -36,7 +36,7 @@ public:
 
 private:
     bool PropertyViolated();
-    int                *current;    // state of n slots
+    int   *current = NULL;    // state of n slots
     int                 depth;
 };
 #endif	/* PINS_STATE_H */

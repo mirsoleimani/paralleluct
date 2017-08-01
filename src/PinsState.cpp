@@ -6,12 +6,12 @@
 extern "C" {
 #define SPINS
 
-#include "ltsmin/src/hre/config.h"
-#include "ltsmin/src/hre/user.h"
-#include "ltsmin/src/pins-lib/pins.h"
+#include "hre/config.h"
+#include "hre/user.h"
+#include "pins-lib/pins.h"
 #include "pins-lib/pins-impl.h"
-#include "pins2lts-mc/parallel/options.h"
-#include "ltsmin/src/mc-lib/cctables2.h"
+//#include "pins2lts-mc/parallel/options.h"
+#include "mc-lib/cctables.h"
 #undef Print
 }
 #include "paralleluct/state/PinsState.h"
@@ -21,11 +21,11 @@ extern "C" {
 static int HRE_PROCS = 0;
 
 static struct poptOption options_mc[] = {
-#ifdef OPAAL
-     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options_timed, 0, NULL, NULL},
-#else
-     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options, 0, NULL, NULL},
-#endif
+//#ifdef OPAAL
+//     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options_timed, 0, NULL, NULL},
+//#else
+//     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options, 0, NULL, NULL},
+//#endif
      {FORCE_STRING, 0, POPT_ARG_VAL | POPT_ARGFLAG_SHOW_DEFAULT | POPT_ARGFLAG_DOC_HIDDEN,
       &HRE_PROCS, 1, "Force multi-process in favor of pthreads", NULL},
      SPEC_POPT_OPTIONS,
@@ -41,27 +41,30 @@ static int          lowest = CUTOFF;
 static table_factory_t    factory = NULL;
 static const char        *fname = NULL;
 
+//thread_local
 
-static thread_local model_t model = NULL;      // PINS implementation
-static thread_local int                 n;          // nr of state slots
-static thread_local int                 k;          // nr of transition groups
-static thread_local int                 logk;       // log k
-static thread_local int                 kmask;      // (1 << logk) - 1
+static model_t model = NULL;      // PINS implementation
+static int                 n;          // nr of state slots
+static int                 k;          // nr of transition groups
+static int                 logk;       // log k
+static int                 kmask;      // (1 << logk) - 1
 
 
 PinsState::PinsState(){
+    current = (int *) malloc(sizeof(int[n]));   // Heavy malloc
 }
 
-PinsState::PinsState(const char *fileName) {
+PinsState::PinsState(const char *fileName) : PinsState() {
 
     if (factory == NULL) {
+         std::cout << "Starting HRE" << endl;
         // TODO: support multi-threaded code
         fname = fileName;
         
 //        /* Init structures */
-//        HREinitBegin (fname);
+        HREinitBegin (fname);
 //
-//        HREaddOptions (options_mc, "Parallel UCT options");
+        HREaddOptions (options_mc, "Parallel UCT options");
 //
 //        lts_lib_setup ();
 //
@@ -72,19 +75,24 @@ PinsState::PinsState(const char *fileName) {
 //        }
 //
 //        // spawns threads:
-//        int argc = 0;
-//        char *argv[0];
-//        HREinitStart (&argc, &argv, 1, 2, fname, "<??????>");
         
-        cct2_map_t *tables = cct2_create_map (false); // HRE-aware object  
-        factory = cct2_create_table_factory  (tables);
-        fileName = fname;
-    }
-    
-    
-    std::cout << "Loading model from "<< fname;
+        char *a[1];
+        int argc = 2;
+        char **p = (char **) malloc(sizeof(char *[2]));
+        p[0] = (char *) malloc(strlen("./parallelust2"));
+        p[1] = (char *) fname;
+        strcpy(*p, "./parallelust2");
+        HREinitStart (&argc, &p, 1, 2, (char **)&fname, "");
 
-    if (model == NULL) {
+        std::cout << "Creating model" << endl;
+        cct_map_t *tables = cct_create_map (false); // HRE-aware object  
+        factory = cct_create_table_factory  (tables);
+        fileName = fname;
+//    } 
+    
+
+//    if (model == NULL) {
+        std::cout << "Loading model from "<< fname << endl;
         model = GBcreateBase ();
         GBsetChunkMap (model, factory); //HREgreyboxTableFactory());
         GBloadFile (model, fname, &model);   
@@ -97,12 +105,11 @@ PinsState::PinsState(const char *fileName) {
         assert (n = dm_ncols(m));
     }
 
-    current = (int *) malloc(sizeof(int[n]));
     GBgetInitialState(model, current);
     depth = 0;
 }
 
-PinsState::PinsState(const PinsState &pins) {
+PinsState::PinsState(const PinsState &pins) : PinsState() {
     memcpy (current, pins.current, sizeof(int[n]));
     depth = pins.depth;
 }
