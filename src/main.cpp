@@ -1097,7 +1097,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 static void ShowUsage(std::string name) {
     cerr << "Usage: " << name << " <option(s)> \n"
             << "Options:\n"
-            //<< "\t-x\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4)\n"
+            //<< "\t-x\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4,pins=5)\n"
             << "\t-p\t\tThe game to play (default=0,hex=1,p-Game=2,horner=3,15-puzzle=4)\n"
             << "\t-b\t\tBreath of the tree\n"
             << "\t-d\t\tDepth of the tree or dimension of the board\n"
