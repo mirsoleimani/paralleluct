@@ -1,6 +1,15 @@
 /* 
  * File:   PinsState.h
  * Author: Alfons Laarman
+ * 
+ * 
+ * 
+ * TODO:
+ * - internalize random number generators to avoid costly getMoves
+ * - pass "non-options" from main.cpp to HRE
+ * - add action detection
+ * - add invariant detection
+ * - guided search
  *
  */
 extern "C" {
@@ -186,6 +195,7 @@ cb_dummy(void *context, transition_info_t *ti, int *dst, int *cpy)
  * TODO: other safety properties.
 */
 bool PinsState::PropertyViolated() {
+    
     return GBgetTransitionsAll (model, current, cb_dummy, NULL) == 0;
 }
 
