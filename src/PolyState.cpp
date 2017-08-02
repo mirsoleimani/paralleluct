@@ -28,7 +28,7 @@ int PolyState::CountMultiplications() {
     int mCount = 0;
     for (int i = 0; i < _polyNumTerms; i++) {
         int c = 1;
-        for (int j = 1; j < _poly[i].size(); j++) {
+        for (unsigned int j = 1; j < _poly[i].size(); j++) {
             c += _poly[i][j];
         }
         if (c > 0) {
@@ -47,11 +47,11 @@ int PolyState::GetMoves(vector<int>& moves) {
     assert(moves.size() == 0 && "The moves vector should be empty!\n");
     std::vector<char> visited(_polyNumVars);
 
-    for (int i = 0; i < _polyOrder.size(); i++) {
+    for (unsigned int i = 0; i < _polyOrder.size(); i++) {
         visited[_polyOrder[i]] = 1; //Mark the visited variables
     }
 
-    for (int i = 0; i < _polyNumVars; i++) {
+    for (unsigned int i = 0; i < _polyNumVars; i++) {
         if (!visited[i]) {
             moves.push_back(i);
         }
@@ -71,7 +71,7 @@ float PolyState::GetResult(int plyjm) {
 void PolyState::Evaluate() {
     //Tree building assumes that var 0 is constant
     term order = _polyOrder;
-    for (int i = 0; i < _polyOrder.size(); i++)
+    for (unsigned int i = 0; i < _polyOrder.size(); i++)
         order[i]++;
 
     if (!_polyForward)
@@ -148,9 +148,9 @@ void PolyState::Print() {
     std::string varnames = "abcdefghijklmnopqrstuvwxyz";
     BOOST_ASSERT(_poly[0].size() - 1 <= varnames.size());
 
-    for (int i = 0; i < _poly.size(); i++) {
+    for (unsigned int i = 0; i < _poly.size(); i++) {
         std::cout << _poly[i][0]; // constant
-        for (int j = 1; j < _poly[i].size(); j++) {
+        for (unsigned int j = 1; j < _poly[i].size(); j++) {
             if (_poly[i][j] > 0) {
                 std::cout << "*";
                 std::cout << varnames[j - 1];
@@ -174,9 +174,9 @@ void PolyState::PrintToFile(char* fileName) {
 //    std::string varnames = "abcdefghijklmnopqrstuvwxyz";
 //    BOOST_ASSERT(_poly[0].size() - 1 <= varnames.size());
 
-    for (int i = 0; i < _poly.size(); i++) {
+    for (unsigned int i = 0; i < _poly.size(); i++) {
         //std::cout << _poly[i][0]; // constant
-        for (int j = 1; j < _poly[i].size(); j++) {
+        for (unsigned int j = 1; j < _poly[i].size(); j++) {
             if (_poly[i][j] > 0) {
                 ofs << _poly[i][j] << ",";
                 //std::cout << varnames[j - 1];

@@ -45,7 +45,7 @@ void GameTree::GenTree(int seed){
     assert(seed != -1 && "seed can not be -1");
     srand(seed);
     
-    for(long int i=0;i<size;i++){
+    for(unsigned long i=0;i<size;i++){
         (*moveVal)[i] = RandInt(maxMoveVal);  //Assign a random value to each node
         assert(((*moveVal)[i] < maxMoveVal) && "value of the node is higher than maximum value!");
     }
@@ -141,7 +141,7 @@ void GameTree::PrintGame(FILE* f){
     sprintf(pre+i, "%3ld %2d", currIdx, currDepth);
     
     if(currIdx==0){
-        fprintf(f,"Size=%d\n",size);
+        fprintf(f,"Size=%zu\n",size);
         fprintf(f,"%s %d %d %0.1f\n",pre,MoveValue(),val,IsWin());
     }else{
         fprintf(f,"%s %d %d %0.1f\n",pre,MoveValue(),val,IsWin());

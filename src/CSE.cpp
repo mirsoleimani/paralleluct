@@ -31,7 +31,7 @@ void sortedInsert(std::vector<CSE::Node*>& s, CSE::Node*& ins) {
 
 // process global order and extract gcds
 
-CSE::Node* CSE::buildTree(const polynomial& pol, const std::vector<int>& order, int orderindex) {
+CSE::Node* CSE::buildTree(const polynomial& pol, const std::vector<int>& order, unsigned int orderindex) {
     polynomial constants, highorder; // TODO: references?
     int mincount = 0, termcount = 0, gcd = 0;
 
@@ -40,7 +40,7 @@ CSE::Node* CSE::buildTree(const polynomial& pol, const std::vector<int>& order, 
     }
 
     // find parts that are constant in order[i]
-    for (int i = 0; i < pol.size(); i++) {
+    for (unsigned int i = 0; i < pol.size(); i++) {
         if (pol[i][order[orderindex]] == 0) {
             constants.push_back(pol[i]);
         } else {
@@ -60,7 +60,7 @@ CSE::Node* CSE::buildTree(const polynomial& pol, const std::vector<int>& order, 
         return buildTree(pol, order, orderindex + 1);
     }
 
-    for (int i = 0; i < highorder.size(); i++) {
+    for (unsigned int i = 0; i < highorder.size(); i++) {
         highorder[i][order[orderindex]] -= mincount;
         highorder[i][0] /= gcd;
     }
@@ -94,7 +94,7 @@ CSE::Node* CSE::buildTree(const polynomial& pol) {
     if (pol.size() == 1) { // one term
         Node* term = new Constant(pol[0][0]); // TODO: filter 1 and -1?
 
-        for (int i = 1; i < pol[0].size(); i++) {
+        for (unsigned int i = 1; i < pol[0].size(); i++) {
             if (pol[0][i] > 0) {
                 for (int j = 0; j < pol[0][i]; j++) {
                     term = new Operation({term, new Variable(i - 1)}, Operation::MUL);
@@ -223,7 +223,7 @@ CSE::Node* CSE::findAndReplaceAll(Node* root, Node* target, Node* replaceBy, int
 
                 std::vector<Node*> newchildren;
 
-                int posVer = 0;
+                unsigned int posVer = 0;
 
                 for (Node*& c : tt->children) {
                     if (posVer < s.size() && c == s[posVer]) {
@@ -261,7 +261,7 @@ CSE::Node* CSE::findAndReplaceAll(Node* root, Node* target, Node* replaceBy, int
 
 
     // continue to check the children
-    for (int i = 0; i < tt->children.size(); i++) {
+    for (unsigned int i = 0; i < tt->children.size(); i++) {
         tt->children[i] = findAndReplaceAll(tt->children[i], target, replaceBy, count);
     }
 
@@ -305,10 +305,10 @@ CSE::Node* CSE::replaceCSEsInTree(Node* tree, std::vector<CSE::Node*>& cses) {
 
     // now find matches of smaller in bigger ones
     // start with biggest subexps
-    for (int i = cses.size() - 1; i >= 0; i--) {
+    for (unsigned int i = cses.size() - 1; i >= 0; i--) {
         Node* tmp = new Variable(i + 100); // the ith CSE
 
-        for (int j = i + 1; j < cses.size(); j++) {
+        for (unsigned int j = i + 1; j < cses.size(); j++) {
             if (used[j]) {
                 int count = 0;
                 cses[j] = findAndReplaceAll(cses[j], cses[i], tmp, &count);
@@ -322,7 +322,7 @@ CSE::Node* CSE::replaceCSEsInTree(Node* tree, std::vector<CSE::Node*>& cses) {
 
     std::vector<Node*> newtree;
 
-    for (int i = 0; i < cses.size(); i++) {
+    for (unsigned int i = 0; i < cses.size(); i++) {
         if (used[i]) {
             newtree.push_back(cses[i]);
         }
@@ -333,7 +333,7 @@ CSE::Node* CSE::replaceCSEsInTree(Node* tree, std::vector<CSE::Node*>& cses) {
     // FIXME: this messes up the number of the variables! Fix the numbering
     cses = newtree; // replace tree
 
-    for (int i = 0; i < cses.size(); i++) {
+    for (unsigned int i = 0; i < cses.size(); i++) {
         std::cout << "T" << (i + 100) << " = ";
         cses[i]->print();
         std::cout << std::endl;
@@ -423,7 +423,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
     // split up structure
     Node* a = cses[rand() % cses.size()]; // pick random node
 
-    int removalcount = 1; // TODO: support powers
+//    int removalcount = 1; // TODO: support powers
 
     std::vector<Node*> rest; // rest + a * sub
     std::vector<Node*> sub;
@@ -461,7 +461,7 @@ CSE::Node* CSE::doGeneralisedHorner(Node* root) {
             // third power only happens if x^3 occurs only once in the entire expression.
 
             // only remove one power for now.
-            int i = 0;
+            unsigned int i = 0;
             for (; i < ttt->children.size(); i++) {
                 if (ttt->children[i]->compare(a) == 0) {
                     break;
@@ -547,7 +547,7 @@ CSE::Node* CSE::doMaths(Node* tree) {
     }
 
     // collect constants
-    int i = 0;
+    unsigned int i = 0;
     while (dynamic_cast<Constant*> (tt->children[i]) != NULL) {
         i++;
     }
@@ -563,7 +563,7 @@ CSE::Node* CSE::doMaths(Node* tree) {
     if (i > 1) {
         int count = tt->op == Operation::MUL ? 1 : 0;
 
-        for (int k = 0; k < i; k++) {
+        for (unsigned int k = 0; k < i; k++) {
             Constant* c = dynamic_cast<Constant*> (tt->children[k]);
             if (tt->op == Operation::MUL) {
                 count *= c->getVal();
@@ -582,7 +582,7 @@ CSE::Node* CSE::doMaths(Node* tree) {
     }
 
     // now do the children
-    for (int i = 0; i < tt->children.size(); i++) {
+    for (unsigned int i = 0; i < tt->children.size(); i++) {
         tt->children[i] = doMaths(tt->children[i]);
     }
 
@@ -622,7 +622,7 @@ CSE::Node* CSE::addSameTerms(Node* tree) {
             i++;
         }
 
-        bool same = true;
+//        bool same = true;
 
 
         if (i > 1) {
@@ -648,7 +648,7 @@ CSE::Node* CSE::addSameTerms(Node* tree) {
     }
 
     // now do the children
-    for (int i = 0; i < tt->children.size(); i++) {
+    for (unsigned int i = 0; i < tt->children.size(); i++) {
         tt->children[i] = addSameTerms(tt->children[i]);
     }
 
@@ -674,7 +674,7 @@ CSE::Node* CSE::doSimpleCSE(Node* tree,
         BOOST_ASSERT(o->children.size() == 2);
 
         std::vector<Node*> children;
-        for (int i = 0; i < o->children.size(); i++) { // first go to children
+        for (unsigned int i = 0; i < o->children.size(); i++) { // first go to children
             children.push_back(doSimpleCSE(o->children[i], replaceMap, instrTree));
         }
 
@@ -729,7 +729,7 @@ unsigned int CSE::countSimpleCSE(Node* tree) {
                 newOpCount++;
             }
 
-            for (int i = 0; i < o->children.size(); i++) {
+            for (unsigned int i = 0; i < o->children.size(); i++) {
                 stack.push_back(o->children[i]);
             }
         }
@@ -801,7 +801,7 @@ CSE::Node* CSE::doCSE(Node* tree) {
         std::unordered_set < Node*, decltype(my_hash), decltype(my_eq) > visited(0, my_hash, my_eq);
 
         // generate subsets bigger than 1 and smaller than total
-        for (int k = 2; k < o->children.size(); k++) {
+        for (unsigned int k = 2; k < o->children.size(); k++) {
             std::vector<Node*> temp(k);
             std::vector < std::vector < Node* >> subsets; // TODO: allocate (n ncr k) units?
             genSubsets(o->children, k, temp, subsets);
@@ -842,7 +842,7 @@ CSE::Node* CSE::doCSE(Node* tree) {
 
         if (o->op == Operation::MUL) { // take care of powers of random objects
             int count = 0;
-            for (int i = 1; i < o->children.size(); i++) {
+            for (unsigned int i = 1; i < o->children.size(); i++) {
                 // sorted, so equiv should be side by side
                 if (o->children[i]->compare(o->children[i - 1]) == 0) {
                     count++;
@@ -896,7 +896,7 @@ CSE::Node* CSE::doCSE(Node* tree) {
 
 
     // make deep copies of the structure to prevent problems later on
-    for (int i = 0; i < cses.size(); i++) {
+    for (unsigned int i = 0; i < cses.size(); i++) {
         cses[i] = cses[i]->clone();
     }
 

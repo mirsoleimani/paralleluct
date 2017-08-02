@@ -135,14 +135,6 @@ inline void PRINT_ELEMENTS(const T& coll, const char* optcstr = "") {
     std::cout << std::endl;
 }
 
-static unsigned GCD(unsigned u, unsigned v) {
-    while ( v != 0) {
-        unsigned r = u % v;
-        u = v;
-        v = r;
-    }
-    return u;
-}
 
 /**
  * Generates all ordered subsets of size k. Should yield (n ncr k) elements.
@@ -154,7 +146,7 @@ static unsigned GCD(unsigned u, unsigned v) {
  * @param r Internal use
  */
 template <typename T>
-void genSubsets(const std::vector<T>& s, int k, std::vector<T>& t, std::vector<std::vector<T >> &out, int q = 0, int r = 0) {
+void genSubsets(const std::vector<T>& s, unsigned int k, std::vector<T>& t, std::vector<std::vector<T >> &out, unsigned int q = 0, int r = 0) {
     if (k - q > s.size() - r) {
         return;
     }
@@ -162,7 +154,7 @@ void genSubsets(const std::vector<T>& s, int k, std::vector<T>& t, std::vector<s
     if (q == k) {
         out.push_back(t);
     } else {
-        for (int i = r; i < s.size(); i++) {
+        for (unsigned int i = r; i < s.size(); i++) {
             t[q] = s[i];
             genSubsets(s, k, t, out, q + 1, i + 1);
         }
