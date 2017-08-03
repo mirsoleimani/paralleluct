@@ -12,7 +12,8 @@
  * - guided search
  *
  */
-
+#include <type_traits>
+#define typeof(x) std::remove_reference<decltype((x))>::type
 extern "C" {
 #define SPINS
 
@@ -122,7 +123,7 @@ PinsState::PinsState(const char *fileName, int d, int swap) : PinsState() {
 //
 //        // spawns threads:
         
-        char *a[1];
+//        char *a[1];
         int argc = 2;
         char **p = (char **) malloc(sizeof(char *[2]));
         p[0] = (char *) malloc(strlen("./parallelust2"));
