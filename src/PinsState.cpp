@@ -77,6 +77,8 @@ static int                 kmask;      // (1 << logk) - 1
 static int                 act_label,
                            act_type,
                            act_index;
+static ci_list            *vgroups;
+static ci_list            *vguards;
 
 static thread_local unsigned long long  seed[2] = {0, 0 };
 static thread_local int *guards = NULL;
@@ -160,6 +162,15 @@ PinsState::PinsState(const char *fileName, int d, int swap) : PinsState() {
             act_type = lts_type_get_edge_label_typeno (ltstype, act_label);
             chunk c = chunk_str("assert");
             act_index = pins_chunk_put  (model, act_type, c);
+            int *groups = (int *) calloc (k, sizeof(int));
+            GBsetPorGroupVisibility (model, groups);
+            int *guards = (int *) calloc (g, sizeof(int));
+            GBsetPorStateLabelVisibility (model, guards);
+            pins_add_edge_label_visible (model, act_label, act_index);
+            vgroups = ci_create (k);
+            for (int i = 0; i< k; i++) ci_add_if (vgroups, i, groups[i] != 0);
+            vguards = ci_create (g);
+            for (int i = 0; i< g; i++) ci_add_if (vguards, i, guards[i] != 0);
         }
 
     }
@@ -201,6 +212,7 @@ cb_last(void *context, transition_info_t *ti, int *dst, int *cpy)
 typedef struct cb_moves_s {
     cb_last_t    last;
     vector<int> &moves;
+    int          depth;
 } cb_moves_t;
 
 static void
@@ -209,6 +221,10 @@ cb_moves(void *context, transition_info_t *ti, int *dst, int *cpy)
     cb_moves_t *ctx = (cb_moves_t *) context;
     cb_last (&ctx->last, ti, dst, cpy);
     ctx->moves.push_back(ctx->last.occurence << logk | ti->group);
+    if (PROPERTY == 1 && ti->labels[act_label] == act_index) {
+        std::cout << "Assertion violation found at depth " <<  ctx->depth << endl;
+        exit (1);
+    }
     (void) cpy; (void) dst;
 }
 
@@ -220,7 +236,7 @@ cb_moves(void *context, transition_info_t *ti, int *dst, int *cpy)
  */
 int PinsState::GetMoves(vector<int>& moves) {
     assert(moves.size() == 0 && "The moves vector should be empty!\n");
-    cb_moves_t ctx = { .last = LAST_INIT, .moves = moves };
+    cb_moves_t ctx = { .last = LAST_INIT, .moves = moves, .depth = level };
     int total = GBgetTransitionsAll (model, current, cb_moves, &ctx);
     assert (total == modes.size());
     return moves.size();
@@ -241,15 +257,28 @@ void PinsState::Evaluate() {
 
     float               c = 0;
     ci_list           **g2g = (ci_list **) GBgetGuardsInfo(model);
-    for (int i = 0; i < k; i++) {
-        bool enabled = true;
-        for (int *n = ci_begin(g2g[i]); n != ci_end(g2g[i]); n++) {
-            enabled &= guards[*n] != 0;
+
+    if (PROPERTY == 1) {
+        for (int *g = ci_begin(vgroups); g != ci_end(vgroups); g++) {
+            for (int *n = ci_begin(g2g[*g]); n != ci_end(g2g[*g]); n++) {
+                c += guards[*n] == 0;
+            }
         }
-        c += enabled;
+        for (int *u = ci_begin(vguards); u != ci_end(vguards); u++) {
+            c += guards[*u] == 0;
+        }
+        c /= g;
+    } else {
+        for (int i = 0; i < k; i++) {
+            bool enabled = true;
+            for (int *n = ci_begin(g2g[i]); n != ci_end(g2g[i]); n++) {
+                enabled &= guards[*n] != 0;
+            }
+            c += enabled;
+        }
+        c /= k;
     }
 
-    c /= k;
     if (c < cached) {
         cached = c;
     }
@@ -265,7 +294,7 @@ cb_dummy(void *context, transition_info_t *ti, int *dst, int *cpy)
 static void
 deadlock_check (int c, int level)
 {
-    if (c == 0) {
+    if (PROPERTY == 0 && c == 0) {
         std::cout << "Deadlock found at depth " << level << endl;
         exit (1);
     }
