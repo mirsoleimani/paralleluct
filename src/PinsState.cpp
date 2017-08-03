@@ -249,6 +249,7 @@ void PinsState::Evaluate() {
         c += enabled;
     }
 
+    c /= k;
     if (c < cached) {
         cached = c;
     }
