@@ -48,4 +48,5 @@ float Alphabeta::ABNegamax2(PGameState& state,float alpha,float beta,int player,
 //    }
 //  
 //    return bestVal;
+    return 0;
 }

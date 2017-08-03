@@ -11,7 +11,7 @@
 #include <thread>
 #include <mutex>
 #include <memory>
-#include <omp.h>
+//#include <omp.h>
 #include <chrono>
 #include <algorithm>
 #include "CheckError.h"
@@ -42,7 +42,7 @@ struct PlyOptions {
     int bestreward=4200;
     int nmoves = 0;
     bool virtualloss=0;
-    char* locking="";
+    char* locking=const_cast<char*>("lock_free");
     int twoply=1;
 };
 

@@ -1,50 +1,144 @@
 /* 
  * File:   PinsState.h
  * Author: Alfons Laarman
+ * 
+ * 
+ * 
+ * TODO:
+ * - internalize random number generators to avoid costly getMoves
+ * - pass "non-options" from main.cpp to HRE
+ * - add action detection
+ * - add invariant detection
+ * - guided search
  *
  */
+
 extern "C" {
-#include "ltsmin/src/hre/config.h"
-#include "ltsmin/src/pins-lib/pins.h"
-#include "ltsmin/src/mc-lib/cctables.h"
+#define SPINS
+
+#include "hre/config.h"
+#include "hre/user.h"
+#include <ltsmin-lib/ltsmin-standard.h>
+#include <ltsmin-lib/lts-type.h>
+#include "pins-lib/pins.h"
+#include "pins-lib/pins-impl.h"
+#include "pins-lib/pins-util.h"
+//#include "pins2lts-mc/parallel/options.h"
+#include "mc-lib/cctables.h"
+#include "util-lib/util.h"
+#include "util-lib/chunk_support.h"
 #undef Print
+#undef swap
+#undef min
+#undef max
 }
 #include "paralleluct/state/PinsState.h"
 
 
 
-#define CUTOFF INT_MAX // control with nmoves (-a ?)
 
-static int          lowest = CUTOFF;
+
+#include "Utilities.h"
+#include <assert.h>
+#include <random>
+#include <cstdlib>
+#include <random>
+#include <unistd.h>
+#include <limits>
+#include "paralleluct/state/PinsState.h"
+
+#define FORCE_STRING "force-procs"
+static int HRE_PROCS = 0;
+
+static struct poptOption options_mc[] = {
+//#ifdef OPAAL
+//     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options_timed, 0, NULL, NULL},
+//#else
+//     {NULL, 0, POPT_ARG_INCLUDE_TABLE, options, 0, NULL, NULL},
+//#endif
+     {FORCE_STRING, 0, POPT_ARG_VAL | POPT_ARGFLAG_SHOW_DEFAULT | POPT_ARGFLAG_DOC_HIDDEN,
+      &HRE_PROCS, 1, "Force multi-process in favor of pthreads", NULL},
+     SPEC_POPT_OPTIONS,
+     POPT_TABLEEND
+};
+
+
 
 static table_factory_t    factory = NULL;
 static const char        *fname = NULL;
 
+//thread_local
 
-static thread_local model_t model = NULL;      // PINS implementation
-static thread_local int                 n;          // nr of state slots
-static thread_local int                 k;          // nr of transition groups
-static thread_local int                 logk;       // log k
-static thread_local int                 kmask;      // (1 << logk) - 1
+static int                  PLAYOUT_DEPTH;
+static int                  PROPERTY;
+static model_t              model = NULL;      // PINS implementation
+static int                 n;          // nr of state slots
+static int                 k;          // nr of transition groups
+static int                 g;          // nr of transition guards
+static int                 logk;       // log k
+static int                 kmask;      // (1 << logk) - 1
+static int                 act_label,
+                           act_type,
+                           act_index;
 
+static thread_local unsigned long long  seed[2] = {0, 0 };
+static thread_local int *guards = NULL;
 
 PinsState::PinsState(){
+    if (seed[0] == 0 && seed[0] == seed[1]) {
+        std::random_device dev;
+        seed[0] = (unsigned long long) dev();
+        seed[1] = (unsigned long long) dev();
+    }
+
+    cached = std::numeric_limits<float>::max();
+    level = 0;
+    current = (int *) malloc(sizeof(int[n]));   // Heavy malloc
 }
 
-PinsState::PinsState(const char *fileName) {
+PinsState::PinsState(const char *fileName, int d, int swap) : PinsState() {
 
     if (factory == NULL) {
+        
+        PLAYOUT_DEPTH = d;
+        PROPERTY = swap;
+        
+         std::cout << "Starting HRE" << endl;
         // TODO: support multi-threaded code
         fname = fileName;
+        
+//        /* Init structures */
+        HREinitBegin (fname);
+//
+        HREaddOptions (options_mc, "Parallel UCT options");
+//
+//        lts_lib_setup ();
+//
+//        if (false) {
+//            HREenableFork (RTnumCPUs(), true);
+//        } else {
+//            HREenableThreads (RTnumCPUs(), true);
+//        }
+//
+//        // spawns threads:
+        
+        char *a[1];
+        int argc = 2;
+        char **p = (char **) malloc(sizeof(char *[2]));
+        p[0] = (char *) malloc(strlen("./parallelust2"));
+        p[1] = (char *) fname;
+        strcpy(*p, "./parallelust2");
+        HREinitStart (&argc, &p, 1, 2, (char **)&fname, "");
+
+        std::cout << "Creating model" << endl;
         cct_map_t *tables = cct_create_map (false); // HRE-aware object  
         factory = cct_create_table_factory  (tables);
         fileName = fname;
-    }
+//    } 
     
-    
-    std::cout << "Loading model from "<< fname;
 
-    if (model == NULL) {
+//    if (model == NULL) {
+        std::cout << "Loading model from "<< fname << endl;
         model = GBcreateBase ();
         GBsetChunkMap (model, factory); //HREgreyboxTableFactory());
         GBloadFile (model, fname, &model);   
@@ -52,19 +146,33 @@ PinsState::PinsState(const char *fileName) {
         n = lts_type_get_state_length(lts);
         matrix_t *m = GBgetDMInfo(model);
         k = dm_nrows (m);
+        g = dm_nrows( GBgetGuardNESInfo(model) );
         logk = ceil(log(k) / log(2));
         kmask = (1 << logk) - 1;
         assert (n = dm_ncols(m));
+
+        lts_type_t          ltstype = GBgetLTStype (model);
+        if (PROPERTY == 1) {
+            // table number of first edge label
+            act_label = lts_type_find_edge_label_prefix (
+                    ltstype, LTSMIN_EDGE_TYPE_ACTION_PREFIX);
+            if (act_label == -1) {
+                std::cout << "No edge label 'action' for action detection" << endl;
+                exit (1);
+            }
+            act_type = lts_type_get_edge_label_typeno (ltstype, act_label);
+            chunk c = chunk_str("assert");
+            act_index = pins_chunk_put  (model, act_type, c);
+        }
+
     }
 
-    current = (int *) malloc(sizeof(int[n]));
     GBgetInitialState(model, current);
-    depth = 0;
 }
 
-PinsState::PinsState(const PinsState &pins) {
+PinsState::PinsState(const PinsState &pins) : PinsState() {
     memcpy (current, pins.current, sizeof(int[n]));
-    depth = pins.depth;
+    level = pins.level;
 }
 
 typedef struct cb_last_s {
@@ -88,6 +196,7 @@ cb_last(void *context, transition_info_t *ti, int *dst, int *cpy)
         ctx->occurence++;
     } else {
         ctx->occurence = 0;
+        ctx->group = ti->group;
     }
     (void) cpy; (void) dst;
 }
@@ -102,7 +211,7 @@ cb_moves(void *context, transition_info_t *ti, int *dst, int *cpy)
 {
     cb_moves_t *ctx = (cb_moves_t *) context;
     cb_last (&ctx->last, ti, dst, cpy);
-    ctx->moves.push_back(ctx->last.occurence << logk | ctx->last.group);
+    ctx->moves.push_back(ctx->last.occurence << logk | ti->group);
     (void) cpy; (void) dst;
 }
 
@@ -121,10 +230,32 @@ int PinsState::GetMoves(vector<int>& moves) {
 }
 
 float PinsState::GetResult(int plyjm) {
-   return CUTOFF - lowest;
+    return cached;
 }
 
-void PinsState::Evaluate() { // done in SetMove (bad?)
+void PinsState::Evaluate() {
+    if (cache == level) return;
+
+    if (guards == NULL) {
+        guards = (int *) malloc (sizeof(int[g]));
+    }
+
+    GBgetStateLabelsGroup (model, GB_SL_GUARDS, current, guards);
+
+    float               c = 0;
+    ci_list           **g2g = (ci_list **) GBgetGuardsInfo(model);
+    for (int i = 0; i < k; i++) {
+        bool enabled = true;
+        for (int *n = ci_begin(g2g[i]); n != ci_end(g2g[i]); n++) {
+            enabled &= guards[*n] != 0;
+        }
+        c += enabled;
+    }
+
+    if (c < cached) {
+        cached = c;
+    }
+    cache = level;
 }
 
 static void
@@ -133,17 +264,28 @@ cb_dummy(void *context, transition_info_t *ti, int *dst, int *cpy)
     (void) context; (void) ti; (void) dst; (void) cpy; 
 }
 
+static void
+deadlock_check (int c, int level)
+{
+    if (c == 0) {
+        std::cout << "Deadlock found at depth " << level << endl;
+        exit (1);
+    }
+}
+
 /*
  * Currently we check only for deadlocks
  * 
  * TODO: other safety properties.
 */
 bool PinsState::PropertyViolated() {
-    return GBgetTransitionsAll (model, current, cb_dummy, NULL) == 0;
+    int count = GBgetTransitionsAll (model, current, cb_dummy, NULL);
+    deadlock_check (count, level);
+    return count == 0;
 }
 
 bool PinsState::IsTerminal() {
-    return depth == CUTOFF || PropertyViolated();
+    return PropertyViolated();
 }
 
 int PinsState::GetPlyJM() {
@@ -173,22 +315,42 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
  * supplied by GetMoves.
  */
 void PinsState::SetMove(int move) {
-    depth++;
+    level++;
     cb_move_t ctx = { .current = current,
                       .group = move & kmask,
                       .occurence = move >> logk,
                       .last = LAST_INIT
     };
-    int total = GBgetTransitionsAll (model, current, cb_move, &ctx);
+//    for (int i = 0; i < n; i++) std::cout << current[i] <<", ";
+//    std::cout << " <--"<< move <<"-->  ";
+    GBgetTransitionsAll (model, current, cb_move, &ctx);
+//    for (int i = 0; i < n; i++) std::cout << current[i] <<", ";
+//    std::cout << endl;
 }
 
+
 void PinsState::SetPlayoutMoves(vector<int>& moves) {
-    if (IsTerminal()) {
-        return;
+
+    while (playout > 0) {
+        Evaluate();
+
+        moves.clear();
+        GetMoves(moves);
+        deadlock_check (moves.size(), level);
+
+        std::random_device rd;  //Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<> dis(0, moves.size() - 1);
+
+        
+        SetMove(moves.at(dis(gen)));
+        playout--;
     }
+    moves.clear();
 }
 
 int PinsState::GetPlayoutMoves(vector<int>& moves) {
+    playout = PLAYOUT_DEPTH;
     return 0;
 }
 
@@ -203,7 +365,7 @@ void PinsState::UndoMoves(int origMoveCounter) {
 void PinsState::Reset() {
     assert (false && "not implemented");
     GBgetInitialState(model, current);
-    depth = 0;
+    PLAYOUT_DEPTH = 0;
 }
 
 void PinsState::Print() {

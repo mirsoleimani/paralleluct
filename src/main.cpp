@@ -1097,7 +1097,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 static void ShowUsage(std::string name) {
     cerr << "Usage: " << name << " <option(s)> \n"
             << "Options:\n"
-            //<< "\t-x\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4)\n"
+            //<< "\t-x\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4,pins=5)\n"
             << "\t-p\t\tThe game to play (default=0,hex=1,p-Game=2,horner=3,15-puzzle=4)\n"
             << "\t-b\t\tBreath of the tree\n"
             << "\t-d\t\tDepth of the tree or dimension of the board\n"
@@ -1361,6 +1361,10 @@ int main(int argc, char** argv) {
     } else if (optplya.game == GEMPUZZLE) {
         printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
                 game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
+    } else if (optplya.game == PINS) {
+                printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
+        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
+                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a,threadlib, optplya.cp, optplya.virtualloss,optplya.locking);
     }
 
     for (int index = optind; index < argc; index++)
@@ -1381,14 +1385,14 @@ int main(int argc, char** argv) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
     } else if (optplya.game == PINS) {
-        PinsState state(fileName);
+        PinsState state(fileName, d, swap);
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves = state.GetMoves(moves);
         }
         optplya.twoply=0;
 
-        UCTPlayPins<PinsState>(state, optplya, ngames, vflag);
+        UCTPlayHorner<PinsState>(state, optplya, ngames, vflag);
     } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;

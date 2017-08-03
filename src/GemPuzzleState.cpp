@@ -5,6 +5,7 @@
  * Created on June 3, 2016, 12:18 PM
  */
 
+#include <cstring>
 #include <ios>
 #include <vector>
 #include <thread>
