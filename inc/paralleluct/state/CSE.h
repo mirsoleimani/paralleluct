@@ -73,7 +73,7 @@ public:
         }
 
         virtual ~Operation() {
-            for (int i = 0; i < children.size(); i++) {
+            for (unsigned int i = 0; i < children.size(); i++) {
                 delete children[i];
             }
         }
@@ -81,7 +81,7 @@ public:
         virtual Node* clone() {
             std::vector<Node*> cChildren(children.size());
 
-            for (int i = 0; i < children.size(); i++) {
+            for (unsigned int i = 0; i < children.size(); i++) {
                 cChildren[i] = children[i]->clone();
             }
 
@@ -91,7 +91,7 @@ public:
         void print() {
             std::cout << "(";
 
-            for (int i = 0; i < children.size() - 1; i++) {
+            for (unsigned int i = 0; i < children.size() - 1; i++) {
                 children[i]-> print();
                 std::cout << (op == ADD ? " + " : " * ");
             }
@@ -115,7 +115,7 @@ public:
             }
 
             // FIXME : assumes elements are sorted.
-            for (int i = 0; i < children.size(); i++) {
+            for (unsigned int i = 0; i < children.size(); i++) {
                 int comp = children[i]->compare(b->children[i]);
 
                 if (comp != 0) {
@@ -207,7 +207,7 @@ public:
         int val;
     public:
 
-        Constant(int val) : val(val), Node(CON) {
+        Constant(int val) : Node(CON), val(val)  {
         }
 
         virtual ~Constant() {
@@ -258,7 +258,7 @@ public:
     Node* buildComAssocTree(Node* tree);
     int countOperators(const Node* tree);
 private:
-    Node* buildTree(const polynomial& pol, const std::vector<int>& order, int orderindex);
+    Node* buildTree(const polynomial& pol, const std::vector<int>& order, unsigned int orderindex);
 
     int countOperation(const Node* tree);
     Node* findSubset(Node* root, Node* target, std::vector<Node*>& ptrs);
@@ -267,6 +267,14 @@ private:
     Node* doMaths(Node* tree);
     Node* addSameTerms(Node* tree);
     Node* doGeneralisedHorner(Node* root);
+    static unsigned GCD(unsigned u, unsigned v) {
+    while ( v != 0) {
+        unsigned r = u % v;
+        u = v;
+        v = r;
+    }
+    return u;
+}
 };
 
 #endif	/* CSE_H */

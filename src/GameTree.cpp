@@ -45,7 +45,7 @@ void GameTree::GenTree(int seed){
     assert(seed != -1 && "seed can not be -1");
     srand(seed);
     
-    for(long int i=0;i<size;i++){
+    for(unsigned long i=0;i<size;i++){
         (*moveVal)[i] = RandInt(maxMoveVal);  //Assign a random value to each node
         assert(((*moveVal)[i] < maxMoveVal) && "value of the node is higher than maximum value!");
     }

@@ -308,7 +308,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
 
                 strVisit << setw(9) << "move no." << ","
                         << setw(10) << "player" << ",";
-                for (int i = 0; i < moves.size(); i++)
+                for (unsigned int i = 0; i < moves.size(); i++)
                     strVisit << moves[i] << ",";
                 strVisit << endl;
             }
@@ -705,7 +705,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 
                     strVisit << setw(9) << "move no." << ","
                             << setw(10) << "player" << ",";
-                    for (int i = 0; i < moves.size(); i++)
+                    for (unsigned int i = 0; i < moves.size(); i++)
                         strVisit << moves[i] << ",";
                     strVisit << endl;
                 }
@@ -876,7 +876,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 
                     strVisit << setw(9) << "move no." << ","
                             << setw(10) << "player" << ",";
-                    for (int i = 0; i < moves.size(); i++)
+                    for (unsigned int i = 0; i < moves.size(); i++)
                         strVisit << moves[i] << ",";
                     strVisit << endl;
                 }
@@ -1113,7 +1113,7 @@ static void ShowUsage(std::string name) {
             << "\t-e\t\tThe value of cp(default=0) for player a\n"
             << "\t-f\t\tThe value of cp(default=0) for player b\n"
             << "\t-v\t\tShow the output on screen(default=0)\n"
-            << "\t-s\t\tSeed to be used by random number generator\n"
+//            << "\t-s\t\tSeed to be used by random number generator\n"
             << "\t-r\t\tThreading runtime for both players (default=0 c++11=1, boost threadpool=2, cilk_spawn=2, Tbb_taskgroup=4, cilk_for=5)\n"
             << "\t-a\t\tNumber of moves in a game\n"
             << "\t-c\t\tswap rule(default=1,turn off set to 0)\n"
@@ -1125,7 +1125,7 @@ static void ShowUsage(std::string name) {
 
 int main(int argc, char** argv) {
 
-    int b = 4, d = 6, seed = -1, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
+    int b = 4, d = 6, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
     char* game=const_cast<char*>("");
     char* par_a=const_cast<char*>("");
     char* par_b=const_cast<char*>("");
@@ -1193,9 +1193,9 @@ int main(int argc, char** argv) {
             case 'v':
                 vflag = atoi(optarg);
                 break;
-            case 's':
-                seed = atoi(optarg);
-                break;
+//            case 's':
+//                seed = atoi(optarg);
+//                break;
             case 'e':
                 optplya.cp = atof(optarg);
                 break;

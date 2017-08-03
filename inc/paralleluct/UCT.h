@@ -14,7 +14,6 @@
 //#include <omp.h>
 #include <chrono>
 #include <algorithm>
-#include "CheckError.h"
 #include "mkl_vsl.h"
 #include "mkl.h"
 #include <tbb/task_group.h>
@@ -42,7 +41,7 @@ struct PlyOptions {
     int bestreward=4200;
     int nmoves = 0;
     bool virtualloss=0;
-    char* locking=const_cast<char*>("lock_free");
+    char* locking=const_cast<char *>("LOCKFREE");
     int twoply=1;
 };
 
@@ -68,8 +67,8 @@ public:
     public:
         typedef typename std::vector<Node*>::const_iterator constItr;
 
-        Node(int move, UCT<T>::Node* parent, int ply) : _move(move), _parent(parent),
-        _pjm(ply), _visits(1), _wins(0) {
+        Node(int move, UCT<T>::Node* parent, int ply) : _move(move),
+        _pjm(ply), _wins(0), _visits(1),  _parent(parent) {
             /*http://en.cppreference.com/w/cpp/atomic/atomic_flag_clear*/
 #ifdef LOCKFREE
             _isParent=false;
@@ -229,7 +228,7 @@ public:
          */
         void CreatChildren(std::vector<int>& moves, int pjm) {
 
-            /*http://www.cplusplus.com/reference/atomic/atomic/exchange/*/
+            //http://www.cplusplus.com/reference/atomic/atomic/exchange/
             if (!_isParent.exchange(true)) {
                 for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); itr++) {
                     _children.push_back(new Node(*itr, this, pjm));

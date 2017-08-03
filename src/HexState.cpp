@@ -207,7 +207,7 @@ int HexGameState::GetPlayoutMoves(vector<int>& moves) {
 int HexGameState::PutStone(int pos) {
     dsboard[pos].val = pjm;
     MakeSet(pos);
-    for (int j = 0; j < edges[pos].size(); j++) {
+    for (unsigned int j = 0; j < edges[pos].size(); j++) {
         Union(pos, edges[pos].at(j));
     }
 
@@ -248,7 +248,7 @@ void HexGameState::Evaluate() {
 }
 
 float HexGameState::EvaluateBoard(int ply, int direction) {
-    float m, n;
+    float n;
     //m= EvaluateDijkstra(ply,direction);
     n = EvaluateDSet(ply, direction);
     //assert(m==n&&"evaluation incorrect!\n");
@@ -312,7 +312,7 @@ float HexGameState::EvaluateDijkstra(int ply, int direction) {
             if ((size - dim) <= pos && pos < size) {
                 return ply;
             } else {
-                for (int j = 0; j < edges[pos].size(); j++) {
+                for (unsigned int j = 0; j < edges[pos].size(); j++) {
                     if (dest[edges[pos].at(j)] == false && dsboard[edges[pos].at(j)].val == ply) {
                         src.push_back(edges[pos].at(j));
                         dest[edges[pos].at(j)] = true;
@@ -334,7 +334,7 @@ float HexGameState::EvaluateDijkstra(int ply, int direction) {
             if ((pos + 1) % dim == 0) {
                 return ply;
             } else {
-                for (int j = 0; j < edges[pos].size(); j++) {
+                for (unsigned int j = 0; j < edges[pos].size(); j++) {
                     if (dest[edges[pos].at(j)] == false && dsboard[edges[pos].at(j)].val == ply) {
                         src.push_back(edges[pos].at(j));
                         dest[edges[pos].at(j)] = true;
@@ -373,7 +373,7 @@ void HexGameState::MakeSet(int pos) {
 void HexGameState::ClearSet(int pos) {
     dsboard[pos].parent = -1;
     dsboard[pos].rank = 0;
-    for (int i = 0; i < dsboard.size(); i++) {
+    for (unsigned int i = 0; i < dsboard.size(); i++) {
         if (dsboard[i].parent == pos) {
             dsboard[i].parent = i;
             dsboard[pos].rank = 0;
@@ -398,9 +398,9 @@ void HexGameState::ClearSet(int pos) {
 }
 
 void HexGameState::UpdateSet() {
-    for (int pos = 0; pos < dsboard.size(); pos++) {
+    for (unsigned int pos = 0; pos < dsboard.size(); pos++) {
         if (dsboard[pos].val != CLEAR) {
-            for (int j = 0; j < edges[pos].size(); j++) {
+            for (unsigned int j = 0; j < edges[pos].size(); j++) {
                 Union(pos, edges[pos].at(j));
             }
         }
@@ -498,7 +498,7 @@ void HexGameState::PrintToFile(char* FilaName){
 
 void HexGameState::PrintDSet() {
 
-    for (int pos = 0; pos < dsboard.size(); pos++) {
+    for (unsigned int pos = 0; pos < dsboard.size(); pos++) {
         cout << pos;
         cout << " child of " << dsboard[pos].parent << endl; //<<" top "<<dsboard[pos].top<<" botom "<<dsboard[pos].bottom
         //<<" left "<<dsboard[pos].left<<" right "<<dsboard[pos].right<<endl;

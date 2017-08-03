@@ -40,7 +40,7 @@ private:
     float _wReward;
     float _bReward;
     int _pjm;
-    int _polyNumVars;
+    unsigned int _polyNumVars;
     int _polyNumTerms;
     int _polyNumOps;
     int _polyNumMult;

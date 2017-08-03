@@ -19,7 +19,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
                 exit(0);
             }
         }
-        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
+//        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
         for (int i = 0; i < plyOpt.nthreads; i++) {
             if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
                 std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
@@ -249,10 +249,10 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         ttime = tmr.elapsed();
     }
     if (plyOpt.par == ROOTPAR) {
-        for (int j = 1; j < roots.size(); j++) {
+        for (unsigned int j = 1; j < roots.size(); j++) {
             roots[0]->Update(roots[j]->GetWins(),roots[j]->GetVisits());
-            for (int i = 0; i < roots[0]->_children.size(); i++) {
-                for (int k = 0; k < roots[j]->_children.size(); k++) {
+            for (unsigned int i = 0; i < roots[0]->_children.size(); i++) {
+                for (unsigned int k = 0; k < roots[j]->_children.size(); k++) {
                     if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
                         roots[0]->_children[i]->Update(roots[j]->_children[k]->GetWins(),
                                 roots[j]->_children[k]->GetVisits());
@@ -413,8 +413,8 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         // <editor-fold defaultstate="collapsed" desc="add new node child to n">
         n = n->AddChild();
         if (n != path.back()) {
-            int m = n->_move;
-            assert(m > 0 && "move is not valid!\n");
+//            int m = n->_move;
+            assert(n->_move> 0 && "move is not valid!\n");
             state.SetMove(n->_move); /*this line could be removed*/
         }
         // </editor-fold>
@@ -459,7 +459,7 @@ void UCT<T>::Backup(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
-    int score = (*token)._score;
+//    int score = (*token)._score;
 
     UCT<T>::Node* n = path.back();
     float rewardWhite = state.GetResult(WHITE);
@@ -606,7 +606,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     GEN gen(gengine[sid], dist);
 #endif
 
-    float reward = std::numeric_limits<float>::max();
+//    float reward = std::numeric_limits<float>::max();
     TimeOptions* timeopt = statistics[sid];
     timeopt->nrand = 0;
     int itr = 0;
@@ -681,7 +681,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
         itr++;
 #ifdef MKLRNG
         if (plyOpt.game == HORNER) {
-            reward = t->_state.GetResult(WHITE);
+//            reward = t->_state.GetResult(WHITE);
             if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
                 _bestState[t->_identity._id] = t->_state;
                 _finish = true;
@@ -690,7 +690,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
         t->_state = rstate;
         
 #else
-        reward = lstate.GetResult(WHITE);
+//        reward = lstate.GetResult(WHITE);
         //#ifdef COPYSTATE
         if (lstate.GetResult(WHITE) < plyOpt.bestreward) {
             //_bestState[t->_identity._id] = lstate;

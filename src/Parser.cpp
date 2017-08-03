@@ -27,7 +27,7 @@ polynomial Parser::parseFile(const char* filename) {
         exit(0);
     }
 
-    int maxvar = 0;
+    unsigned int maxvar = 0;
     int c, t, lastvar = 0;
     term cur;
     polynomial pol;
@@ -62,7 +62,7 @@ polynomial Parser::parseFile(const char* filename) {
         }
 
         // we have found a variable, variables are in the alphabet
-        int index = c - 'a' + 1;
+        unsigned int index = c - 'a' + 1;
         if (index >= cur.size()) {
             cur.resize(index + 1);
         }
