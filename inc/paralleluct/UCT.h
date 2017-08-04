@@ -72,6 +72,7 @@ public:
         _pjm(ply), _visits(1), _wins(0) {
             /*http://en.cppreference.com/w/cpp/atomic/atomic_flag_clear*/
 #ifdef LOCKFREE
+            SetWinsVisits(0,1);
             _isParent=false;
             _isExpandable = false;
             _isFullExpanded = false;
@@ -286,11 +287,11 @@ public:
             return w;
         }
 
-        int GetVisits() const {
+        int GetVisits() const{
             int n;
             int64_t wnp;
             wnp = _wins_visits.load(std::memory_order_relaxed);
-            n = wnp & 0x00000000FFFFFFFF; //low 32 bit
+            n = wnp & 0xFFFFFFFF; //low 32 bits;
             return n;
         }
         
@@ -411,7 +412,7 @@ public:
     void PrintStats_2(std::string& log2);
 
     int NumPlayoutsRoot() {
-        return roots[0]->_visits;
+        return roots[0]->GetVisits();
     }
 
     /*َUtility functions*/
