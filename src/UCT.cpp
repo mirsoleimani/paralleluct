@@ -281,7 +281,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
 #ifdef MAXNUMVISITS
     // <editor-fold defaultstate="collapsed" desc="extract number of visits for each children">
     for (iterator itr = nn->_children.begin(); itr != nn->_children.end(); itr++) {
-        int visits = (*itr)->_visits;
+        int visits = (*itr)->GetVisits();
         UCT.push_back(visits);
     }// </editor-fold>
 
@@ -346,7 +346,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
         UCT<T>::Node* next = NULL;
         assert(n->_children.size() > 0 && "_children can not be empty!\n");
-        float l = 2.0 * logf((float) n->_visits);
+        float l = 2.0 * logf((float) n->GetVisits());
         int index = -1;
         float cp = plyOpt.cp;
         std::vector<float> UCT; // </editor-fold>
@@ -495,7 +495,7 @@ typename UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* n, T& state) {
     while (n->IsFullExpanded()) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
         assert(n->_children.size() > 0 && "_children can not be empty!\n");
-        float l = 2.0 * logf((float) n->_visits);
+        float l = 2.0 * logf((float) n->GetVisits());
         int index = -1;
         float cp = plyOpt.cp;
         std::vector<float> UCT; // </editor-fold>
@@ -823,7 +823,7 @@ void UCT<T>::PrintStats_1(string& log1, double ttime) {
     //ttime/=plyOpt.nthreads;
     std::stringstream buffer;
     buffer << std::fixed << std::setprecision(2);
-    buffer << setw(10) << roots[0]->_visits << "," <<
+    buffer << setw(10) << roots[0]->GetVisits() << "," <<
             //setw(10) << ttime / plyOpt.nthreads << "," <<
             setw(10) << ttime << "," <<
             setw(10) << (stime / (ttime))*100 << "," <<
@@ -839,7 +839,7 @@ void UCT<T>::PrintStats_2(string& log2) {
     std::stringstream buffer;
     std::sort(roots[0]->_children.begin(), roots[0]->_children.end(), SortChildern);
     for (iterator itr = roots[0]->_children.begin(); itr != roots[0]->_children.end(); itr++) {
-        buffer << /*(*itr)->_move << "," <<*/ (*itr)->_visits << ",";
+        buffer << /*(*itr)->_move << "," <<*/ (*itr)->GetVisits() << ",";
     }
     log2 = buffer.str();
 }
