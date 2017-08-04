@@ -65,11 +65,11 @@ public:
         };
 
         Operation(const std::vector<Node*>&& children, Operator op) : Node(OP), children(children), op(op) {
-            BOOST_ASSERT(children.size() > 1);
+            assert(children.size() > 1);
         }
 
         Operation(const std::vector<Node*>& children, Operator op) : Node(OP), children(children), op(op) {
-            BOOST_ASSERT(children.size() > 1);
+            assert(children.size() > 1);
         }
 
         virtual ~Operation() {
@@ -172,7 +172,7 @@ public:
 
         void print() {
             std::string varnames = "abcdefghijklmnopqrstuvwxyz";
-            BOOST_ASSERT(var < varnames.size() || var >= 100);
+            assert(var < varnames.size() || var >= 100);
 
             if (var < 100) {
                 std::cout << varnames[var];
@@ -197,7 +197,7 @@ public:
         }
 
         int evaluate(const std::vector<int>& varvals) {
-            BOOST_ASSERT(var < varvals.size());
+            assert(var < varvals.size());
             return varvals[var];
         }
     };
