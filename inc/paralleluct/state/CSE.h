@@ -64,11 +64,11 @@ public:
             MUL, ADD
         };
 
-        Operation(const std::vector<Node*>&& children, Operator op) : children(children), op(op), Node(OP) {
+        Operation(const std::vector<Node*>&& children, Operator op) : Node(OP), children(children), op(op) {
             assert(children.size() > 1);
         }
 
-        Operation(const std::vector<Node*>& children, Operator op) : children(children), op(op), Node(OP) {
+        Operation(const std::vector<Node*>& children, Operator op) : Node(OP), children(children), op(op) {
             assert(children.size() > 1);
         }
 
