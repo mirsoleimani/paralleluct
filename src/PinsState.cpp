@@ -137,8 +137,10 @@ static thread_local fset_t*fset = nullptr;
 static thread_local tree_t             inn = NULL;
 static thread_local tree_t             out = NULL;
 static thread_local bool check_fset = false;
+static tree_ref_t        initial = -1;
 
 static thread_local int *guards = NULL;
+static thread_local int  states = 0;
 
 PinsState::PinsState(){
     cached = std::numeric_limits<float>::max();
@@ -150,10 +152,10 @@ PinsState::PinsState(const char *fileName, int d, int swap, bool v) : PinsState(
     if (factory == NULL) {
         
         PLAYOUT_DEPTH = d;
-        PROPERTY = 0;
+        PROPERTY = swap;
         VERBOSE = v;
 
-        cout << "Detecting " << (PROPERTY == 1 ? "assertion violations" : "deadlocks") << endl;
+        cout << "Detecting " << (PROPERTY == 1 ? "assertion violations" : "deadlocks") <<" "<< PROPERTY << endl;
         
          std::cout << "Starting HRE" << endl;
         // TODO: support multi-threaded code
@@ -203,7 +205,7 @@ PinsState::PinsState(const char *fileName, int d, int swap, bool v) : PinsState(
         kmask = (1 << logk) - 1;
         Assert (n == dm_ncols(m), "Matrix problem?");
 
-        tree = TreeDBSLLcreate_dm (n, 20, 1, m, 0, 0, 0);
+        tree = TreeDBSLLcreate_dm (n, 27, 1, m, 0, 0, 0);
 
         lts_type_t          ltstype = GBgetLTStype (model);
         if (PROPERTY == 1) {
@@ -237,7 +239,14 @@ PinsState::PinsState(const char *fileName, int d, int swap, bool v) : PinsState(
         out = (tree_t) malloc(sizeof(int[n << 1]));   // Heavy malloc
     }
 
-    Reset();
+    if (initial == -1) {
+        int s[n];
+        GBgetInitialState(model, s);
+        int found = TreeDBSLLlookup_dm (tree, (const int *)s, (tree_t)NULL, inn, -1);
+        Assert (found != DB_LEAFS_FULL && found != DB_ROOTS_FULL, "Tree DB full.");
+        initial = TreeDBSLLindex (tree, inn);
+    }
+    Reset ();
 }
 
 PinsState::PinsState(const PinsState &pins) : PinsState() {
@@ -362,13 +371,13 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
     //if (check_fset && fset_find(fset, NULL, dst, NULL, false)) return;
 
     if (ctx->group == ctx->last.group && ctx->occurence == ctx->last.occurence) {
-        bool store_state = true;
         if (check_fset) {
             fset_find(fset, NULL, dst, NULL, true);
-            store_state = false;  // only store tmp. in fset
         }
-        int found = TreeDBSLLfop_dm (tree, (const int*) (dst), inn, out, ti->group, store_state);
+        int found = TreeDBSLLfop_dm (tree, (const int*) (dst), inn, out, ti->group, !check_fset);
         Assert (found != DB_LEAFS_FULL && found != DB_ROOTS_FULL, "Tree DB full.");
+        //Assert (!store || found == 0, "Tree DB full.");
+        states += !check_fset;
         ctx->state = TreeDBSLLindex (tree, out);
     }
     (void) cpy; (void) dst;
@@ -478,7 +487,7 @@ void PinsState::SetPlayoutMoves(vector<int>& moves) {
 
     int old = playout;
 
-    if (playout && VERBOSE) cout << "-----------------" << endl;
+    if (playout && VERBOSE) cout << "<<<<<<<<<<<" << endl;
     while (playout > 0) {
         Evaluate();
 
@@ -490,17 +499,21 @@ void PinsState::SetPlayoutMoves(vector<int>& moves) {
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
         std::uniform_int_distribution<> dis(0, moves.size() - 1);
 
-        if (playout > 1) {
-            check_fset = true;
-        }
-        SetMove(moves.at(dis(gen)));
-        if (playout > 1) {
-            check_fset = false;
+        if (moves.size()) {
+            // not all seen states
+
+            if (playout > 1) {
+                check_fset = true;
+            }
+            SetMove(moves.at(dis(gen)));
+            if (playout > 1) {
+                check_fset = false;
+            }
         }
 
         playout--;
     }
-    if (old && VERBOSE) cout << "-----------------" << endl;
+    if (old && VERBOSE) cout << ">>>>>>>>>>>" << endl;
     moves.clear();
 }
 
@@ -510,7 +523,7 @@ int PinsState::GetPlayoutMoves(vector<int>& moves) {
 }
 
 int PinsState::GetMoveCounter(){
-    return 2;
+    Assert (false, "not implemented");
 }
 
 void PinsState::UndoMoves(int origMoveCounter) {
@@ -518,13 +531,9 @@ void PinsState::UndoMoves(int origMoveCounter) {
 }
 
 void PinsState::Reset() {
-    int s[n];
-    GBgetInitialState(model, s);
-    int found = TreeDBSLLlookup_dm (tree, (const int *)s, (tree_t)NULL, inn, -1);
-    Assert (found != DB_LEAFS_FULL && found != DB_ROOTS_FULL, "Tree DB full.");
-    state = TreeDBSLLindex (tree, inn );
+    state = initial;
     Debug ("Initial: "<< state);
-    PLAYOUT_DEPTH = 0;
+    playout = 0;
 }
 
 void PinsState::Print() {
@@ -535,4 +544,8 @@ void PinsState::PrintToFile(char* fileName) {
     std::ofstream ofs(fileName);
 
     ofs << std::endl;
+}
+
+void PinsState::Stats() {
+    cout << "Number of states: "<< states << endl;
 }

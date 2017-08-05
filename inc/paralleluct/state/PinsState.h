@@ -39,6 +39,8 @@ public:
     void Print();
     void PrintToFile(char* fileName);
 
+    void Stats ();
+
 private:
     bool PropertyViolated();
     //int                *current = NULL;    // state of n slots

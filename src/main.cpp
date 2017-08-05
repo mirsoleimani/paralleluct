@@ -1393,6 +1393,7 @@ int main(int argc, char** argv) {
         optplya.twoply=0;
 
         UCTPlayHorner<PinsState>(state, optplya, ngames, vflag);
+        state.Stats();
     } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;
