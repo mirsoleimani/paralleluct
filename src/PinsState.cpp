@@ -110,7 +110,6 @@ Err(const std::string& message)
     if(VERBOSE) \
     { \
         cerr << Err(StreamFormatter() << MESSAGE) << endl; \
-        exit(1); \
     }
 
 
@@ -315,7 +314,7 @@ cb_moves(void *context, transition_info_t *ti, int *dst, int *cpy)
 
     cb_last (&ctx->last, ti, dst, cpy);
 
-    if (TreeDBSLLfind_dm(tree, (const int *)dst, (tree_t)NULL, out, -1) != DB_NOT_FOUND) {
+    if (TreeDBSLLfind_dm(tree, (const int *)dst, inn, out, ti->group) != DB_NOT_FOUND) {
         return;
     }
 
@@ -360,10 +359,15 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
     cb_last (&ctx->last, ti, dst, cpy);
     Debug ("Process move: " << ctx->last.group <<","<< ctx->last.occurence <<"   "<< ctx->group <<","<< ctx->occurence);
 
-    if (check_fset && fset_find(fset, NULL, dst, NULL, false)) return;
+    //if (check_fset && fset_find(fset, NULL, dst, NULL, false)) return;
 
     if (ctx->group == ctx->last.group && ctx->occurence == ctx->last.occurence) {
-        int found = TreeDBSLLlookup_dm (tree, (const int*) (dst), (tree_t) (NULL), out, -1);
+        bool store_state = true;
+        if (check_fset) {
+            fset_find(fset, NULL, dst, NULL, true);
+            store_state = false;  // only store tmp. in fset
+        }
+        int found = TreeDBSLLfop_dm (tree, (const int*) (dst), inn, out, ti->group, store_state);
         Assert (found != DB_LEAFS_FULL && found != DB_ROOTS_FULL, "Tree DB full.");
         ctx->state = TreeDBSLLindex (tree, out);
     }
@@ -519,7 +523,7 @@ void PinsState::Reset() {
     int found = TreeDBSLLlookup_dm (tree, (const int *)s, (tree_t)NULL, inn, -1);
     Assert (found != DB_LEAFS_FULL && found != DB_ROOTS_FULL, "Tree DB full.");
     state = TreeDBSLLindex (tree, inn );
-    if (VERBOSE) cout << "Initial: "<< state << endl;
+    Debug ("Initial: "<< state);
     PLAYOUT_DEPTH = 0;
 }
 
