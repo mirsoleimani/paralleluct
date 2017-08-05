@@ -368,8 +368,6 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
     cb_last (&ctx->last, ti, dst, cpy);
     Debug ("Process move: " << ctx->last.group <<","<< ctx->last.occurence <<"   "<< ctx->group <<","<< ctx->occurence);
 
-    //if (check_fset && fset_find(fset, NULL, dst, NULL, false)) return;
-
     if (ctx->group == ctx->last.group && ctx->occurence == ctx->last.occurence) {
         if (check_fset) {
             fset_find(fset, NULL, dst, NULL, true);
@@ -383,10 +381,6 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
     (void) cpy; (void) dst;
 }
 
-/**
- * ALFONS: Assuming here that the move integer comes from the moves vector
- * supplied by GetMoves.
- */
 void PinsState::SetMove(int move) {
     level++;
     cb_move_t ctx = { .state = (tree_ref_t) -1,
@@ -394,18 +388,13 @@ void PinsState::SetMove(int move) {
                       .occurence = move >> logk,
                       .last = LAST_INIT
     };
-//    for (int i = 0; i < n; i++) std::cout << current[i] <<", ";
-//    std::cout << " <--"<< move <<"-->  ";
     int *current = update_state (state);
     Debug ("GetMove: "<< state << " move: " << ctx.group <<","<< ctx.occurence);
     int total = GBgetTransitionsAll (model, current, cb_move, &ctx);
     Assert (ctx.state != -1, "Move not found " << total);
     state = ctx.state;
-    //if (state == -1) {cout<< "ERROR" <<endl; exit(1);}
     deadlock_check (total, level);
     Debug ("Move: "<< state);
-//    for (int i = 0; i < n; i++) std::cout << current[i] <<", ";
-//    std::cout << endl;
 }
 
 float PinsState::GetResult(int plyjm) {
