@@ -1385,7 +1385,7 @@ int main(int argc, char** argv) {
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
     } else if (optplya.game == PINS) {
-        PinsState state(fileName, d, swap);
+        PinsState state(fileName, d, swap, vflag);
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves = state.GetMoves(moves);
