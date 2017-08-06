@@ -364,7 +364,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
                 //_score = state.GetResult(WHITE);
                 assert(_score > 0&&"_score is not initialized!\n");
                 exploit = _score / (wins / (float) (visits));
-            } else if (plyOpt.game == HEX) {
+            } else if (plyOpt.game == HEX || plyOpt.game == PINS) {
                 exploit = wins / (float) (visits);
             }
             float explore = cp * sqrtf(l / (float) (visits));
@@ -414,7 +414,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         n = n->AddChild();
         if (n != path.back()) {
 //            int m = n->_move;
-            assert(n->_move> 0 && "move is not valid!\n");
+            assert(n->_move>= 0 && "move is not valid!\n");
             state.SetMove(n->_move); /*this line could be removed*/
         }
         // </editor-fold>
@@ -685,6 +685,10 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
             if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
                 _bestState[t->_identity._id] = t->_state;
                 _finish = true;
+            }
+        } else if (plyOpt.game == PINS){
+            if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
+                _bestState[t->_identity._id] = t->_state;
             }
         }
         t->_state = rstate;

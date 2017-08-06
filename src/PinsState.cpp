@@ -226,12 +226,17 @@ int PinsState::GetMoves(vector<int>& moves) {
     assert(moves.size() == 0 && "The moves vector should be empty!\n");
     cb_moves_t ctx = { .last = LAST_INIT, .moves = moves };
     int total = GBgetTransitionsAll (model, current, cb_moves, &ctx);
-    assert (total == modes.size());
+    assert (total == moves.size());
     return moves.size();
 }
 
 float PinsState::GetResult(int plyjm) {
-    return cached;
+    //    return cached;
+    if (PropertyViolated()) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 void PinsState::Evaluate() {
@@ -269,8 +274,8 @@ static void
 deadlock_check (int c, int level)
 {
     if (c == 0) {
-        std::cout << "Deadlock found at depth " << level << endl;
-        exit (1);
+        //std::cout << "Deadlock found at depth " << level << endl;
+        //exit (1);
     }
 }
 
@@ -332,13 +337,16 @@ void PinsState::SetMove(int move) {
 
 void PinsState::SetPlayoutMoves(vector<int>& moves) {
 
+    if(IsTerminal())
+        return;
     while (playout > 0) {
         Evaluate();
 
         moves.clear();
         GetMoves(moves);
-        deadlock_check (moves.size(), level);
-
+        //deadlock_check (moves.size(), level);
+        if(IsTerminal())
+            return;
         std::random_device rd;  //Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
         std::uniform_int_distribution<> dis(0, moves.size() - 1);
@@ -364,9 +372,9 @@ void PinsState::UndoMoves(int origMoveCounter) {
 }
 
 void PinsState::Reset() {
-    assert (false && "not implemented");
-    GBgetInitialState(model, current);
-    PLAYOUT_DEPTH = 0;
+//    assert (false && "not implemented");
+//    GBgetInitialState(model, current);
+//    PLAYOUT_DEPTH = 0;
 }
 
 void PinsState::Print() {
