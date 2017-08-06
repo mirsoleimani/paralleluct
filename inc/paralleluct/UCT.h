@@ -19,6 +19,7 @@
 #include "mkl.h"
 #include <tbb/task_group.h>
 #include <tbb/pipeline.h>
+#include <fstream>
 
 #ifdef __INTEL_COMPILER
 #include <cilk/cilk.h>
@@ -290,7 +291,7 @@ public:
             int n;
             int64_t wnp;
             wnp = _wins_visits.load(std::memory_order_relaxed);
-            n = wnp & 0x00000000FFFFFFFF; //low 32 bit
+            n = wnp & 0xFFFFFFFF; //low 32 bit
             return n;
         }
         
@@ -320,7 +321,7 @@ public:
         void SaveDot(std::ofstream& fout, int& idx) {
                 //fout << NumToStr(idx);
                 int id = idx;
-                fout << NumToStr(id)<<"[label="<<NumToStr(_wins.load())<<"/"<<NumToStr(_visits.load())<<"]\n";
+                fout << NumToStr(id)<<"[label="<<NumToStr(GetWins())<<"/"<<NumToStr(GetVisits())<<"]\n";
                 if (_isParent) {
                     for (auto c : _children) {
                         idx++;
