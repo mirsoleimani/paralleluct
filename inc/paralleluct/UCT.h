@@ -301,11 +301,11 @@ public:
         }
         
 #else
-        int Wins(){
+        int GetWins(){
             return _wins;
         }
         
-        int Visits(){
+        int GetVisits(){
             return _visits;
         }
         
