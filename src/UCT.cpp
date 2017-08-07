@@ -67,6 +67,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     //double ttime = 0;
     ttime = 0;
     Timer tmr;
+    _currBestState = state;
     for (int i = 0; i < plyOpt.nthreads; i++) {
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
         _bestState.emplace_back(state);
@@ -281,7 +282,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
 #ifdef MAXNUMVISITS
     // <editor-fold defaultstate="collapsed" desc="extract number of visits for each children">
     for (iterator itr = nn->_children.begin(); itr != nn->_children.end(); itr++) {
-        int visits = (*itr)->_visits;
+        int visits = (*itr)->GetVisits();
         UCT.push_back(visits);
     }// </editor-fold>
 
@@ -347,10 +348,10 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
         UCT<T>::Node* next = NULL;
         assert(n->_children.size() > 0 && "_children can not be empty!\n");
-        float l = 2.0 * logf((float) n->_visits);
+        float l = 2.0 * logf((float) n->GetVisits());
         int index = -1;
         float cp = plyOpt.cp;
-        std::vector<float> UCT; // </editor-fold>
+        std::vector<double> UCT; // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
         //TODO vectorized UCT calculation
@@ -364,14 +365,14 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
             if (plyOpt.game == HORNER) {
                 //_score = state.GetResult(WHITE);
                 assert(_score > 0&&"_score is not initialized!\n");
-                exploit = _score / (wins / (float) (visits));
+                exploit = (_score / (float) wins) / (float) visits;
             } else if (plyOpt.game == HEX) {
                 exploit = wins / (float) (visits);
             }
             float explore = cp * sqrtf(l / (float) (visits));
 
             UCT.push_back(exploit + explore);
-        }
+            }
         // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
@@ -416,6 +417,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         if (n != path.back()) {
             int m = n->_move;
             assert(m > 0 && "move is not valid!\n");
+            path.push_back(n);
             state.SetMove(n->_move); /*this line could be removed*/
         }
         // </editor-fold>
@@ -496,7 +498,7 @@ typename UCT<T>::Node* UCT<T>::Select(UCT<T>::Node* n, T& state) {
     while (n->IsFullExpanded()) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
         assert(n->_children.size() > 0 && "_children can not be empty!\n");
-        float l = 2.0 * logf((float) n->_visits);
+        float l = 2.0 * logf((float) n->GetVisits());
         int index = -1;
         float cp = plyOpt.cp;
         std::vector<float> UCT; // </editor-fold>
@@ -683,6 +685,10 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 #ifdef MKLRNG
         if (plyOpt.game == HORNER) {
             reward = t->_state.GetResult(WHITE);
+            int currReward = _currBestState.GetResult(WHITE);
+            if(reward < currReward){
+                _currBestState = t->_state;
+            }
             if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
                 _bestState[t->_identity._id] = t->_state;
                 _finish = true;
@@ -824,14 +830,15 @@ void UCT<T>::PrintStats_1(string& log1, double ttime) {
     //ttime/=plyOpt.nthreads;
     std::stringstream buffer;
     buffer << std::fixed << std::setprecision(2);
-    buffer << setw(10) << roots[0]->_visits << "," <<
+    buffer << setw(10) << roots[0]->GetVisits() << "," <<
             //setw(10) << ttime / plyOpt.nthreads << "," <<
             setw(10) << ttime << "," <<
             setw(10) << (stime / (ttime))*100 << "," <<
             setw(10) << (etime / (ttime))*100 << "," <<
             setw(10) << (ptime / (ttime))*100 << "," <<
             setw(10) << (btime / (ttime))*100 << "," <<
-            setw(10) << nrand << ",";
+            setw(10) << nrand << ","<<
+            setw(10) << _currBestState.GetResult(WHITE);
     log1 = buffer.str();
 }
 
@@ -840,7 +847,7 @@ void UCT<T>::PrintStats_2(string& log2) {
     std::stringstream buffer;
     std::sort(roots[0]->_children.begin(), roots[0]->_children.end(), SortChildern);
     for (iterator itr = roots[0]->_children.begin(); itr != roots[0]->_children.end(); itr++) {
-        buffer << /*(*itr)->_move << "," <<*/ (*itr)->_visits << ",";
+        buffer << /*(*itr)->_move << "," <<*/ (*itr)->GetVisits() << ",";
     }
     log2 = buffer.str();
 }
@@ -851,8 +858,16 @@ void UCT<T>::SaveDot(std::string fileName) {
     fout.open(fileName);
 
     fout << "digraph UCT{\n";
-    int idx=0;
-    roots[0]->SaveDot(fout,idx);
+    int pId = 0;
+    int gId = 0;
+    for (auto c : roots[0]->_children) {
+        if ((*c).GetVisits() > 0) {
+            gId++;
+            //fout << NumToStr(id) << "->" << NumToStr(idx) << ";\n";
+            c->SaveDot(fout, gId, pId);
+        }
+    }
+
     fout << "}\n";
 
     fout.close();

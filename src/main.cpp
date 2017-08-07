@@ -280,9 +280,9 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                     << setw(10) << "expand(%)" << ","
                     << setw(10) << "playout(%)" << ","
                     << setw(10) << "backup(%)" << ","
-                    << setw(10) << "nrandvec" << ","
-                    << setw(10) << "move" << ","
-                    << setw(10) << "reward" << endl;
+                    << setw(10) << "nrandvec" << ","                    
+                    << setw(10) << "reward" << ","
+                    << setw(10) << "move" << endl;
         }
         if (verbose == 3) {
             strVisit.str().clear();
@@ -319,8 +319,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             if (verbose) {
                 cout << setw(10) << state.GetPlyJM() << ",";
                 cout << log;
-                cout << setw(10) << move << ",";
-                cout <<setw(10)<<bestState.GetResult(WHITE)<<endl;
+                cout << setw(10) << move << endl;
+                //cout <<setw(10)<<bestState.GetResult(WHITE)<<endl;
             }
             if (verbose == 2)
                 state.Print();

@@ -40,7 +40,7 @@ struct PlyOptions {
     int game=0;
     bool verbose = false;
     unsigned int seed=1;
-    int bestreward=4200;
+    int bestreward=std::numeric_limits<int>::min();
     int nmoves = 0;
     bool virtualloss=0;
     char* locking="";
@@ -73,6 +73,7 @@ public:
         _pjm(ply), _visits(1), _wins(0) {
             /*http://en.cppreference.com/w/cpp/atomic/atomic_flag_clear*/
 #ifdef LOCKFREE
+            SetWinsVisits(0,0);
             _isParent=false;
             _isExpandable = false;
             _isFullExpanded = false;
@@ -287,11 +288,11 @@ public:
             return w;
         }
 
-        int GetVisits() const {
+        int GetVisits() const{
             int n;
             int64_t wnp;
             wnp = _wins_visits.load(std::memory_order_relaxed);
-            n = wnp & 0xFFFFFFFF; //low 32 bit
+            n = wnp & 0xFFFFFFFF; //low 32 bits;
             return n;
         }
         
@@ -318,21 +319,28 @@ public:
         
 #endif
 
-        void SaveDot(std::ofstream& fout, int& idx) {
-                //fout << NumToStr(idx);
-                int id = idx;
-                fout << NumToStr(id)<<"[label="<<NumToStr(GetWins())<<"/"<<NumToStr(GetVisits())<<"]\n";
-                if (_isParent) {
-                    for (auto c : _children) {
-                        idx++;
-                        fout << NumToStr(id) << "->" << NumToStr(idx) << ";\n";
-                        c->SaveDot(fout, idx);
+        void SaveDot(std::ofstream& fout, int& gId,const int pId) {
+            //fout << NumToStr(idx);
+            int id = gId;
+            if (_isParent) {
+                fout << NumToStr(pId) << "->" << NumToStr(id)
+                        << "[label=move:" << NumToStr(_move.load())
+                        << "\\nvisits:" << NumToStr(GetVisits()) << "]\n";
+                for (auto c : _children) {
+                    if ((*c).GetVisits() > 0) {
+                        gId++;
+                        //fout << NumToStr(id) << "->" << NumToStr(idx) << ";\n";
+                        c->SaveDot(fout, gId, id);
                     }
-                } else {
-                    //fout << "terminal" + NumToStr(idx) << "[shape=box]\n";
-                    fout << NumToStr(id) << "->" << "terminal" + NumToStr(id) << ";\n";
-                    return;
                 }
+            } else {
+                //fout << "terminal" + NumToStr(idx) << "[shape=box]\n";
+                fout << NumToStr(pId) << "->" << NumToStr(id)
+                        << "[label=move:" << NumToStr(_move.load())
+                        << "\\nvisits:" << NumToStr(GetVisits()) << ",shape=box]\n";
+                return;
+            }
+            return;
         }
         
         std::atomic_int _move;
@@ -430,7 +438,7 @@ public:
     void PrintStats_2(std::string& log2);
     void SaveDot(std::string fileName);   
     int NumPlayoutsRoot() {
-        return roots[0]->_visits;
+        return roots[0]->GetVisits();
     }
 
     /*َUtility functions*/
@@ -482,6 +490,7 @@ private:
     std::vector<NodePtr> roots;
     std::vector<TimeOptions*> statistics;
     std::vector<T> _bestState;
+    T _currBestState;
     int _nPlayouts;
     float _score;
 #ifdef MKLRNG
