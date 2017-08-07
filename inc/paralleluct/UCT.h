@@ -71,7 +71,7 @@ public:
         _pjm(ply), _wins(0), _visits(1),  _parent(parent) {
             /*http://en.cppreference.com/w/cpp/atomic/atomic_flag_clear*/
 #ifdef LOCKFREE
-            SetWinsVisits(0,1);
+            SetWinsVisits(0,0);
             _isParent=false;
             _isExpandable = false;
             _isFullExpanded = false;
