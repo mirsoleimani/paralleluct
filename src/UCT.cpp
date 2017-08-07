@@ -413,9 +413,10 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         // <editor-fold defaultstate="collapsed" desc="add new node child to n">
         n = n->AddChild();
         if (n != path.back()) {
-//            int m = n->_move;
-            assert(n->_move> 0 && "move is not valid!\n");
-            state.SetMove(n->_move); /*this line could be removed*/
+            int m = n->_move;
+            assert(m > 0 && "move is not valid!\n");
+            path.push_back(n);
+            state.SetMove(m); /*this line could be removed*/
         }
         // </editor-fold>
     }
