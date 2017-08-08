@@ -298,6 +298,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         PrintStats_1(log1, ttime);
     }
     if (verbose == 3) {
+        Print("uct-tree-move-" + NumToStr(m) + ".dot");
         PrintStats_2(log2);
     }// </editor-fold>
 
@@ -776,23 +777,12 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
 
 // <editor-fold defaultstate="collapsed" desc="Printing">
 
-template <class T>
-void UCT<T>::PrintSubTree(UCT<T>::Node* root) {
-    cout << root->TreeToString(0) << endl;
-}
 
 template <class T>
-void UCT<T>::PrintTree() {
-    cout << roots[0]->TreeToString(0) << endl;
+void UCT<T>::Print(std::string fileName) {
+    SaveDot(fileName);
 }
 
-template <class T>
-void UCT<T>::PrintRootChildren() {
-    for (iterator itr = roots[0]->_children.begin(); itr != roots[0]->_children.end(); itr++) {
-        //cout << (*itr)->_move << "," << (*itr)->_visits << "," << (*itr)->_wins / (*itr)->_visits << " | ";
-        cout << (*itr)->_move << "," << (*itr)->GetVisits << ",";
-    }
-}
 
 template <class T>
 void UCT<T>::PrintStats_1(string& log1, double ttime) {
@@ -845,4 +835,25 @@ void UCT<T>::PrintStats_2(string& log2) {
     log2 = buffer.str();
 }
 
+template <class T>
+void UCT<T>::SaveDot(std::string fileName) {
+    std::ofstream fout;
+    fout.open(fileName);
+
+    int pId = 0;
+    int gId = 0;
+    
+    fout << "digraph UCT{\n";
+    fout << NumToStr(gId)
+            << "[ label = \"root\" ];\n";
+    for (auto c : roots[0]->_children) {
+        if ((*c).GetVisits() > 0) {
+            gId++;
+            c->SaveDot(fout, gId, pId);
+        }
+    }
+    fout << "}\n";
+
+    fout.close();
+}
 // </editor-fold>
