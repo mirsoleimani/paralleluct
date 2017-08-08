@@ -69,7 +69,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     Timer tmr;
     for (int i = 0; i < plyOpt.nthreads; i++) {
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        _bestState.emplace_back(state);
+        _localBestState.emplace_back(state);
         statistics.push_back(new TimeOptions());
     }// </editor-fold>
 
@@ -263,12 +263,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         ttime = tmr.elapsed();
     }
 
-    int reward = _bestState[0].GetResult(WHITE);
-    T bestState = _bestState[0];
+    int localBestReward = _localBestState[0].GetResult(WHITE);
+    T bestState = _localBestState[0];
     for (int i = 1; i < plyOpt.nthreads; i++) {
-        if (_bestState[i].GetResult(WHITE) < reward) {
-            reward = _bestState[i].GetResult(WHITE);
-            bestState = _bestState[i];
+        if (_localBestState[i].GetResult(WHITE) < localBestReward) {
+            localBestReward = _localBestState[i].GetResult(WHITE);
+            bestState = _localBestState[i];
         }
     }
     // </editor-fold>
@@ -298,6 +298,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         PrintStats_1(log1, ttime);
     }
     if (verbose == 3) {
+        Print("uct-tree-move-" + NumToStr(m) + ".dot");
         PrintStats_2(log2);
     }// </editor-fold>
 
@@ -308,7 +309,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
         delete (*itr);
     statistics.clear();
-    _bestState.clear();
+    _localBestState.clear();
     // </editor-fold>
 
     return bestState;
@@ -413,9 +414,10 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         // <editor-fold defaultstate="collapsed" desc="add new node child to n">
         n = n->AddChild();
         if (n != path.back()) {
-//            int m = n->_move;
-            assert(n->_move>= 0 && "move is not valid!\n");
-            state.SetMove(n->_move); /*this line could be removed*/
+            int m = n->_move;
+            assert(m > 0 && "move is not valid!\n");
+            path.push_back(n);
+            state.SetMove(m); /*this line could be removed*/
         }
         // </editor-fold>
     }
@@ -681,14 +683,17 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
         itr++;
 #ifdef MKLRNG
         if (plyOpt.game == HORNER) {
-//            reward = t->_state.GetResult(WHITE);
-            if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                _bestState[t->_identity._id] = t->_state;
+            int reward = t->_state.GetResult(WHITE);
+            int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+            if(reward < localBestReward){
+                _localBestState[t->_identity._id] = t->_state;
+            }
+            if (reward < plyOpt.bestreward) {
                 _finish = true;
             }
         } else if (plyOpt.game == PINS){
             if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                _bestState[t->_identity._id] = t->_state;
+                _localBestState[t->_identity._id] = t->_state;
             }
         }
         t->_state = rstate;
@@ -764,9 +769,13 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
                 if (plyOpt.game == HORNER) {
-                    if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                        _bestState[t->_identity._id] = t->_state;
-                                finish = true;
+                    int reward = t->_state.GetResult(WHITE);
+                    int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+                    if (reward < localBestReward) {
+                        _localBestState[t->_identity._id] = t->_state;
+                    }
+                    if (reward < plyOpt.bestreward) {
+                        _finish = true;
                     }
                 }
                 t->_state = rstate;
@@ -779,23 +788,12 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
 
 // <editor-fold defaultstate="collapsed" desc="Printing">
 
-template <class T>
-void UCT<T>::PrintSubTree(UCT<T>::Node* root) {
-    cout << root->TreeToString(0) << endl;
-}
 
 template <class T>
-void UCT<T>::PrintTree() {
-    cout << roots[0]->TreeToString(0) << endl;
+void UCT<T>::Print(std::string fileName) {
+    SaveDot(fileName);
 }
 
-template <class T>
-void UCT<T>::PrintRootChildren() {
-    for (iterator itr = roots[0]->_children.begin(); itr != roots[0]->_children.end(); itr++) {
-        //cout << (*itr)->_move << "," << (*itr)->_visits << "," << (*itr)->_wins / (*itr)->_visits << " | ";
-        cout << (*itr)->_move << "," << (*itr)->GetVisits << ",";
-    }
-}
 
 template <class T>
 void UCT<T>::PrintStats_1(string& log1, double ttime) {
@@ -848,4 +846,25 @@ void UCT<T>::PrintStats_2(string& log2) {
     log2 = buffer.str();
 }
 
+template <class T>
+void UCT<T>::SaveDot(std::string fileName) {
+    std::ofstream fout;
+    fout.open(fileName);
+
+    int pId = 0;
+    int gId = 0;
+    
+    fout << "digraph UCT{\n";
+    fout << NumToStr(gId)
+            << "[ label = \"root\" ];\n";
+    for (auto c : roots[0]->_children) {
+        if ((*c).GetVisits() > 0) {
+            gId++;
+            c->SaveDot(fout, gId, pId);
+        }
+    }
+    fout << "}\n";
+
+    fout.close();
+}
 // </editor-fold>

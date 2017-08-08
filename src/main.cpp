@@ -932,7 +932,7 @@ static void ShowUsage(std::string name) {
             << "\t-z\t\tNumber of seconds(default=1) for player b\n"
             << "\t-e\t\tThe value of cp(default=0) for player a\n"
             << "\t-f\t\tThe value of cp(default=0) for player b\n"
-            << "\t-v\t\tShow the output on screen(default=0)\n"
+            << "\t-v\t\tShow the output on screen(default=0,save search tree in dot=3)\n"
 //            << "\t-s\t\tSeed to be used by random number generator\n"
             << "\t-r\t\tThreading runtime for both players (default=0 c++11=1, boost threadpool=2, cilk_spawn=2, Tbb_taskgroup=4, cilk_for=5)\n"
             << "\t-a\t\tNumber of moves in a game\n"
@@ -992,11 +992,11 @@ int main(int argc, char** argv) {
                 optplyb.nthreads = atoi(optarg);
                 break;
             case 'y':
-                if (0 < atoi(optarg) &&  atoi(optarg) < 3)
+                if (0 < atoi(optarg) && atoi(optarg) < 4)
                     optplya.par = atoi(optarg);
                 break;
             case 'w':
-                if (0 < atoi(optarg) &&  atoi(optarg) < 3)
+                if (0 < atoi(optarg) && atoi(optarg) < 4)
                     optplyb.par = atoi(optarg);
                 break;
             case 'x':

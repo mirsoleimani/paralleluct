@@ -18,6 +18,7 @@
 #include "mkl.h"
 #include <tbb/task_group.h>
 #include <tbb/pipeline.h>
+#include <fstream>
 
 #ifdef __INTEL_COMPILER
 #include <cilk/cilk.h>
@@ -71,7 +72,7 @@ public:
         _pjm(ply), _wins(0), _visits(1),  _parent(parent) {
             /*http://en.cppreference.com/w/cpp/atomic/atomic_flag_clear*/
 #ifdef LOCKFREE
-            SetWinsVisits(0,1);
+            SetWinsVisits(0,0);
             _isParent=false;
             _isExpandable = false;
             _isFullExpanded = false;
@@ -301,11 +302,11 @@ public:
         }
         
 #else
-        int Wins(){
+        int GetWins(){
             return _wins;
         }
         
-        int Visits(){
+        int GetVisits(){
             return _visits;
         }
         
@@ -314,8 +315,43 @@ public:
             _wins = w;
             _visits = n;
         }
-        
+
 #endif
+
+        /**
+         * save the node in dot language. attache himself to @pId as @gId.
+         * print himself as a new parent for the children.
+         * @param fout
+         * @param gId
+         * @param pId
+         */
+        void SaveDot(std::ofstream& fout, int& gId, const int pId) {
+            int id = gId;
+
+            fout << NumToStr(pId) << "->" << NumToStr(id)
+                    << "[ label = \"" << NumToStr(GetVisits())
+                    << "\" ];\n";
+            if (_isParent) {
+                fout << NumToStr(id)
+                        << "[ label = \""
+                        << NumToStr(_move.load())
+                        << "\" ];\n";
+                for (auto c : _children) {
+                    if ((*c).GetVisits() > 0) {
+                        gId++;
+                        c->SaveDot(fout, gId, id);
+                    }
+                }
+            } else {
+                fout << NumToStr(id) 
+                        << "[ label = \"" 
+                        << NumToStr(_move.load())
+                        << "\" , shape=box ];\n";
+                return;
+            }
+            return;
+        }
+        
         std::atomic_int _move;
         int _pjm;
         std::atomic_int _wins;
@@ -404,12 +440,10 @@ public:
 #endif
     
     /*Print functions*/
-    void PrintSubTree(NodePtr root);
-    void PrintTree();
-    void PrintRootChildren();
+    void Print(std::string fileName);
     void PrintStats_1(std::string& log1, double total);
     void PrintStats_2(std::string& log2);
-
+    void SaveDot(std::string fileName);   
     int NumPlayoutsRoot() {
         return roots[0]->GetVisits();
     }
@@ -462,7 +496,8 @@ private:
     PlyOptions plyOpt;
     std::vector<NodePtr> roots;
     std::vector<TimeOptions*> statistics;
-    std::vector<T> _bestState;
+    std::vector<T> _localBestState;
+    T _globalBestState;
     int _nPlayouts;
     float _score;
 #ifdef MKLRNG
@@ -480,4 +515,3 @@ private:
 
 #include "UCT.cpp"
 #endif	/* UCT_H */
-
