@@ -361,6 +361,7 @@ public:
     public:
         Token(const T state, Identity id) {
             _state=state; //copy the state
+            _bestState=state;
             _identity=id;
             _score = 0;
         }
@@ -371,6 +372,7 @@ public:
 
         Identity _identity;
         T _state;
+        T _bestState;
         vector<Node*> _path;
         int _score;
     }; // </editor-fold>
