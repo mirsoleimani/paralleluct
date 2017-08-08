@@ -69,7 +69,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     Timer tmr;
     for (int i = 0; i < plyOpt.nthreads; i++) {
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
-        _bestState.emplace_back(state);
+        _localBestState.emplace_back(state);
         statistics.push_back(new TimeOptions());
     }// </editor-fold>
 
@@ -263,12 +263,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         ttime = tmr.elapsed();
     }
 
-    int reward = _bestState[0].GetResult(WHITE);
-    T bestState = _bestState[0];
+    int localBestReward = _localBestState[0].GetResult(WHITE);
+    T bestState = _localBestState[0];
     for (int i = 1; i < plyOpt.nthreads; i++) {
-        if (_bestState[i].GetResult(WHITE) < reward) {
-            reward = _bestState[i].GetResult(WHITE);
-            bestState = _bestState[i];
+        if (_localBestState[i].GetResult(WHITE) < localBestReward) {
+            localBestReward = _localBestState[i].GetResult(WHITE);
+            bestState = _localBestState[i];
         }
     }
     // </editor-fold>
@@ -309,7 +309,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
         delete (*itr);
     statistics.clear();
-    _bestState.clear();
+    _localBestState.clear();
     // </editor-fold>
 
     return bestState;
@@ -683,9 +683,12 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
         itr++;
 #ifdef MKLRNG
         if (plyOpt.game == HORNER) {
-//            reward = t->_state.GetResult(WHITE);
-            if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                _bestState[t->_identity._id] = t->_state;
+            int reward = t->_state.GetResult(WHITE);
+            int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+            if(reward < localBestReward){
+                _localBestState[t->_identity._id] = t->_state;
+            }
+            if (reward < plyOpt.bestreward) {
                 _finish = true;
             }
         }
@@ -762,9 +765,13 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
                 if (plyOpt.game == HORNER) {
-                    if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                        _bestState[t->_identity._id] = t->_state;
-                                finish = true;
+                    int reward = t->_state.GetResult(WHITE);
+                    int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+                    if (reward < localBestReward) {
+                        _localBestState[t->_identity._id] = t->_state;
+                    }
+                    if (reward < plyOpt.bestreward) {
+                        _finish = true;
                     }
                 }
                 t->_state = rstate;

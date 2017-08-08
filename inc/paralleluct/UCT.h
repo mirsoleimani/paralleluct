@@ -496,7 +496,8 @@ private:
     PlyOptions plyOpt;
     std::vector<NodePtr> roots;
     std::vector<TimeOptions*> statistics;
-    std::vector<T> _bestState;
+    std::vector<T> _localBestState;
+    T _globalBestState;
     int _nPlayouts;
     float _score;
 #ifdef MKLRNG
