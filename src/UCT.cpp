@@ -7,6 +7,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
 
     plyOpt = opt;
     _score = 0;
+    _originalRoot = NULL;
 #ifdef MKLRNG
     if (plyOpt.nthreads > MAXNUMSTREAMS) {
         std::cerr << "MKLRNG can not support more than " << MAXNUMSTREAMS << " threads!\n";
@@ -49,6 +50,10 @@ UCT<T>::~UCT() {
         mkl_free(_iRNGBuf[i]);
     }
 #endif
+#ifdef REUSETREE
+    delete (_originalRoot);
+    roots.clear();
+#endif
 }
 
 // </editor-fold>
@@ -67,8 +72,24 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     //double ttime = 0;
     ttime = 0;
     Timer tmr;
+#ifdef REUSETREE
+    if (plyOpt.par == ROOTPAR) {
+        std::cout << "Can not use REUSETREE option with root parallelization!\n";
+        exit(1);
+    } else {
+        if (roots.empty()) {
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+            }
+        }
+        _originalRoot = roots[0];
+    }
+#else
     for (int i = 0; i < plyOpt.nthreads; i++) {
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
+    }
+#endif
+    for (int i = 0; i < plyOpt.nthreads; i++) {
         _localBestState.emplace_back(state);
         statistics.push_back(new TimeOptions());
     }// </editor-fold>
@@ -303,9 +324,13 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="free">
+#ifdef REUSETREE
+    roots[0] = nn;
+#else
     for (iterator itr = roots.begin(); itr != roots.end(); itr++)
         delete (*itr);
     roots.clear();
+#endif
     for (vector<TimeOptions*>::const_iterator itr = statistics.begin(); itr != statistics.end(); itr++)
         delete (*itr);
     statistics.clear();

@@ -990,11 +990,11 @@ int main(int argc, char** argv) {
                 optplyb.nthreads = atoi(optarg);
                 break;
             case 'y':
-                if (0 < atoi(optarg) && atoi(optarg) < 3)
+                if (0 < atoi(optarg) && atoi(optarg) < 4)
                     optplya.par = atoi(optarg);
                 break;
             case 'w':
-                if (0 < atoi(optarg) && atoi(optarg) < 3)
+                if (0 < atoi(optarg) && atoi(optarg) < 4)
                     optplyb.par = atoi(optarg);
                 break;
             case 'x':
