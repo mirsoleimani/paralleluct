@@ -361,7 +361,6 @@ public:
     public:
         Token(const T state, Identity id) {
             _state=state; //copy the state
-            _bestState=state;
             _identity=id;
             _score = 0;
         }
@@ -372,7 +371,6 @@ public:
 
         Identity _identity;
         T _state;
-        T _bestState;
         vector<Node*> _path;
         int _score;
     }; // </editor-fold>
@@ -464,7 +462,8 @@ private:
     PlyOptions plyOpt;
     std::vector<NodePtr> roots;
     std::vector<TimeOptions*> statistics;
-    std::vector<T> _bestState;
+    std::vector<T> _localBestState;
+    T _globalBestState;
     int _nPlayouts;
     float _score;
 #ifdef MKLRNG
