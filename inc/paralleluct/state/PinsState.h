@@ -12,13 +12,18 @@
 #include <climits>
 using namespace std;
 
+
 #ifndef PINS_STATE_H
 #define	PINS_STATE_H
+
+extern "C" {
+#include "mc-lib/treedbs-ll.h"
+}
 
 class PinsState {
 public:
     PinsState();
-    PinsState (const char *fileName, int d, int swap);
+    PinsState (const char *fileName, int d, int swap, bool verbose);
     PinsState (const PinsState &pins);
     void Reset();
     void SetMove(int move);
@@ -34,9 +39,12 @@ public:
     void Print();
     void PrintToFile(char* fileName);
 
+    void Stats ();
+
 private:
     bool PropertyViolated();
-    int                *current = NULL;    // state of n slots
+    //int                *current = NULL;    // state of n slots
+    tree_ref_t          state;
     int                 level;
     int                 playout = 0;
     float               cached;

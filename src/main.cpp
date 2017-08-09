@@ -276,7 +276,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
 
             cout << setw(9) << "# move no." << ","
                     << setw(10) << "player" << ","
-                    << setw(10) << "playout" << ","
+                    << setw(10) << "visits" << ","
+                    << setw(10) << "wins" << ","
                     << setw(10) << "time" << ","
                     << setw(10) << "select(%)" << ","
                     << setw(10) << "expand(%)" << ","
@@ -284,7 +285,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                     << setw(10) << "backup(%)" << ","
                     << setw(10) << "nrandvec" << ","
                     << setw(10) << "move" << ","
-                    << setw(10) << "reward" << endl;
+                    << setw(10) << "result" << endl;
         }
         if (verbose == 3) {
             strVisit.str().clear();
@@ -1206,7 +1207,7 @@ int main(int argc, char** argv) {
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
     } else if (optplya.game == PINS) {
         if(fileName == const_cast<char*>("")){ cout<<"Input file is not specified!\n";}
-        PinsState state(fileName, d, swap);
+        PinsState state(fileName, d, swap, vflag);
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves = state.GetMoves(moves);
@@ -1214,6 +1215,7 @@ int main(int argc, char** argv) {
         optplya.twoply=0;
 
         UCTPlayHorner<PinsState>(state, optplya, ngames, vflag);
+        state.Stats();
     } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;

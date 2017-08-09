@@ -682,7 +682,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 
         itr++;
 #ifdef MKLRNG
-        if (plyOpt.game == HORNER || plyOpt.game == PINS) {
+        if (plyOpt.game == HORNER) {
             int reward = t->_state.GetResult(WHITE);
             int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
             if(reward < localBestReward){
@@ -764,7 +764,7 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     tbb::make_filter<UCT<T>::Token*, void>(
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
-                if (plyOpt.game == HORNER || plyOpt.game == PINS) {
+                if (plyOpt.game == HORNER) {
                     int reward = t->_state.GetResult(WHITE);
                     int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
                     if (reward < localBestReward) {
@@ -822,6 +822,7 @@ void UCT<T>::PrintStats_1(string& log1, double ttime) {
     std::stringstream buffer;
     buffer << std::fixed << std::setprecision(2);
     buffer << setw(10) << roots[0]->GetVisits() << "," <<
+            setw(10) << roots[0]->GetWins() << "," <<
             //setw(10) << ttime / plyOpt.nthreads << "," <<
             setw(10) << ttime << "," <<
             setw(10) << (stime / (ttime))*100 << "," <<
