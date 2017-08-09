@@ -682,7 +682,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 
         itr++;
 #ifdef MKLRNG
-        if (plyOpt.game == HORNER) {
+        if (plyOpt.game == HORNER || plyOpt.game == PINS) {
             int reward = t->_state.GetResult(WHITE);
             int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
             if(reward < localBestReward){
@@ -691,11 +691,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
             if (reward < plyOpt.bestreward) {
                 _finish = true;
             }
-        } else if (plyOpt.game == PINS){
-            if (t->_state.GetResult(WHITE) < plyOpt.bestreward) {
-                _localBestState[t->_identity._id] = t->_state;
-            }
-        }
+        } 
         t->_state = rstate;
         
 #else
@@ -768,7 +764,7 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     tbb::make_filter<UCT<T>::Token*, void>(
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
-                if (plyOpt.game == HORNER) {
+                if (plyOpt.game == HORNER || plyOpt.game == PINS) {
                     int reward = t->_state.GetResult(WHITE);
                     int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
                     if (reward < localBestReward) {

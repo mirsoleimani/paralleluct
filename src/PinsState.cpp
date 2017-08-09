@@ -274,8 +274,8 @@ static void
 deadlock_check (int c, int level)
 {
     if (c == 0) {
-        //std::cout << "Deadlock found at depth " << level << endl;
-        //exit (1);
+        std::cout << "Deadlock found at depth " << level << endl;
+        exit (1);
     }
 }
 
