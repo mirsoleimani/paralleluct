@@ -24,7 +24,7 @@ using namespace std;
 #ifndef UTILITIES_H
 #define	UTILITIES_H
 
-#define NDEBUG
+//#define NDEBUG
 #include <assert.h>
 
 //#define THREADPOOL
@@ -79,7 +79,6 @@ static const float DRAW = 0.5;
 typedef int MOVE;
 typedef std::vector<int> term;
 typedef std::vector<term> polynomial;
-static vector<vector<int>> _poly;
 
 enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
 enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR};

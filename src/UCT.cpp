@@ -415,7 +415,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         n = n->AddChild();
         if (n != path.back()) {
             int m = n->_move;
-            assert(m > 0 && "move is not valid!\n");
+            assert(m >= 0 && "move is not valid!\n");
             path.push_back(n);
             state.SetMove(m); /*this line could be removed*/
         }

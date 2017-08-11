@@ -13,11 +13,12 @@ using namespace std;
 
 #ifndef POLYSTATE_H
 #define	POLYSTATE_H
-
+    static vector<vector<int>> _poly;
 class PolyState {
 public:
     PolyState();
     PolyState(const polynomial poly);
+    PolyState(const PolyState& orig);
     void Reset();
     void SetMove(int move);
     int GetMoves(term& moves); //This method returns leftover variables

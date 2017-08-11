@@ -1199,7 +1199,7 @@ int main(int argc, char** argv) {
         //pars input file for polynomial
         Parser parser;
         polynomial poly = parser.parseFile(fileName);
-        PolyState state(poly);
+        PolyState state(poly);               
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves=state.GetMoves(moves);

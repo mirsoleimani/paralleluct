@@ -24,6 +24,19 @@ PolyState::PolyState(const polynomial poly) {
     _moveCounter=0;
 }
 
+PolyState::PolyState(const PolyState& orig) {
+    _pjm = orig._pjm;
+    _polyNumTerms = orig._polyNumTerms;
+    _polyNumMult = orig._polyNumMult;
+    _polyNumOps = orig._polyNumOps;
+    _wReward = orig._wReward;
+    _bReward = orig._bReward;
+    _polyNumVars = orig._polyNumVars;
+    _polyForward = orig._polyForward;
+    _moveCounter = orig._moveCounter;
+    _polyOrder = orig._polyOrder;
+}
+
 int PolyState::CountMultiplications() {
     int mCount = 0;
     for (int i = 0; i < _polyNumTerms; i++) {
