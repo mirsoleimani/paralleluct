@@ -24,7 +24,7 @@ using namespace std;
 #ifndef UTILITIES_H
 #define	UTILITIES_H
 
-#define NDEBUG
+//#define NDEBUG
 #include <assert.h>
 
 //#define THREADPOOL

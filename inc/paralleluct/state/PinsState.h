@@ -40,6 +40,7 @@ public:
     void PrintToFile(char* fileName);
 
     void Stats ();
+    int GetScore();
 
 private:
     bool PropertyViolated();

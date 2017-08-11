@@ -429,7 +429,7 @@ void PinsState::Evaluate() {
         for (int *u = ci_begin(vguards); u != ci_end(vguards); u++) {
             c += guards[*u] == 0;
         }
-        c /= g;
+        //c /= g;
     } else {
         for (int i = 0; i < k; i++) {
             bool enabled = true;
@@ -463,9 +463,13 @@ bool PinsState::PropertyViolated() {
 //    int *current = update_state (state);
 //    int count = GBgetTransitionsAll (model, current, cb_dummy, NULL);
 //    deadlock_check (count, level);
-//    return count == 0;
+//    return count == 0;    
 }
 
+/**
+ * it is a terminal state when no more move exist.
+ * @return 
+ */
 bool PinsState::IsTerminal() {
     return PropertyViolated();
 }
@@ -543,4 +547,8 @@ void PinsState::PrintToFile(char* fileName) {
 
 void PinsState::Stats() {
     cout << "Number of states: "<< states << endl;
+}
+
+int PinsState::GetScore(){
+    return k;
 }

@@ -1208,6 +1208,7 @@ int main(int argc, char** argv) {
     } else if (optplya.game == PINS) {
         if(fileName == const_cast<char*>("")){ cout<<"Input file is not specified!\n";}
         PinsState state(fileName, d, swap, vflag);
+        optplya.score = state.GetScore();
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves = state.GetMoves(moves);
