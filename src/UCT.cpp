@@ -59,8 +59,7 @@ template <class T>
 T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, double& ttime) {
 
     // <editor-fold defaultstate="collapsed" desc="initialize">
-    std::vector<std::thread> threads;
-    tbb::task_group g;
+    threads.clear();
 
     T lstate(state);
     _finish = false;
@@ -358,7 +357,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
             int visits = (*itr)->GetVisits();
             float wins = (*itr)->GetWins();
             assert(wins >= 0);
-            assert(visits > 0);
+            assert(visits >= 0);
 
             float exploit = 0;
             if (plyOpt.game == HORNER) {
