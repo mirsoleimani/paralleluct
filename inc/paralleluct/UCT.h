@@ -40,10 +40,11 @@ struct PlyOptions {
     bool verbose = false;
     unsigned int seed=1;
     int bestreward=std::numeric_limits<int>::min();
-    int nmoves = 0;
+    int nmoves = std::numeric_limits<int>::max();
     bool virtualloss=0;
     char* locking=const_cast<char *>("LOCKFREE");
     int twoply=1;
+    int score=0;
 };
 
 struct TimeOptions {
@@ -229,7 +230,7 @@ public:
          * @param pjm
          */
         void CreatChildren(std::vector<int>& moves, int pjm) {
-
+            assert(moves.size() > 0 && "can not create children! the moves vector is empty!\n");
             //http://www.cplusplus.com/reference/atomic/atomic/exchange/
             if (!_isParent.exchange(true)) {
                 for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); itr++) {
