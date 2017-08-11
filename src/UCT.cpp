@@ -275,7 +275,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
 
     // <editor-fold defaultstate="collapsed" desc="select best child">
     /*Find the best node*/
-    T rootState(state);
+    //T rootState(state);
     vector<int>UCT;
     UCT::Node* nn = roots[0];
 #ifdef MAXNUMVISITS
@@ -286,6 +286,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
+    assert(nn->_children.size()>0 && "children vector is empty!?\n");
     int index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
     nn = nn->_children[index]; // </editor-fold>
 #else
@@ -332,6 +333,8 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
     
     if (plyOpt.game == HORNER) {
         _score = state.GetResult(WHITE);
+    } else if (plyOpt.game == PINS) {
+        _score = plyOpt.score;
     } else {
         assert("_score is not initialized!\n");
     }
@@ -365,8 +368,11 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
                 //_score = state.GetResult(WHITE);
                 assert(_score > 0&&"_score is not initialized!\n");
                 exploit = _score / (wins / (float) (visits));
-            } else if (plyOpt.game == HEX || plyOpt.game == PINS) {
+            } else if (plyOpt.game == HEX) {
                 exploit = wins / (float) (visits);
+            } else if (plyOpt.game == PINS){
+                assert(_score > 0 && "_score is not initialized!\n");
+                exploit = (wins / (float) (_score * visits));
             }
             float explore = cp * sqrtf(l / (float) (visits));
 
@@ -408,6 +414,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         //set the number of untried moves for n based on the current state
         state.GetMoves(moves);
         RandomShuffle(moves.begin(), moves.end(), tId);
+        assert(moves.size() > 0 && "No more moves after passing terminal condition!\n");
         n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
         // </editor-fold>
 
@@ -415,7 +422,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         n = n->AddChild();
         if (n != path.back()) {
             int m = n->_move;
-            assert(m > 0 && "move is not valid!\n");
+            assert(m >= 0 && "move is not valid!\n");
             path.push_back(n);
             state.SetMove(m); /*this line could be removed*/
         }
