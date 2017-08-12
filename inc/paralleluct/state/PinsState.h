@@ -25,6 +25,7 @@ public:
     PinsState();
     PinsState (const char *fileName, int d, int swap, bool verbose);
     PinsState (const PinsState &pins);
+    PinsState& operator=(const PinsState& other);
     void Reset();
     void SetMove(int move);
     int GetMoves(term& moves); //This method returns leftover variables

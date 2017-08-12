@@ -254,10 +254,17 @@ PinsState::PinsState(const PinsState &pins) : PinsState() {
     //memcpy (current, pins.current, sizeof(int[n]));
     level = pins.level;
     state = pins.state;
-//    if (VERBOSE) cout << "Copy: "<< state << endl;
+    if (VERBOSE) cout << "Copy: "<< state << endl;
 }
 
-
+PinsState& PinsState::operator =(const PinsState& other) {
+    if(&other == this)
+        return *this;
+    level = other.level;
+    state = other.state;
+    if (VERBOSE) cout << "Assign: "<< state << endl;
+    return *this;
+}
 //static tree_ref_t
 //get_idx (int *dst)
 //{
