@@ -197,6 +197,13 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         // <editor-fold defaultstate="collapsed" desc="pipe parallelization">
     else if (plyOpt.par == PIPEPAR) {
         if (plyOpt.threadruntime == TBBSPSPIPELINE) {
+    vector<UCT<T>::Token*> buffer;
+    buffer.reserve(plyOpt.nthreads);
+    for (int i = 0; i < plyOpt.nthreads; i++) {
+        UCT<T>::Identity tId(i);
+        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
+    }
+
             tmr.reset();
             UCTSearchTBBSPSPipe(lstate, 0, 0, tmr);
             //ttime = tmr.elapsed();
@@ -353,7 +360,26 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         std::vector<float> UCT; // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
-        //TODO vectorized UCT calculation
+#ifdef VECTORIZEDSELECT
+        UCT.resize(n->_children.size());
+#if defined(__GNUC__)
+  #pragma GCC ivdep
+#elif defined(__INTEL_COMPILER)
+  #pragma simd
+#endif
+        for(int i=0; i < n->_children.size(); i++) {
+            int visits = n->_children[i]->GetVisits();
+            float wins = n->_children[i]->GetWins();
+            float exploit = 0;
+            if (plyOpt.game == HORNER) {
+                exploit = _score / (wins / (float) (visits));
+            } else if (plyOpt.game == HEX) {
+                exploit = wins / (float) (visits);
+            }
+            float explore = cp * sqrtf(l / (float) (visits));
+            UCT[i]=(exploit + explore);
+        }
+#else
         for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
             int visits = (*itr)->GetVisits();
             float wins = (*itr)->GetWins();
@@ -372,6 +398,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
             UCT.push_back(exploit + explore);
         }
+#endif
         // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
@@ -457,7 +484,7 @@ typename UCT<T>::Token* UCT<T>::Evaluate(UCT<T>::Token* token) {
 }
 
 template <class T>
-void UCT<T>::Backup(Token* token) {
+typename UCT<T>::Token* UCT<T>::Backup(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
@@ -471,24 +498,57 @@ void UCT<T>::Backup(Token* token) {
     if (plyOpt.virtualloss) {
         assert("virtual loss is not implemented!");
     } else {
-#pragma simd
+#if defined(__GNUC__)
+  #pragma GCC ivdep
+#elif defined(__INTEL_COMPILER)
+  #pragma simd
+#endif
         for (int i = 0; i < path.size(); i++)
             path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
     }
 #else
-    while (n != NULL) {
-        if (plyOpt.virtualloss) {
-            n->Update(-_score,-1); //remove virtual loss
-            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
-        } else {
-            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
-        }
-        n = n->_parent;
+#ifdef REVERSEBACKUP
+        for (int i = path.size()-1; i >= 0; i--) {
+        if(plyOpt.virtualloss){
+            path[i]->Update(-_score,-1);
+        } 
+            path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
+    }
+#else
+    for (int i = 0; i < path.size(); i++) {
+        if(plyOpt.virtualloss){
+            path[i]->Update(-_score,-1);
+        } 
+            path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
     }
 #endif
-
+//    while (n != NULL) {
+//        if (plyOpt.virtualloss) {
+//            n->Update(-_score,-1); //remove virtual loss
+//            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+//        } else {
+//            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+//        }
+//        n = n->_parent;
+//    }
+#endif
+    return token;
 }
 
+template <class T>
+typename UCT<T>::Token* UCT<T>::FindBestState(Token* t) {
+    if (plyOpt.game == HORNER) {
+        int reward = t->_state.GetResult(WHITE);
+        int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+        if (reward < localBestReward) {
+            _localBestState[t->_identity._id] = t->_state;
+        }
+        if (reward < plyOpt.bestreward) {
+            _finish = true;
+        }
+    }
+    return t;
+}
 #else
 
 template <class T>
@@ -716,18 +776,18 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 template <class T>
 void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
 
-    vector<UCT<T>::Token*> buffer;
-    buffer.reserve(plyOpt.nthreads);
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        UCT<T>::Identity tId(i);
-        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
-    }
+//    vector<UCT<T>::Token*> buffer;
+//    buffer.reserve(plyOpt.nthreads);
+//    for (int i = 0; i < plyOpt.nthreads; i++) {
+//        UCT<T>::Identity tId(i);
+//        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
+//    }
 
     //TODO use circular buffer to create and use tokens.
     int itr = plyOpt.nsims;
     int index = 0;
     int ntokens = plyOpt.nthreads;
-    bool finish = false;
+//    bool finish = false;
     tbb::parallel_pipeline(
             ntokens,
             tbb::make_filter<void, UCT<T>::Token*>(
@@ -735,17 +795,28 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
                 //UCT<T>::Token *t = new UCT<T>::Token(rstate, roots[0]);
                 UCT<T>::Token* t = buffer[index];
                 index = (index + 1) % ntokens;
-                if (--itr == 0 || finish) {
+                if (--itr == 0 || _finish) {
                     fc.stop();
                     return NULL;
 
                 } else {
+#ifdef SEVENSTAGEPIPE
+                    return t;
+#else
                     t = Select(t);
                     return t;
+#endif
                 }
 
             })
     &
+#ifdef SEVENSTAGEPIPE
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t){
+                return Select(t);
+            })
+    &
+#endif
     tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
             tbb::filter::parallel, [&](UCT<T>::Token * t) {
                 return Expand(t);
@@ -761,21 +832,29 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
                 return Evaluate(t);
             })
     &
-    tbb::make_filter<UCT<T>::Token*, void>(
+#ifdef SEVENSTAGEPIPE
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t){
+                return Backup(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t){
+                return FindBestState(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token *, void>(
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
-                Backup(t);
-                if (plyOpt.game == HORNER) {
-                    int reward = t->_state.GetResult(WHITE);
-                    int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
-                    if (reward < localBestReward) {
-                        _localBestState[t->_identity._id] = t->_state;
-                    }
-                    if (reward < plyOpt.bestreward) {
-                        _finish = true;
-                    }
-                }
                 t->_state = rstate;
             }));
+#else
+    tbb::make_filter<UCT<T>::Token*, void>(
+            tbb::filter::serial_out_of_order, [&](UCT<T>::Token * t) {
+                Backup(t);
+                FindBestState(t);
+                t->_state = rstate;
+            }));
+#endif
 
     for (int i = 0; i < ntokens; i++)
         delete buffer[i];

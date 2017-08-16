@@ -39,7 +39,7 @@ struct PlyOptions {
     int game=0;
     bool verbose = false;
     unsigned int seed=1;
-    int bestreward=4200;
+    int bestreward=std::numeric_limits<int>::min();
     int nmoves = 0;
     bool virtualloss=0;
     char* locking=const_cast<char *>("LOCKFREE");
@@ -231,7 +231,7 @@ public:
         void CreatChildren(std::vector<int>& moves, int pjm) {
 
             //http://www.cplusplus.com/reference/atomic/atomic/exchange/
-            if (!_isParent.exchange(true)) {
+            if (!_isParent.exchange(true,std::memory_order_relaxed)) {
                 for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); itr++) {
                     _children.push_back(new Node(*itr, this, pjm));
                 }
@@ -259,7 +259,7 @@ public:
             //while (!_isParent&&!_isExpandable.load(std::memory_order_acquire)) {}
             //while (!_isExpandable.load(std::memory_order_acquire)) {}
             //TODO is it sufficient to check the following if condition?
-            if (_isParent&&_isExpandable.load(std::memory_order_acquire)) {
+            if (_isParent.load(std::memory_order_relaxed)&&_isExpandable.load(std::memory_order_acquire)) {
 
                 if ((index = --_untriedMoves) == 0) {
                     _isFullExpanded = true;
@@ -431,7 +431,8 @@ public:
     Token* Expand(Token* token);
     Token* Playout(Token* token);
     Token* Evaluate(Token* token);
-    void Backup(Token* token);
+    Token* Backup(Token* token);
+    Token* FindBestState(Token* token);
 #else
     NodePtr Select(NodePtr node, T& state);
     NodePtr Expand(NodePtr node, T& state, GEN& engine);

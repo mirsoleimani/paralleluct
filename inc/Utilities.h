@@ -55,6 +55,9 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 
 //#define COPYSTATE
 //#define VECTORIZEDBACKUP
+//#define VECTORIZEDSELECT
+//#define REVERSEBACKUP
+#define SEVENSTAGEPIPE
 
 #define POS(i,j,dim) i*dim+j       
 #define MAX(n,m) ((n)>(m)?(n):(m))
