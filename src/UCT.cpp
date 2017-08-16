@@ -4,7 +4,7 @@
 
 template <class T>
 UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(vb) {//TODO remove verbose from class property use plyopt
-
+    cout<<"UCT constrcutor\n";
     plyOpt = opt;
     _score = 0;
 #ifdef MKLRNG
@@ -19,7 +19,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
                 exit(0);
             }
         }
-//        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
+        //        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
         for (int i = 0; i < plyOpt.nthreads; i++) {
             if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
                 std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
@@ -133,8 +133,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
             std::cerr << "No Intel compiler for cilk plus!\n";
             exit(0);
 #endif            
-        }
-        else {
+        } else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
         }
@@ -197,21 +196,23 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         // <editor-fold defaultstate="collapsed" desc="pipe parallelization">
     else if (plyOpt.par == PIPEPAR) {
         if (plyOpt.threadruntime == TBBSPSPIPELINE) {
-    vector<UCT<T>::Token*> buffer;
-    buffer.reserve(plyOpt.nthreads);
-    for (int i = 0; i < plyOpt.nthreads; i++) {
-        UCT<T>::Identity tId(i);
-        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
-    }
+            buffer.reserve(plyOpt.nthreads);
+            for (int i = 0; i < plyOpt.nthreads; i++) {
+                UCT<T>::Identity tId(i);
+                buffer.emplace_back(new UCT<T>::Token(lstate, tId));
+            }
 
             tmr.reset();
             UCTSearchTBBSPSPipe(lstate, 0, 0, tmr);
+            ttime = tmr.elapsed();
             //ttime = tmr.elapsed();
 
             //                auto Search = std::bind(&UCT::UCTSearchTBBSPSPipe, std::ref(*this), std::cref(lstate), 0, 0, tmr);
             //                threads.push_back(std::thread(Search));
             //                assert(threads[i].joinable());
             //            }
+            for (int i = 0; i < plyOpt.nthreads; i++)
+                delete buffer[i];
         } else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
@@ -252,12 +253,12 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     //    }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="collect">
-    if (plyOpt.par == TREEPAR || plyOpt.par == PIPEPAR) {
+    if (plyOpt.par == TREEPAR) {
         ttime = tmr.elapsed();
     }
     if (plyOpt.par == ROOTPAR) {
         for (unsigned int j = 1; j < roots.size(); j++) {
-            roots[0]->Update(roots[j]->GetWins(),roots[j]->GetVisits());
+            roots[0]->Update(roots[j]->GetWins(), roots[j]->GetVisits());
             for (unsigned int i = 0; i < roots[0]->_children.size(); i++) {
                 for (unsigned int k = 0; k < roots[j]->_children.size(); k++) {
                     if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
@@ -336,20 +337,20 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
     /*the first node in the path is root node*/
     UCT<T>::Node* n = roots[tid._rid];
-    
+
     if (plyOpt.game == HORNER) {
         _score = state.GetResult(WHITE);
     } else {
         assert("_score is not initialized!\n");
     }
-    
+
     //add virtual loss to root node
     if (plyOpt.virtualloss) {
-        n->Update(_score,1);
+        n->Update(_score, 1);
     }
-    
+
     path.push_back(n);
-    
+
     while (n->IsFullExpanded()) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
         UCT<T>::Node* next = NULL;
@@ -363,11 +364,11 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 #ifdef VECTORIZEDSELECT
         UCT.resize(n->_children.size());
 #if defined(__GNUC__)
-  #pragma GCC ivdep
+#pragma GCC ivdep
 #elif defined(__INTEL_COMPILER)
-  #pragma simd
+#pragma simd
 #endif
-        for(int i=0; i < n->_children.size(); i++) {
+        for (int i = 0; i < n->_children.size(); i++) {
             int visits = n->_children[i]->GetVisits();
             float wins = n->_children[i]->GetWins();
             float exploit = 0;
@@ -377,7 +378,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
                 exploit = wins / (float) (visits);
             }
             float explore = cp * sqrtf(l / (float) (visits));
-            UCT[i]=(exploit + explore);
+            UCT[i] = (exploit + explore);
         }
 #else
         for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
@@ -389,7 +390,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
             float exploit = 0;
             if (plyOpt.game == HORNER) {
                 //_score = state.GetResult(WHITE);
-                assert(_score > 0&&"_score is not initialized!\n");
+                assert(_score > 0 && "_score is not initialized!\n");
                 exploit = _score / (wins / (float) (visits));
             } else if (plyOpt.game == HEX) {
                 exploit = wins / (float) (visits);
@@ -407,7 +408,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         next = n->_children[index]; // </editor-fold>
 
         if (plyOpt.virtualloss) {
-            next->Update(_score,1);
+            next->Update(_score, 1);
         }
 
         // <editor-fold defaultstate="collapsed" desc="update path and state">
@@ -488,7 +489,7 @@ typename UCT<T>::Token* UCT<T>::Backup(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
-//    int score = (*token)._score;
+    //    int score = (*token)._score;
 
     UCT<T>::Node* n = path.back();
     float rewardWhite = state.GetResult(WHITE);
@@ -499,38 +500,38 @@ typename UCT<T>::Token* UCT<T>::Backup(Token* token) {
         assert("virtual loss is not implemented!");
     } else {
 #if defined(__GNUC__)
-  #pragma GCC ivdep
+#pragma GCC ivdep
 #elif defined(__INTEL_COMPILER)
-  #pragma simd
+#pragma simd
 #endif
         for (int i = 0; i < path.size(); i++)
             path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
     }
 #else
 #ifdef REVERSEBACKUP
-        for (int i = path.size()-1; i >= 0; i--) {
-        if(plyOpt.virtualloss){
-            path[i]->Update(-_score,-1);
-        } 
-            path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
+    for (int i = path.size() - 1; i >= 0; i--) {
+        if (plyOpt.virtualloss) {
+            path[i]->Update(-_score, -1);
+        }
+        path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
     }
 #else
     for (int i = 0; i < path.size(); i++) {
-        if(plyOpt.virtualloss){
-            path[i]->Update(-_score,-1);
-        } 
-            path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        if (plyOpt.virtualloss) {
+            path[i]->Update(-_score, -1);
+        }
+        path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
     }
 #endif
-//    while (n != NULL) {
-//        if (plyOpt.virtualloss) {
-//            n->Update(-_score,-1); //remove virtual loss
-//            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
-//        } else {
-//            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
-//        }
-//        n = n->_parent;
-//    }
+    //    while (n != NULL) {
+    //        if (plyOpt.virtualloss) {
+    //            n->Update(-_score,-1); //remove virtual loss
+    //            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+    //        } else {
+    //            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+    //        }
+    //        n = n->_parent;
+    //    }
 #endif
     return token;
 }
@@ -668,7 +669,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     GEN gen(gengine[sid], dist);
 #endif
 
-//    float reward = std::numeric_limits<float>::max();
+    //    float reward = std::numeric_limits<float>::max();
     TimeOptions* timeopt = statistics[sid];
     timeopt->nrand = 0;
     int itr = 0;
@@ -682,7 +683,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     timeopt->etime = 0;
     double time = 0.0;
 #endif
-    
+
     while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs &&
             itr < max &&
             !_finish) {
@@ -745,7 +746,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
         if (plyOpt.game == HORNER) {
             int reward = t->_state.GetResult(WHITE);
             int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
-            if(reward < localBestReward){
+            if (reward < localBestReward) {
                 _localBestState[t->_identity._id] = t->_state;
             }
             if (reward < plyOpt.bestreward) {
@@ -753,9 +754,9 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
             }
         }
         t->_state = rstate;
-        
+
 #else
-//        reward = lstate.GetResult(WHITE);
+        //        reward = lstate.GetResult(WHITE);
         //#ifdef COPYSTATE
         if (lstate.GetResult(WHITE) < plyOpt.bestreward) {
             //_bestState[t->_identity._id] = lstate;
@@ -776,18 +777,18 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 template <class T>
 void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
 
-//    vector<UCT<T>::Token*> buffer;
-//    buffer.reserve(plyOpt.nthreads);
-//    for (int i = 0; i < plyOpt.nthreads; i++) {
-//        UCT<T>::Identity tId(i);
-//        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
-//    }
+    //    vector<UCT<T>::Token*> buffer;
+    //    buffer.reserve(plyOpt.nthreads);
+    //    for (int i = 0; i < plyOpt.nthreads; i++) {
+    //        UCT<T>::Identity tId(i);
+    //        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
+    //    }
 
     //TODO use circular buffer to create and use tokens.
     int itr = plyOpt.nsims;
     int index = 0;
     int ntokens = plyOpt.nthreads;
-//    bool finish = false;
+    //    bool finish = false;
     tbb::parallel_pipeline(
             ntokens,
             tbb::make_filter<void, UCT<T>::Token*>(
@@ -812,7 +813,7 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     &
 #ifdef SEVENSTAGEPIPE
     tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
-            tbb::filter::parallel, [&](UCT<T>::Token * t){
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
                 return Select(t);
             })
     &
@@ -834,12 +835,12 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     &
 #ifdef SEVENSTAGEPIPE
     tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
-            tbb::filter::parallel, [&](UCT<T>::Token * t){
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
                 return Backup(t);
             })
     &
     tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
-            tbb::filter::parallel, [&](UCT<T>::Token * t){
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
                 return FindBestState(t);
             })
     &
@@ -849,26 +850,24 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
             }));
 #else
     tbb::make_filter<UCT<T>::Token*, void>(
-            tbb::filter::serial_out_of_order, [&](UCT<T>::Token * t) {
+            tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
                 FindBestState(t);
                 t->_state = rstate;
             }));
 #endif
 
-    for (int i = 0; i < ntokens; i++)
-        delete buffer[i];
+    //    for (int i = 0; i < ntokens; i++)
+    //        delete buffer[i];
 
 }// </editor-fold>
 
 // <editor-fold defaultstate="collapsed" desc="Printing">
 
-
 template <class T>
 void UCT<T>::Print(std::string fileName) {
     SaveDot(fileName);
 }
-
 
 template <class T>
 void UCT<T>::PrintStats_1(string& log1, double ttime) {
@@ -928,7 +927,7 @@ void UCT<T>::SaveDot(std::string fileName) {
 
     int pId = 0;
     int gId = 0;
-    
+
     fout << "digraph UCT{\n";
     fout << NumToStr(gId)
             << "[ label = \"root\" ];\n";

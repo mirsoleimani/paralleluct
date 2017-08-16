@@ -498,6 +498,7 @@ private:
     std::vector<NodePtr> roots;
     std::vector<TimeOptions*> statistics;
     std::vector<T> _localBestState;
+    vector<UCT<T>::Token*> buffer;
     T _globalBestState;
     int _nPlayouts;
     float _score;
