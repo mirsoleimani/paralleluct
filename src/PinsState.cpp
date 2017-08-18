@@ -466,11 +466,11 @@ cb_dummy(void *context, transition_info_t *ti, int *dst, int *cpy)
  * TODO: other safety properties.
 */
 bool PinsState::PropertyViolated() {
-    return false; // Currently, PinsState exits, when an error is found
-//    int *current = update_state (state);
-//    int count = GBgetTransitionsAll (model, current, cb_dummy, NULL);
-//    deadlock_check (count, level);
-//    return count == 0;    
+//    return false; // Currently, PinsState exits, when an error is found
+    int *current = update_state (state);
+    int count = GBgetTransitionsAll (model, current, cb_dummy, NULL);
+    deadlock_check (count, level);
+    return count == 0;    
 }
 
 /**
