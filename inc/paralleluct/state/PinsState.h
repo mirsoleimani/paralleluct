@@ -39,6 +39,8 @@ public:
     void Print();
     void PrintToFile(char* fileName);
 
+
+    bool operator < (const PinsState & s1){ return this->state < s1.state;}
     void Stats ();
 
 private:

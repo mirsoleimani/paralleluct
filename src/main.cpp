@@ -1208,6 +1208,26 @@ int main(int argc, char** argv) {
     } else if (optplya.game == PINS) {
         if(fileName == const_cast<char*>("")){ cout<<"Input file is not specified!\n";}
         PinsState state(fileName, d, swap, vflag);
+
+        set<PinsState> V;
+        vector<PinsState> Q;
+        Q.push_back (state);
+        vector<int> moves;
+        while (!Q.empty()) {
+            PinsState &s = Q.back();
+            Q.pop_back();
+            if (V.find(s) != V.end()) continue;
+            V.insert(s);
+            moves.clear();
+            s.GetMoves(moves);
+            for (int m : moves) {
+                PinsState t(s);
+                t.SetMove(m);
+            }
+        }
+        cout << "NUMBER OF STATES: "<< V.size() << endl;
+        exit(0);
+
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves = state.GetMoves(moves);

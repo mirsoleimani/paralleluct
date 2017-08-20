@@ -349,7 +349,7 @@ int PinsState::GetMoves(vector<int>& moves) {
     cb_moves_t ctx = { .last = LAST_INIT, .moves = moves, .depth = level };
     int *current = update_state (state);
     int total = GBgetTransitionsAll (model, current, cb_moves, &ctx);
-    Assert (moves.size() <= total, "Mopre moves?");
+    Assert (moves.size() <= total, "More moves?");
     deadlock_check (total, level);
     return moves.size();
 }
