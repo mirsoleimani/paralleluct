@@ -944,6 +944,11 @@ static void ShowUsage(std::string name) {
             << endl;
 }
 
+bool operator==(PinsState const& lhs, PinsState const& rhs)
+{
+    return lhs.GetState() == rhs.GetState();
+}
+
 int main(int argc, char** argv) {
 
     int b = 4, d = 6, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
@@ -1208,22 +1213,26 @@ int main(int argc, char** argv) {
     } else if (optplya.game == PINS) {
         if(fileName == const_cast<char*>("")){ cout<<"Input file is not specified!\n";}
         PinsState state(fileName, d, swap, vflag);
-
-        set<PinsState> V;
+        
+        auto V = unordered_set<PinsState>{};
         vector<PinsState> Q;
         Q.push_back (state);
         vector<int> moves;
         while (!Q.empty()) {
-            PinsState &s = Q.back();
+            PinsState s = Q.back();
             Q.pop_back();
             if (V.find(s) != V.end()) continue;
             V.insert(s);
             moves.clear();
             s.GetMoves(moves);
+            cout<<"enter the loop\n";
             for (int m : moves) {
+                
                 PinsState t(s);
                 t.SetMove(m);
+                Q.emplace_back(t);
             }
+            cout<<"enter the loop\n";
         }
         cout << "NUMBER OF STATES: "<< V.size() << endl;
         exit(0);

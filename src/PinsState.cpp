@@ -13,6 +13,7 @@
  *
  */
 #include <type_traits>
+#include <unordered_map>
 #define typeof(x) std::remove_reference<decltype((x))>::type
 extern "C" {
     #define SPINS
@@ -254,7 +255,7 @@ PinsState::PinsState(const PinsState &pins) : PinsState() {
     //memcpy (current, pins.current, sizeof(int[n]));
     level = pins.level;
     state = pins.state;
-//    if (VERBOSE) cout << "Copy: "<< state << endl;
+    if (VERBOSE) cout << "Copy: "<< state << endl;
 }
 
 
@@ -293,7 +294,7 @@ update_state (tree_ref_t state)
 {
     //if (TreeDBSLLindex(tree, tmp) != state) {
         inn = TreeDBSLLget(tree, state, inn);
-        //Debug ("Update: "<< state);
+        Debug ("Update: "<< state);
     //}
     return TreeDBSLLdata (tree, inn);
 }
@@ -330,7 +331,7 @@ cb_moves(void *context, transition_info_t *ti, int *dst, int *cpy)
 
     if (check_fset && fset_find(fset, NULL, dst, NULL, false)) return;
 
-    //Debug ("PUSH: "<< ti->group <<","<< ctx->last.occurence);
+    Debug ("PUSH: "<< ti->group <<","<< ctx->last.occurence);
     ctx->moves.push_back(ctx->last.occurence << logk | ti->group);
     if (PROPERTY == 1 && ti->labels[act_label] == act_index) {
         std::cout << "Assertion violation found at depth " <<  ctx->depth << endl;
@@ -367,7 +368,7 @@ cb_move(void *context, transition_info_t *ti, int *dst, int *cpy)
     cb_move_t *ctx = (cb_move_t *) context;
 
     cb_last (&ctx->last, ti, dst, cpy);
-    //Debug ("Process move: " << ctx->last.group <<","<< ctx->last.occurence <<"   "<< ctx->group <<","<< ctx->occurence);
+    Debug ("Process move: " << ctx->last.group <<","<< ctx->last.occurence <<"   "<< ctx->group <<","<< ctx->occurence);
 
     if (ctx->group == ctx->last.group && ctx->occurence == ctx->last.occurence) {
         if (check_fset) {
@@ -390,12 +391,12 @@ void PinsState::SetMove(int move) {
                       .last = LAST_INIT
     };
     int *current = update_state (state);
-    //Debug ("GetMove: "<< state << " move: " << ctx.group <<","<< ctx.occurence);
+    Debug ("GetMove: "<< state << " move: " << ctx.group <<","<< ctx.occurence);
     int total = GBgetTransitionsAll (model, current, cb_move, &ctx);
     Assert (ctx.state != -1, "Move not found " << total);
     state = ctx.state;
     deadlock_check (total, level);
-    //Debug ("Move: "<< state);
+    Debug ("Move: "<< state);
 }
 
 float PinsState::GetResult(int plyjm) {
@@ -527,7 +528,7 @@ void PinsState::UndoMoves(int origMoveCounter) {
 
 void PinsState::Reset() {
     state = initial;
-    //Debug ("Initial: "<< state);
+    Debug ("Initial: "<< state);
     playout = 0;
 }
 

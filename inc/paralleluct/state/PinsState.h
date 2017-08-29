@@ -25,6 +25,9 @@ public:
     PinsState();
     PinsState (const char *fileName, int d, int swap, bool verbose);
     PinsState (const PinsState &pins);
+//    bool operator==(PinsState const& rhs){
+//        return state == rhs.state;
+//    }
     void Reset();
     void SetMove(int move);
     int GetMoves(term& moves); //This method returns leftover variables
@@ -42,7 +45,9 @@ public:
 
     bool operator < (const PinsState & s1){ return this->state < s1.state;}
     void Stats ();
-
+    size_t GetState() const{
+        return state;
+    }
 private:
     bool PropertyViolated();
     //int                *current = NULL;    // state of n slots
@@ -52,5 +57,17 @@ private:
     float               cached;
     int                 cache = -1;
 };
+
+namespace std
+{
+    template<>
+    struct hash<PinsState>
+    {
+        auto operator()(PinsState const& state) const -> size_t
+        {
+            return hash<int>{} (state.GetState());
+        }
+    };
+}
 #endif	/* PINS_STATE_H */
 
