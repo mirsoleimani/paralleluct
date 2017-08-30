@@ -125,9 +125,9 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                     ply = white;
                     if (white == "plya(W)") {
                         
-                        //cin>>move;
+                        cin>>move;
                         //__cilkview_query(d);
-                        plya.Run(state, move, log, log2,time);
+//                        plya.Run(state, move, log, log2,time);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
                         
                     } else {
@@ -141,7 +141,7 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
                     ply = black;
                     if (black == "plya(B)") {
                         
-                        //cin>>move;
+//                        cin>>move;
                         //__cilkview_query(d);
                         plya.Run(state, move, log, log2,time);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
@@ -1190,7 +1190,7 @@ int main(int argc, char** argv) {
         }
 //                HexGameState state(d);
 //                UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
-        HexGameState state(d);
+                HexGameState state(d);
         UCTPlayGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);

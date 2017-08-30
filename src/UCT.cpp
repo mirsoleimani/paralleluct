@@ -332,8 +332,10 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
     
     if (plyOpt.game == HORNER) {
         _score = state.GetResult(WHITE);
+    } else if (plyOpt.game == HEX){
+        _score = 1;
     } else {
-        assert("_score is not initialized!\n");
+        assert(_score == 0 && "_score is not initialized!\n");
     }
     
     //add virtual loss to root node
@@ -358,7 +360,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
             int visits = (*itr)->GetVisits();
             float wins = (*itr)->GetWins();
             assert(wins >= 0);
-            assert(visits > 0);
+            assert(visits >= 0);
 
             float exploit = 0;
             if (plyOpt.game == HORNER) {
@@ -415,7 +417,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         n = n->AddChild();
         if (n != path.back()) {
             int m = n->_move;
-            assert(m > 0 && "move is not valid!\n");
+            assert(m >= 0 && "move is not valid!\n");
             path.push_back(n);
             state.SetMove(m); /*this line could be removed*/
         }
