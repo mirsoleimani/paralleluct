@@ -11,6 +11,57 @@ HexGameState::HexGameState(){
     
 }
 
+#ifdef HEXSTATICBOARD
+HexGameState::HexGameState(int d,vector<vector<int>> eList, vector<int> lpList){
+    dim = d;
+    size = d*d;
+    pjm = 2;
+    moveCounter = 0;
+    edges = eList;
+    lefPos = lpList;
+    dsboard.resize(d * d);
+    ClearBoard();
+}
+
+HexGameState::HexGameState(const HexGameState& orig) {
+    dim = orig.dim;
+    size = orig.size;
+    pjm = orig.pjm;
+    moveCounter = orig.moveCounter;
+    dsboard = orig.dsboard;
+
+}
+
+HexGameState& HexGameState::operator=(const HexGameState& orig) {
+    if (this == &orig) {
+        return *this;
+    }
+    dim = orig.dim;
+    size = orig.size;
+    pjm = orig.pjm;
+    moveCounter = orig.moveCounter;
+    dsboard = orig.dsboard;
+
+    return *this;
+}
+
+HexGameState& HexGameState::operator =(HexGameState&& orig){
+        if (this == &orig) {
+        return *this;
+    }
+    dim = orig.dim;
+    size = orig.size;
+    pjm = orig.pjm;
+    moveCounter = orig.moveCounter;
+    dsboard = std::move(orig.dsboard);
+
+    return *this;
+}
+
+HexGameState::~HexGameState() {
+    dsboard.clear();
+}
+#else
 HexGameState::HexGameState(int d) {
     dim = d;
     size = d*d;
@@ -67,20 +118,6 @@ HexGameState::~HexGameState() {
     lefPos.clear();
 }
 
-void HexGameState::Reset() {
-    pjm = WHITE; //In Hex, black plays first.
-    moveCounter = 0;
-    ClearBoard();
-}
-
-bool HexGameState::IsTerminal() {
-    if (moveCounter >= (2 * dim - 1) && (BLACK == EvaluateBoard(BLACK, TOPDOWN) || WHITE == EvaluateBoard(WHITE, LEFTRIGHT))) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
 /**
  * 
  * @param row 
@@ -106,11 +143,6 @@ void HexGameState::MakeBoard() {
         if (i % dim == 0)
             lefPos.push_back(i);
 
-}
-
-void HexGameState::ClearBoard() {
-    for (int pos = 0; pos < size; pos++)
-        ClearStone(pos);
 }
 
 void HexGameState::MakeEdges(int row, int col, vector<int>& eList) {
@@ -164,6 +196,26 @@ void HexGameState::MakeEdges(int row, int col, vector<int>& eList) {
         }
 
     }
+}
+#endif
+
+void HexGameState::Reset() {
+    pjm = WHITE; //In Hex, black plays first.
+    moveCounter = 0;
+    ClearBoard();
+}
+
+bool HexGameState::IsTerminal() {
+    if (moveCounter >= (2 * dim - 1) && (BLACK == EvaluateBoard(BLACK, TOPDOWN) || WHITE == EvaluateBoard(WHITE, LEFTRIGHT))) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void HexGameState::ClearBoard() {
+    for (int pos = 0; pos < size; pos++)
+        ClearStone(pos);
 }
 
 void HexGameState::SetMove(int pos) {

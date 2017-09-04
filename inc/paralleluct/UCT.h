@@ -89,16 +89,8 @@ public:
             _children.clear();
         }
 
-        /**
-         * Check if the children of a node is created.
-         * @return
-         */
-        bool IsParent() {
-            if (_untriedMoves >= 0)
-                return true;
-            return false;
-        }
 
+        
         /**
          * Check if all the children of a node is expanded.
          * @return 
@@ -110,11 +102,29 @@ public:
                 return true;
             return false;
         }
+        
+        /**
+         * Check if the children of a node is created.
+         * @return
+         */
+        bool IsParent() {
+            return _isParent;
+        }
 #else
 
         bool IsFullExpanded() {
             //std::lock_guard<std::mutex> lock(mtx1);
             if (_untriedMoves == 0)
+                return true;
+            return false;
+        }
+        
+        /**
+         * Check if the children of a node is created.
+         * @return
+         */
+        bool IsParent() {
+            if (_untriedMoves >= 0)
                 return true;
             return false;
         }
@@ -447,6 +457,9 @@ public:
     int NumPlayoutsRoot() {
         return roots[0]->GetVisits();
     }
+    int MaxDepth() {
+        return _maxSizePath;
+    }
 
     /*َUtility functions*/
     static bool SortChildern(NodePtr a, NodePtr b) {
@@ -510,6 +523,7 @@ private:
 #ifdef COARSELOCK
     std::mutex _mtxExpand;
 #endif
+    atomic<int> _maxSizePath;
 };
 
 

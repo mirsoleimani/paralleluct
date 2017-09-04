@@ -19,7 +19,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
                 exit(0);
             }
         }
-//        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
+        //        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
         for (int i = 0; i < plyOpt.nthreads; i++) {
             if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
                 std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
@@ -71,7 +71,8 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
         _localBestState.emplace_back(state);
         statistics.push_back(new TimeOptions());
-    }// </editor-fold>
+    }
+    _maxSizePath = 0;// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="fork">
     // <editor-fold defaultstate="collapsed" desc="sequential">
@@ -133,8 +134,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
             std::cerr << "No Intel compiler for cilk plus!\n";
             exit(0);
 #endif            
-        }
-        else {
+        } else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
         }
@@ -250,7 +250,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     }
     if (plyOpt.par == ROOTPAR) {
         for (unsigned int j = 1; j < roots.size(); j++) {
-            roots[0]->Update(roots[j]->GetWins(),roots[j]->GetVisits());
+            roots[0]->Update(roots[j]->GetWins(), roots[j]->GetVisits());
             for (unsigned int i = 0; i < roots[0]->_children.size(); i++) {
                 for (unsigned int k = 0; k < roots[j]->_children.size(); k++) {
                     if (roots[0]->_children[i]->_move == roots[j]->_children[k]->_move) {
@@ -329,22 +329,22 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
 
     /*the first node in the path is root node*/
     UCT<T>::Node* n = roots[tid._rid];
-    
+
     if (plyOpt.game == HORNER) {
         _score = state.GetResult(WHITE);
-    } else if (plyOpt.game == HEX){
+    } else if (plyOpt.game == HEX) {
         _score = 1;
     } else {
         assert(_score == 0 && "_score is not initialized!\n");
     }
-    
+
     //add virtual loss to root node
     if (plyOpt.virtualloss) {
-        n->Update(_score,1);
+        n->Update(_score, 1);
     }
-    
+
     path.push_back(n);
-    
+
     while (n->IsFullExpanded()) {
         // <editor-fold defaultstate="collapsed" desc="initializing">
         UCT<T>::Node* next = NULL;
@@ -365,7 +365,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
             float exploit = 0;
             if (plyOpt.game == HORNER) {
                 //_score = state.GetResult(WHITE);
-                assert(_score > 0&&"_score is not initialized!\n");
+                assert(_score > 0 && "_score is not initialized!\n");
                 exploit = _score / (wins / (float) (visits));
             } else if (plyOpt.game == HEX) {
                 exploit = wins / (float) (visits);
@@ -382,7 +382,7 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
         next = n->_children[index]; // </editor-fold>
 
         if (plyOpt.virtualloss) {
-            next->Update(_score,1);
+            next->Update(_score, 1);
         }
 
         // <editor-fold defaultstate="collapsed" desc="update path and state">
@@ -406,11 +406,13 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
     UCT<T>::Node* n = path.back();
     if (!state.IsTerminal()) {
         // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
-        vector<int> moves;
-        //set the number of untried moves for n based on the current state
-        state.GetMoves(moves);
-        RandomShuffle(moves.begin(), moves.end(), tId);
-        n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
+        if (!n->IsParent()) {
+            vector<int> moves;
+            //set the number of untried moves for n based on the current state
+            state.GetMoves(moves);
+            RandomShuffle(moves.begin(), moves.end(), tId);
+            n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
+        }
         // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="add new node child to n">
@@ -463,7 +465,7 @@ void UCT<T>::Backup(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
-//    int score = (*token)._score;
+    //    int score = (*token)._score;
 
     UCT<T>::Node* n = path.back();
     float rewardWhite = state.GetResult(WHITE);
@@ -474,9 +476,11 @@ void UCT<T>::Backup(Token* token) {
         assert("virtual loss is not implemented!");
     } else {
 #pragma simd
-        for (int i = 0; i < path.size(); i++)
+    for (int i = 0; i < path.size(); i++)
             path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
     }
+    if(path.size() > _maxSizePath)
+        _maxSizePath = path.size();
 #else
     while (n != NULL) {
         if (plyOpt.virtualloss) {
@@ -610,7 +614,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     GEN gen(gengine[sid], dist);
 #endif
 
-//    float reward = std::numeric_limits<float>::max();
+    //    float reward = std::numeric_limits<float>::max();
     TimeOptions* timeopt = statistics[sid];
     timeopt->nrand = 0;
     int itr = 0;
@@ -624,7 +628,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     timeopt->etime = 0;
     double time = 0.0;
 #endif
-    
+
     while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs &&
             itr < max &&
             !_finish) {
@@ -695,9 +699,9 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
             }
         }
         t->_state = rstate;
-        
+
 #else
-//        reward = lstate.GetResult(WHITE);
+        //        reward = lstate.GetResult(WHITE);
         //#ifdef COPYSTATE
         if (lstate.GetResult(WHITE) < plyOpt.bestreward) {
             //_bestState[t->_identity._id] = lstate;
@@ -768,7 +772,7 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
                 Backup(t);
                 if (plyOpt.game == HORNER) {
                     int reward = t->_state.GetResult(WHITE);
-                    int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+                            int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
                     if (reward < localBestReward) {
                         _localBestState[t->_identity._id] = t->_state;
                     }
@@ -786,12 +790,10 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
 
 // <editor-fold defaultstate="collapsed" desc="Printing">
 
-
 template <class T>
 void UCT<T>::Print(std::string fileName) {
     SaveDot(fileName);
 }
-
 
 template <class T>
 void UCT<T>::PrintStats_1(string& log1, double ttime) {
@@ -830,7 +832,8 @@ void UCT<T>::PrintStats_1(string& log1, double ttime) {
             setw(10) << (etime / (ttime))*100 << "," <<
             setw(10) << (ptime / (ttime))*100 << "," <<
             setw(10) << (btime / (ttime))*100 << "," <<
-            setw(10) << nrand << ",";
+            setw(10) << nrand << "," <<
+            setw(10) << _maxSizePath;
     log1 = buffer.str();
 }
 
@@ -851,7 +854,7 @@ void UCT<T>::SaveDot(std::string fileName) {
 
     int pId = 0;
     int gId = 0;
-    
+
     fout << "digraph UCT{\n";
     fout << NumToStr(gId)
             << "[ label = \"root\" ];\n";

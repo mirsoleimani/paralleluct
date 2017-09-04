@@ -17,6 +17,8 @@ public:
     virtual ~Parser();
     
     polynomial parseFile(const char* filename);
+    vector<vector<int>> MakeHexEdgeList(int d);
+    vector<int> MakeHexLeftPos(int d);
 private:
 
 };

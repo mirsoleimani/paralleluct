@@ -27,12 +27,16 @@ using namespace std;
 //#define NDEBUG
 #include <assert.h>
 
-//#define THREADPOOL
+#define THREADPOOL
 #ifdef THREADPOOL
 #include <boost/thread/thread.hpp>
 #include "threadpool.hpp"
 #include <boost/assert.hpp>
 #include <boost/asio.hpp>
+#include <boost/version.hpp>
+#if BOOST_VERSION < 105000
+#define TIME_UTC_ TIME_UTC
+#endif
 #endif
 
 #define MKLRNG
@@ -54,14 +58,14 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 //#define COARSELOCK
 
 //#define COPYSTATE
-//#define VECTORIZEDBACKUP
+#define VECTORIZEDBACKUP
 
 #define POS(i,j,dim) i*dim+j       
 #define MAX(n,m) ((n)>(m)?(n):(m))
 
 #define NSTREAMS 6024
 static const int MAXNUMSTREAMS = 6024;
-static const int MAXRNGBUFSIZE = 1024;
+static const int MAXRNGBUFSIZE = 64000;
 static const int MAXRAND_N = 10000;
 static const int SIMDALIGN = 64;
 static const int NTHREADS = 244;
@@ -80,7 +84,12 @@ typedef int MOVE;
 typedef std::vector<int> term;
 typedef std::vector<term> polynomial;
 static vector<vector<int>> _poly;
-
+#define HEXSTATICBOARD
+#ifdef HEXSTATICBOARD
+static vector<vector<int>> edges;
+static vector<int> lefPos;
+#endif
+        
 enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
 enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR};
 enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};

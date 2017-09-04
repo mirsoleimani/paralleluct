@@ -432,6 +432,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
     std::vector<vector<int>> nplayouts(optplya.nmoves);
     std::vector<vector<int>> reward(optplya.nmoves);
     std::vector<vector<double>> time(optplya.nmoves);
+    std::vector<vector<int>> maxDepth(optplya.nmoves);
     string ply = "none";
     string black;
     string white;
@@ -444,7 +445,8 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
     int move = 0;
     int i = 0;
     char buffer[100];
-
+    int depth = 0;
+    
     if (twoPly) {
         vector<unsigned int> seeda(optplya.nthreads);
         vector<unsigned int> seedb(optplyb.nthreads);
@@ -494,6 +496,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                         << setw(10) << "playout(%)" << ","
                         << setw(10) << "backup(%)" << ","
                         << setw(10) << "nrandvec" << ","
+                        << setw(10) << "maxDepth" << ","
                         << setw(10) << "move" << endl;               
             }
             if (verbose == 3) {
@@ -536,13 +539,13 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                         //__cilkview_query(d);
                         bestState = plya.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
-
+                        depth = plya.MaxDepth();
                     } else {
 
                         //__cilkview_query(d);
                         bestState = plyb.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
-
+                        depth = plyb.MaxDepth();
                     }
                 } else {
                     ply = black;
@@ -552,12 +555,13 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                         //__cilkview_query(d);
                         bestState = plya.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
-
+                        depth = plya.MaxDepth();
                     } else {
 
                         //__cilkview_query(d);
                         bestState = plyb.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
+                        depth = plyb.MaxDepth();
                     }
                 }
 
@@ -579,6 +583,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     //nplayouts[j].push_back(plya.NumPlayoutsRoot());
                     //reward[j].push_back(bestState.GetResult(WHITE));
                     time[j].push_back(ttime);
+                    maxDepth[j].push_back(depth);
                 }
                 j++;
             }
@@ -672,6 +677,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                         << setw(10) << "backup(%)" << ","
                         << setw(10) << "nrandvec" << ","
                         << setw(10) << "move" << ","
+                        << setw(10) << "maxDepth" << ","
                         << setw(10) << "reward" << endl;
             }
             if (verbose == 3) {
@@ -800,7 +806,18 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     << setw(10) << getStdDev(itr) << ","
                     << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
                     << setw(10) << i++ << std::endl;
-        }
+        }        
+        std::cout << "# avg(maxDepth)" << ","
+                << setw(10) << "std(maxDepth)" << ","
+                << setw(10) << "err(maxDepth)" << ","
+                << "move no." << std::endl;
+        i = 0;
+        for (auto itr : maxDepth) {
+            std::cout << setw(10) << getAverage(itr) << ","
+                    << setw(10) << getStdDev(itr) << ","
+                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
+                    << setw(10) << i++ << std::endl;
+        }        
         cout << setw(6) << "# player" << ","
                 << setw(10) << "wins(%)" << ","
                 << setw(10) << "wins" << ","
@@ -1188,9 +1205,25 @@ int main(int argc, char** argv) {
         if(optplya.nmoves == 0){
             optplya.nmoves = d*d;
         }
+#ifdef HEXSTATICBOARD        
+        Parser parser;
+        vector<vector<int>> edgeList = parser.MakeHexEdgeList(d);
+        vector<int> leftPoslist = parser.MakeHexLeftPos(d);
+        HexGameState state(d,edgeList,leftPoslist);
+#else    
 //                HexGameState state(d);
 //                UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
                 HexGameState state(d);
+#endif
+                cout<<"begin warm up"<<endl;
+                PlyOptions optplyc, optplyd;
+                HexGameState warmupState(state);
+                optplyc = optplya;
+                optplyd = optplyb;
+                optplyc.nsims=100;
+                optplyd.nsims=100;
+                UCTPlayGame<HexGameState>(warmupState, optplyc, optplyd, 1, 1, swap, 1, 1);
+                cout<<"end warm up"<<endl;
         UCTPlayGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);

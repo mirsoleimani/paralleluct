@@ -23,7 +23,11 @@ struct BItem{
 class HexGameState {
 public:
     HexGameState();
+#ifdef HEXSTATICBOARD
+    HexGameState(int d,vector<vector<int>> eList, vector<int> lpList);
+#else
     HexGameState(int d);
+#endif
     HexGameState(const HexGameState& orig);
     HexGameState& operator=(const HexGameState& orig);
     HexGameState& operator =(HexGameState&& orig);
@@ -42,8 +46,10 @@ public:
     void PrintDSet();
     void PrintDSet2(int pos);
 
+#ifndef HEXSTATICBOARD
     void MakeBoard();
     void MakeEdges(int row, int col, vector<int>& eList);
+#endif
     float GetValue();
     int MoveValue();
     void ClearBoard();
@@ -70,10 +76,12 @@ public:
     //int CurrIndicator();
     
 private:
-    
+#ifndef HEXSTATICBOARD
     vector< vector<int> > edges;
-    vector<BItem> dsboard;      //the board for using disjoint set data structure
     vector<int> lefPos;
+#endif
+    vector<BItem> dsboard;      //the board for using disjoint set data structure
+
     int dim;
     int size;
     int pjm;
