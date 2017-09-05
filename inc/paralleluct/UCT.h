@@ -474,6 +474,7 @@ public:
             /*The first call to NextUniformInt or _dRNGBuf has been completely used*/
             /* Generate double-precision uniforms from [0;1) */
             viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, _stream[tid._id], MAXRNGBUFSIZE, (int*)_iRNGBuf[tid._id], 0, RAND_MAX);
+            statistics[tid._id]->nrand++;
         }
 
         /* Return next random integer from buffer */
@@ -515,7 +516,7 @@ private:
     float _score;
 #ifdef MKLRNG
     VSLStreamStatePtr _stream[MAXNUMSTREAMS]; /* Each token is associated with an unique stream*/
-    unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
+//    unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
 #else
     std::vector<ENG> gengine;
 #endif

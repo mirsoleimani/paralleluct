@@ -958,6 +958,38 @@ static void ShowUsage(std::string name) {
             << endl;
 }
 
+void CreateRNGBuffers() {
+    cout<<"Initializing RNG buffers ...\n";
+    for (int i = 0; i < MAXNUMSTREAMS/*plyOpt.nthreads*/; i++) {
+        if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
+            std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "!\n";
+            exit(0);
+        }
+    }
+    
+    VSLStreamStatePtr stream[MAXNUMSTREAMS];
+    for (int i = 0; i < MAXNUMSTREAMS; i++) {
+        /* Each RNG stream will produce RNG sequence inspite of same seed used */
+        if ((vslNewStream(&stream[i], VSL_BRNG_MT2203 + i, 777)) != VSL_STATUS_OK) {
+            std::cerr << "MKLRNG: Stream initialization failed for stream " << i << "!\n";
+            exit(0);
+        }
+        viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, stream[i], MAXRNGBUFSIZE, (int*)_iRNGBuf[i], 0, RAND_MAX);
+    }
+    mkl_free_buffers();
+    for (int i = 0; i < MAXNUMSTREAMS; i++) {
+        vslDeleteStream(&stream[i]);
+    }
+}
+
+void DistroyRNGBuffers() {
+    cout<<"Free RNG buffers ...\n";
+    mkl_free_buffers();
+    for (int i = 0; i < MAXNUMSTREAMS; i++) {
+        mkl_free(_iRNGBuf[i]);
+    }
+}
+
 int main(int argc, char** argv) {
 
     int b = 4, d = 6, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
@@ -967,7 +999,7 @@ int main(int argc, char** argv) {
     char* threadlib=const_cast<char*>("");
     char* fileName=const_cast<char*>("");
     PlyOptions optplya, optplyb;
-
+    CreateRNGBuffers(); 
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
     while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:l:")) != -1) {
         switch (opt) {
@@ -1197,7 +1229,7 @@ int main(int argc, char** argv) {
 
     for (int index = optind; index < argc; index++)
         printf("Non-option argument %s\n", argv[index]); // </editor-fold>
-
+    
     // <editor-fold defaultstate="collapsed" desc="play game">
     if (optplya.game == HEX) {
         optplya.twoply=1;
@@ -1220,8 +1252,10 @@ int main(int argc, char** argv) {
                 HexGameState warmupState(state);
                 optplyc = optplya;
                 optplyd = optplyb;
-                optplyc.nsims=100;
-                optplyd.nsims=100;
+                optplyc.nsims=256000;
+                optplyd.nsims=250000;
+                optplyc.nthreads = 4096;
+                optplyd.nthreads = 4096;
                 UCTPlayGame<HexGameState>(warmupState, optplyc, optplyd, 1, 1, swap, 1, 1);
                 cout<<"end warm up"<<endl;
         UCTPlayGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
@@ -1256,6 +1290,6 @@ int main(int argc, char** argv) {
     //TODO a new method to get input from user is required. 
 
     //NegamaxPlayGame(state,b,d,1,1,seed,false);// </editor-fold>
-
+    DistroyRNGBuffers();
     return 0;
 }

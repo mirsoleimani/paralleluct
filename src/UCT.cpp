@@ -20,12 +20,12 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
             }
         }
         //        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
-                std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
-                exit(0);
-            }
-        }
+//        for (int i = 0; i < plyOpt.nthreads; i++) {
+//            if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
+//                std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
+//                exit(0);
+//    }
+//        }
     }
 #else 
     for (int i = 0; i < plyOpt.nthreads; i++)
@@ -41,12 +41,12 @@ UCT<T>::UCT(const UCT<T>& orig) {
 
 template <class T>
 UCT<T>::~UCT() {
-
+    cout<<"distruct uct\n";
 #ifdef MKLRNG
     mkl_free_buffers();
     for (int i = 0; i < plyOpt.nthreads; i++) {
         vslDeleteStream(&_stream[i]);
-        mkl_free(_iRNGBuf[i]);
+//        mkl_free(_iRNGBuf[i]);
     }
 #endif
 }
@@ -620,7 +620,8 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     int itr = 0;
     //TODO is it thread safe to calculate max here?
     float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
-    int max = ceil(nsims);
+    //cout<<"nsimulation"<<nsims;
+    int max = (int)(nsims+0.5);
 #ifdef TIMING
     timeopt->stime = 0;
     timeopt->btime = 0;
@@ -629,9 +630,10 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
     double time = 0.0;
 #endif
 
-    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs &&
-            itr < max &&
-            !_finish) {
+//    while ((timeopt->ttime = tmr.elapsed()) < plyOpt.nsecs &&
+//            itr < max &&
+//            !_finish) {
+    while(itr<max){
 #ifndef MKLRNG
         n = roots[rid];
         assert(n != NULL && "Root of the tree is zero!\n");

@@ -40,7 +40,10 @@ using namespace std;
 #endif
 
 #define MKLRNG
-#ifndef MKLRNG
+#ifdef MKLRNG
+#define NSTREAMS 6024
+static unsigned int* _iRNGBuf[NSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
+#else
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
@@ -50,7 +53,7 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 #endif
 
 //#define CILKSELECT
-//#define TIMING
+#define TIMING
 #define MAXNUMVISITS
 
 #define LOCKFREE
@@ -63,9 +66,9 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 #define POS(i,j,dim) i*dim+j       
 #define MAX(n,m) ((n)>(m)?(n):(m))
 
-#define NSTREAMS 6024
-static const int MAXNUMSTREAMS = 6024;
-static const int MAXRNGBUFSIZE = 64000;
+
+static const int MAXNUMSTREAMS = NSTREAMS;
+static const int MAXRNGBUFSIZE = 1 << 16; //2^n
 static const int MAXRAND_N = 10000;
 static const int SIMDALIGN = 64;
 static const int NTHREADS = 244;
