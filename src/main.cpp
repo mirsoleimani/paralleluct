@@ -337,11 +337,11 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
             //            if(optplya.cp > 0.1){
             //            optplya.cp=optplya.cp-0.1;
             //            }
-            if (i > 0) {
+            //if (i > 0) {
                 nplayouts[j].push_back(plya.NumPlayoutsRoot());
                 reward[j].push_back(bestState.GetResult(WHITE));
                 time[j].push_back(ttime);
-            }
+            //}
             j++;
         }
         state.Evaluate();
@@ -725,11 +725,11 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                 //            if(optplya.cp > 0.1){
                 //            optplya.cp=optplya.cp-0.1;
                 //            }
-                if (i > 0) {
+                //if (i > 0) {
                     nplayouts[j].push_back(plya.NumPlayoutsRoot());
                     reward[j].push_back(bestState.GetResult(WHITE));
                     time[j].push_back(ttime);
-                }
+                //}
                 j++;
             }
             state.Evaluate();
