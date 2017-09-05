@@ -1247,17 +1247,7 @@ int main(int argc, char** argv) {
 //                UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
                 HexGameState state(d);
 #endif
-                cout<<"begin warm up"<<endl;
-                PlyOptions optplyc, optplyd;
-                HexGameState warmupState(state);
-                optplyc = optplya;
-                optplyd = optplyb;
-                optplyc.nsims=256000;
-                optplyd.nsims=250000;
-                optplyc.nthreads = 4096;
-                optplyd.nthreads = 4096;
-                UCTPlayGame<HexGameState>(warmupState, optplyc, optplyd, 1, 1, swap, 1, 1);
-                cout<<"end warm up"<<endl;
+
         UCTPlayGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
     } else if (optplya.game == PGAME) {
         //        PGameState state(b, d, 0x80, seed);

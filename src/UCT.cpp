@@ -18,6 +18,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
                 std::cerr << "MKLRNG: Stream initialization failed for stream " << i << "!\n";
                 exit(0);
             }
+            viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, _stream[i], MAXRNGBUFSIZE, (int*)_iRNGBuf[i], 0, RAND_MAX);
         }
         //        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
 //        for (int i = 0; i < plyOpt.nthreads; i++) {

@@ -68,7 +68,7 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 
 
 static const int MAXNUMSTREAMS = NSTREAMS;
-static const int MAXRNGBUFSIZE = 1 << 16; //2^n
+static const int MAXRNGBUFSIZE = 1 << 10; //2^n
 static const int MAXRAND_N = 10000;
 static const int SIMDALIGN = 64;
 static const int NTHREADS = 244;

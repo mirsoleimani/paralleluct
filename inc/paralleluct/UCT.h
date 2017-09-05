@@ -385,9 +385,9 @@ public:
     
     struct Identity{
     public:
-        Identity():_id(0),_rid(0),_index(0){}
-        Identity(int id):_id(id),_rid(0),_index(0){}
-        Identity(int id,int rid):_id(id),_rid(rid),_index(0){}
+        Identity():_id(0),_rid(0),_index(MAXRNGBUFSIZE){}
+        Identity(int id):_id(id),_rid(0),_index(MAXRNGBUFSIZE){}
+        Identity(int id,int rid):_id(id),_rid(rid),_index(MAXRNGBUFSIZE){}
         Identity& operator=(const Identity& orig){
             if(this == &orig){
                 return *this;
