@@ -461,6 +461,9 @@ public:
             /*The first call to NextUniformInt or _dRNGBuf has been completely used*/
             /* Generate double-precision uniforms from [0;1) */
             viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, _stream[tid._id], MAXRNGBUFSIZE, (int*)_iRNGBuf[tid._id], 0, RAND_MAX);
+#ifdef COUNTNRANDVEC
+            statistics[tid._id]->nrand++;
+#endif
         }
 
         /* Return next random integer from buffer */

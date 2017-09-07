@@ -47,6 +47,7 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 
 //#define CILKSELECT
 //#define TIMING
+#define COUNTNRANDVEC   //counting the number of generated random buffers.
 #define MAXNUMVISITS
 
 #define LOCKFREE
