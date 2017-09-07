@@ -448,7 +448,7 @@ public:
         return roots[0]->GetVisits();
     }
 
-    /*َUtility functions*/
+    /*Utility functions*/
     static bool SortChildern(NodePtr a, NodePtr b) {
         return (b->_move > a->_move);
     }
