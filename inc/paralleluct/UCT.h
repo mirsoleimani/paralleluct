@@ -404,7 +404,7 @@ public:
         ~Token() {
             _path.clear();
         }
-
+        unsigned int _iRNGBuf[MAXRNGBUFSIZE];
         Identity _identity;
         T _state;
         vector<Node*> _path;
@@ -453,23 +453,23 @@ public:
         return (b->_move > a->_move);
     }
 #ifdef MKLRNG
-    inline unsigned int NextUniformInt(Identity& tid) {
+    inline unsigned int NextUniformInt(Token& t) {
 
-#define IRNGBUF (*_iRNGBuf)
+//#define IRNGBUF (*_iRNGBuf)
         unsigned int i;
-        if (tid._index == 0) {
+        if (t._identity._index == 0) {
             /*The first call to NextUniformInt or _dRNGBuf has been completely used*/
             /* Generate double-precision uniforms from [0;1) */
-            viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, _stream[tid._id], MAXRNGBUFSIZE, (int*)_iRNGBuf[tid._id], 0, RAND_MAX);
+            viRngUniform(VSL_RNG_METHOD_UNIFORM_STD, _stream[t._identity._id], MAXRNGBUFSIZE, (int*) t._iRNGBuf, 0, RAND_MAX);
         }
 
         /* Return next random integer from buffer */
-        i = IRNGBUF[tid._index];
-        tid._index = tid._index + 1;
+        i = t._iRNGBuf[t._identity._index];
+        t._identity._index = t._identity._index + 1;
 
         /* Check if buffer has been completely used */
-        if (tid._index == MAXRNGBUFSIZE)
-            tid._index = 0;
+        if (t._identity._index == MAXRNGBUFSIZE)
+            t._identity._index = 0;
         return i;
         
     }
@@ -480,12 +480,12 @@ public:
      * @param last
      */
     template <class RandomAccessIterator>
-    inline void RandomShuffle(RandomAccessIterator first, RandomAccessIterator last, Identity& tid) {
+    inline void RandomShuffle(RandomAccessIterator first, RandomAccessIterator last, Token& t) {
         int i;
         int n;
         n = (last - first);
         for (i = n - 1; i > 0; --i){
-            swap(first[i], first[ NextUniformInt(tid) % (i + 1)]);
+            swap(first[i], first[ NextUniformInt(t) % (i + 1)]);
         }
     }
 #endif 
@@ -502,7 +502,7 @@ private:
     float _score;
 #ifdef MKLRNG
     VSLStreamStatePtr _stream[MAXNUMSTREAMS]; /* Each token is associated with an unique stream*/
-    unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
+//    unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
 #else
     std::vector<ENG> gengine;
 #endif

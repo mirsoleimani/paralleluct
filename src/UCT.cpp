@@ -20,12 +20,12 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
             }
         }
 //        int RNGBUFSIZE = 1024; //TODO buffer size should be dynamic based on number of moves
-        for (int i = 0; i < plyOpt.nthreads; i++) {
-            if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
-                std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
-                exit(0);
-            }
-        }
+//        for (int i = 0; i < plyOpt.nthreads; i++) {
+//            if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
+//                std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
+//                exit(0);
+//            }
+//        }
     }
 #else 
     for (int i = 0; i < plyOpt.nthreads; i++)
@@ -46,7 +46,7 @@ UCT<T>::~UCT() {
     mkl_free_buffers();
     for (int i = 0; i < plyOpt.nthreads; i++) {
         vslDeleteStream(&_stream[i]);
-        mkl_free(_iRNGBuf[i]);
+        //mkl_free(_iRNGBuf[i]);
     }
 #endif
 }
@@ -407,7 +407,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         vector<int> moves;
         //set the number of untried moves for n based on the current state
         state.GetMoves(moves);
-        RandomShuffle(moves.begin(), moves.end(), tId);
+        RandomShuffle(moves.begin(), moves.end(), t);
         n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
         // </editor-fold>
 
@@ -434,7 +434,7 @@ typename UCT<T>::Token* UCT<T>::Playout(Token* token) {
     vector<int> moves;
     state.GetPlayoutMoves(moves);
     //std::random_shuffle(moves.begin(), moves.end());
-    RandomShuffle(moves.begin(), moves.end(), tId);
+    RandomShuffle(moves.begin(), moves.end(), t);
     //TODO it is just for test not thread safe// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="perform a simulation until a terminal state is reached, then evaluate">

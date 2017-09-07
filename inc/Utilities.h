@@ -60,6 +60,7 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 #define MAX(n,m) ((n)>(m)?(n):(m))
 
 #define NSTREAMS 6024
+static unsigned int* _iRNGBuf[NSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
 static const int MAXNUMSTREAMS = 6024;
 static const int MAXRNGBUFSIZE = 1024;
 static const int MAXRAND_N = 10000;

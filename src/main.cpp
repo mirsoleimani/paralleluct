@@ -911,7 +911,22 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 //    //cout<<"player 1 wins:"<<pl1wins<<" Player 2 wins:"<<pl2wins<<endl;
 //}
 // </editor-fold>
-
+//void CreateRNGBuffers() {
+//    cout<<"Creating RNG buffers ...\n";
+//    for (int i = 0; i < MAXNUMSTREAMS; i++) {
+//        if (!(_iRNGBuf[i] = (unsigned int*) mkl_malloc(sizeof (unsigned int)*MAXRNGBUFSIZE, SIMDALIGN))) {
+//            std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
+//            exit(0);
+//        }
+//        std::memset(_iRNGBuf[i], 0, MAXRNGBUFSIZE);        
+//    }
+//}
+//void DestroyRNGBuffers() {
+//    cout<<"Destroying RNG buffers ...\n";
+//    for (int i = 0; i < MAXNUMSTREAMS; i++) {
+//        mkl_free(_iRNGBuf[i]);
+//    }
+//}
 static void ShowUsage(std::string name) {
     cerr << "Usage: " << name << " <option(s)> \n"
             << "Options:\n"
@@ -942,7 +957,7 @@ static void ShowUsage(std::string name) {
 }
 
 int main(int argc, char** argv) {
-
+//    CreateRNGBuffers();
     int b = 4, d = 6, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
     char* game=const_cast<char*>("");
     char* par_a=const_cast<char*>("");
@@ -1223,6 +1238,6 @@ int main(int argc, char** argv) {
     //TODO a new method to get input from user is required. 
 
     //NegamaxPlayGame(state,b,d,1,1,seed,false);// </editor-fold>
-
+//    DestroyRNGBuffers();
     return 0;
 }
