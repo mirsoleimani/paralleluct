@@ -6,6 +6,7 @@
  */
 
 #include <cstdlib>
+#include <valarray>
 #include "paralleluct/UCT.h"
 #include "paralleluct/state/PGameState.h"
 #include "paralleluct/state/HexState.h"
@@ -295,8 +296,8 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
 
         UCT<T> plya(optplya, verbose, seeda);
         int j = 0;
-        T bestState;
-        while (!state.IsTerminal()&& j < optplya.nmoves) {
+        T bestState(state);
+        while (!state.IsTerminal()&& j < optplya.nmoves && bestState.GetResult(WHITE) > optplya.bestreward) {
             if (verbose) {
                 cout << setw(9) << j << ",";
             }
@@ -915,57 +916,119 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 static void ShowUsage(std::string name) {
     cerr << "Usage: " << name << " <option(s)> \n"
             << "Options:\n"
-            //<< "\t-x\t\tThe game to play (default=0,Hex=1,P-Game=2,Horner=3,15-puzzle=4)\n"
-            << "\t-p\t\tThe game to play (default=0,hex=1,p-Game=2,horner=3,15-puzzle=4)\n"
+            << "\t-p\t\tThe game to play (default=none,hex=1,p-game=2,horner=3,gem-puzzle=4)\n"
             << "\t-b\t\tBreath of the tree\n"
             << "\t-d\t\tDepth of the tree or dimension of the board\n"
-            << "\t-o\t\tMax number of playouts(default=5000) for player a\n"
-            << "\t-t\t\tMax number of playouts(default=5000) for player b\n"
+            << "\t-o\t\tMax number of playouts for player a (default=1048576) \n"
+            << "\t-t\t\tMax number of playouts for player b (default=1048576)\n"
             << "\t-n\t\tNumber of repeats\n"
-            << "\t-m\t\tNumber of threads(default=1) for player a\n"
-            << "\t-q\t\tNumber of threads(default=1) for player b\n"
-            << "\t-y\t\tParallel method(default=0 tree=1,root=2) for player a\n"
-            << "\t-w\t\tParallel method(default=0 tree=1,root=2) for player b\n"
-            << "\t-x\t\tNumber of seconds(default=1) for player a\n"
-            << "\t-z\t\tNumber of seconds(default=1) for player b\n"
-            << "\t-e\t\tThe value of cp(default=0) for player a\n"
-            << "\t-f\t\tThe value of cp(default=0) for player b\n"
-            << "\t-v\t\tShow the output on screen(default=0,save search tree in dot=3)\n"
+            << "\t-m\t\tNumber of threads for player a (default=1) \n"
+            << "\t-q\t\tNumber of threads for player b (default=1)\n"
+            << "\t-y\t\tParallel method for player a (default=sequential, tree=1, root=2, pipeline=3)\n"
+            << "\t-w\t\tParallel method for player b (default=sequential, tree=1, root=2, pipeline=3)\n"
+            << "\t-x\t\tNumber of seconds for player a (default=1)\n"
+            << "\t-z\t\tNumber of seconds for player b (default=1)\n"
+            << "\t-e\t\tThe value of cp for player a (default=1)\n"
+            << "\t-f\t\tThe value of cp for player b (default=1)\n"
+            << "\t-v\t\tShow the output on screen(default=0,save search tree in file=3)\n"
 //            << "\t-s\t\tSeed to be used by random number generator\n"
-            << "\t-r\t\tThreading runtime for both players (default=0 c++11=1, boost threadpool=2, cilk_spawn=2, Tbb_taskgroup=4, cilk_for=5)\n"
-            << "\t-a\t\tNumber of moves in a game\n"
-            << "\t-c\t\tswap rule(default=1,turn off set to 0)\n"
-            << "\t-l\t\tvirtual loss(default=0,turn on set to 1)\n"
-            //<< "\t-j\t\tHorner(3),15puzzle(4)\n"
+            << "\t-r\t\tThreading runtime for both players (default=none c++11=1, boost threadpool=2, cilk_spawn=2, Tbb_taskgroup=4, cilk_for=5, tbb_sps_pipeline=6)\n"
+            << "\t-a\t\tNumber of moves in the game\n"
+            << "\t-c\t\tswap rule(default=on, off=0)\n"
+            << "\t-l\t\tvirtual loss(default=off, on=1)\n"
             << "\t-i\t\tInput file\n"
+            << "\t-k\t\tLocking method(default=lock-free,fine-lock=1,coarse-lock=2)\n"
             << endl;
+}
+
+void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
+    int w = 10;
+    cout << "# start metadata\n";
+    std::cout << setw(3) << right << "ply" << ","
+            << setw(10) << right << "game" << ","
+            << setw(10) << right << "input" << ","
+            << setw(10) << right << "nplayouts" << ","
+            << setw(10) << right << "nthreads" << ","
+            << setw(10) << right << "nsecs" << ","
+            << setw(10) << right << "nrepeats" << ","
+            << setw(10) << right << "par" << ","
+            << setw(15) << right << "threadlib" << ","
+            << setw(10) << right << "cp" << ","
+            << setw(10) << right << "virtualloss" << ","
+            << setw(10) << right << "locking" << ","
+            << setw(6) << right << ((optplya.game == GAME::PGAME) ? ("depth,") : "")
+            << setw(7) << right << ((optplya.game == GAME::PGAME) ? ("breath,") : "")
+            << setw(5) << right << ((optplya.game == GAME::HEX) ? ("dim") : "")
+    << "\n";
+    std::cout << setw(3) << right << "a" << ","
+            << setw(10) << right << GAMENAME[optplya.game] << ","
+            << setw(10) << right << optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) << ","
+            << setw(10) << right << optplya.nsims << ","
+            << setw(10) << right << optplya.nthreads << ","
+            << setw(10) << right << optplya.nsecs << ","
+            << setw(10) << right << optplya.ngames << ","
+            << setw(10) << right << PARMETHODNAME[optplya.par] << ","
+            << setw(15) << right << THREADLIBNAME[optplya.threadruntime] << ","
+            << setw(10) << right << optplya.cp << ","
+            << setw(10) << right << optplya.virtualloss << ","
+            << setw(10) << right << LOCKMETHODNAME[optplya.locking] << ","
+            << setw(6) << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.depth)+"," : "") 
+            << setw(7) << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.breath)+"," : "")
+            << setw(5) << right << ((optplya.game == GAME::HEX) ? NumToStr(optplya.dim) : "")
+    << "\n";
+    std::cout << setw(3) << right << "b" << ","
+            << setw(10) << right << GAMENAME[optplyb.game] << ","
+            << setw(10) << right << optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) << ","
+            << setw(10) << right << optplyb.nsims << ","
+            << setw(10) << right << optplyb.nthreads << ","
+            << setw(10) << right << optplyb.nsecs << ","
+            << setw(10) << right << optplyb.ngames << ","
+            << setw(10) << right << PARMETHODNAME[optplyb.par] << ","
+            << setw(15) << right << THREADLIBNAME[optplyb.threadruntime] << ","
+            << setw(10) << right << optplyb.cp << ","
+            << setw(10) << right << optplyb.virtualloss << ","
+            << setw(10) << right << LOCKMETHODNAME[optplyb.locking] << ","
+            << setw(6) << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.depth)+"," : "")
+            << setw(7) << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.breath)+"," : "")
+            << setw(5) << right << ((optplyb.game == GAME::HEX) ? NumToStr(optplyb.dim) : "")
+    << "\n";
+    cout << "# end metadata\n";
 }
 
 int main(int argc, char** argv) {
 
-    int b = 4, d = 6, ngames = 1, vflag = 0, nmoves = 99999, swap = 1,opt=0,hflag=0;
-    char* game=const_cast<char*>("");
-    char* par_a=const_cast<char*>("");
-    char* par_b=const_cast<char*>("");
-    char* threadlib=const_cast<char*>("");
-    char* fileName=const_cast<char*>("");
+    int opt=0,hflag=0;
     PlyOptions optplya, optplyb;
-
+              
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
-    while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:l:k:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
                 break;
             case 'p':
-                optplya.game=atoi(optarg);
-                optplyb.game=atoi(optarg);
+                if (GAME::NOGAME < atoi(optarg) & atoi(optarg) < GAME::LASTGAME) {
+                    optplya.game = atoi(optarg);
+                    optplyb.game = atoi(optarg);
+                } else {
+                    std::cerr << "ERROR:(-p) No game is specified to be played!\n";
+                    exit(0);
+                }
                 break;
             case 'b':
-                b = atoi(optarg);
+                if(optplya.game == GAME::PGAME){                    
+                    optplya.breath = atoi(optarg);
+                    optplyb.breath = atoi(optarg);
+                }
                 break;
             case 'd':
-                d = atoi(optarg);
+                if(optplya.game == GAME::PGAME){
+                    optplya.depth = atoi(optarg);
+                    optplyb.depth = atoi(optarg);
+                } else if (optplya.game == GAME::HEX){
+                    optplya.dim = atoi(optarg);
+                    optplyb.dim = atoi(optarg);
+                }
                 break;
             case 'o':
                 if (atoi(optarg) > 1) {
@@ -979,7 +1042,7 @@ int main(int argc, char** argv) {
                 if (atoi(optarg) > 1) {
                     optplyb.nsims = atoi(optarg);
                 } else {
-                    std::cerr << "ERROR:(-o) number of playouts should be more than 1.\n";
+                    std::cerr << "ERROR:(-t) number of playouts should be more than 1.\n";
                     exit(0);
                 }
                 break;
@@ -990,12 +1053,20 @@ int main(int argc, char** argv) {
                 optplyb.nthreads = atoi(optarg);
                 break;
             case 'y':
-                if (0 < atoi(optarg) && atoi(optarg) < 4)
+                if (THREADLIB::NONE < atoi(optarg) && atoi(optarg) < THREADLIB::LASTTHREADLIB){
                     optplya.par = atoi(optarg);
+                } else {
+                    std::cerr << "ERROR:(-y) No runtime thread library is specified!\n";
+                    exit(0);
+                }
                 break;
             case 'w':
-                if (0 < atoi(optarg) && atoi(optarg) < 4)
+                if ( THREADLIB::NONE < atoi(optarg) && atoi(optarg) < THREADLIB::LASTTHREADLIB){
                     optplyb.par = atoi(optarg);
+                } else {
+                    std::cerr << "ERROR:(-w) No runtime thread library is specified!\n";
+                    exit(0);
+                }
                 break;
             case 'x':
                 if (0 < atoi(optarg))
@@ -1006,10 +1077,12 @@ int main(int argc, char** argv) {
                     optplyb.nsecs = atoi(optarg);
                 break;
             case 'n':
-                ngames = atoi(optarg);
+                optplya.ngames = atoi(optarg);
+                optplyb.ngames = atoi(optarg);
                 break;
             case 'v':
-                vflag = atoi(optarg);
+                optplya.verbose = atoi(optarg);
+                optplyb.verbose = atoi(optarg);
                 break;
 //            case 's':
 //                seed = atoi(optarg);
@@ -1025,19 +1098,34 @@ int main(int argc, char** argv) {
                 optplyb.threadruntime=atoi(optarg);
                 break;
             case 'a':
-                nmoves = atoi(optarg);
-                optplya.nmoves = atoi(optarg);
-                optplyb.nmoves = atoi(optarg);
+                if (atoi(optarg) > 0) {
+                    optplya.nmoves = atoi(optarg);
+                    optplyb.nmoves = atoi(optarg);
+                } else {
+                    std::cerr << "Can not run a game with zero moves\n";
+                    exit(0);
+                }
                 break;
             case 'c':
-                swap = atoi(optarg);
+                optplya.swap = atoi(optarg);
+                optplyb.swap = atoi(optarg);
                 break;
             case 'i':
-                fileName = const_cast<char*>(optarg);
+                optplya.fileName=optarg;
+                optplyb.fileName=optarg;
                 break;
             case 'l':
                 optplya.virtualloss = atoi(optarg);
                 optplyb.virtualloss = atoi(optarg);
+                break;
+            case 'k':
+                if(-1 < atoi(optarg) && atoi(optarg)<LOCKMETHOD::LASTLOCKMETHOD){
+                    optplya.locking = atoi(optarg);
+                    optplyb.locking = atoi(optarg);
+                } else {
+                    std::cerr << "The locking method is not supported.\n";
+                    exit(0);
+                }
                 break;
             case '?':
                 if (optopt == 'g' || optopt == 'b' || optopt == 'd' || optopt == 'n' || optopt == 's')
@@ -1058,126 +1146,26 @@ int main(int argc, char** argv) {
         ShowUsage(argv[0]);
         exit(1);
     }
-
-    switch (optplya.game) {
-        case 1:
-            game = const_cast<char*>("hex");
-            break;
-        case 2:
-            game = const_cast<char*>("p-game");
-            break;
-        case 3:
-            game = const_cast<char*>("horner");
-            break;
-        case 4:
-            game = const_cast<char*>("15-puzzle");
-            break;
-        default:
-            std::cerr << "No game is specified to be played!\n";
-    }
-
-    switch (optplya.par) {
-        case TREEPAR:
-            par_a = const_cast<char*>("tree");
-            break;
-        case ROOTPAR:
-            par_a = const_cast<char*>("root");
-            break;
-        case PIPEPAR:
-            par_a = const_cast<char*>("pipe");
-            break;
-        default:
-            par_a = const_cast<char*>("seq");
-            break;
-    }
-    
-        switch (optplyb.par) {
-        case TREEPAR:
-            par_b = const_cast<char*> ("tree");
-            break;
-        case ROOTPAR:
-            par_b = const_cast<char*> ("root");
-            break;
-        case PIPEPAR:
-            par_a = const_cast<char*> ("pipe");
-            break;
-        default:
-            par_b = const_cast<char*> ("seq");
-            break;
-    }
-
     if (optplya.par == SEQUENTIAL) {
         optplya.nthreads = 1;
     }
     if (optplyb.par == SEQUENTIAL) {
         optplyb.nthreads = 1;
     }
+    
 
-    switch (optplya.threadruntime) {
-        case TBBSPSPIPELINE:
-            threadlib = const_cast<char*> ("tbb_sps_pipeline");
-            break;
-        case THPOOL:
-            threadlib = const_cast<char*> ("threadpool");
-            break;
-        case CILKPSPAWN:
-            threadlib = const_cast<char*> ("cilk_spawn");
-            break;
-        case TBBTASKGROUP:
-            threadlib = const_cast<char*> ("tbb_taskgroup");
-            break;
-        case CILKPFOR:
-            threadlib = const_cast<char*> ("cilk_for");
-            break;
-        case CPP11:
-            threadlib = const_cast<char*> ("c++11");
-            break;
-        default:
-            threadlib = const_cast<char*> ("none");
-            break;
-    }
-    
-    if (nmoves == 0) {
-        cout << "Can not run a game with zero moves\n";
-        exit(0);
-    }
-    
 #ifdef LOCKFREE
-    optplya.locking=const_cast<char*>("lock_free");
-    optplyb.locking=const_cast<char*>("lock_free");
+    optplya.locking=LOCKMETHOD::FREELOCK;
+    optplyb.locking=LOCKMETHOD::FREELOCK;
 #elif defined(COARSEGRAINED)
-    optplya.locking=const_cast<char*>("coarse_grained");
-    optplyb.locking=const_cast<char*>("coarse_grained");
+    optplya.locking=LOCKMETHOD::COARSEGRAINLOCK;
+    optplyb.locking=LOCKMETHOD::COARSEGRAINLOCK;
 #elif FINEGRAINED
-    optplya.locking=const_cast<char*>("fine_grained");
-    optplyb.locking=const_cast<char*>("fine_grained");
+    optplya.locking=LOCKMETHOD::FINEGRAINLOCK;
+    optplyb.locking=LOCKMETHOD::FINEGRAINLOCK;
 #endif
-
-    if (optplya.game == HEX) {
-        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
-        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
-                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, threadlib, optplya.cp, optplya.virtualloss, optplya.locking);
-        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
-        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
-                "b", game, fileName, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b, threadlib, optplyb.cp, optplyb.virtualloss, optplyb.locking);
-//        printf("# plya game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
-//                game, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a, optplya.cp);
-//        printf("# plyb game=%s, dim=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s, cp=%0.3f\n",
-//                game, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b, optplyb.cp);
-    } else if (optplya.game == PGAME) {
-        printf("# plya game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
-                game, b, d, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
-        printf("# plyb game=%s, breath=%d, depth=%d, nsims=%d, nthreads=%d, nsecs=%0.2f, ngames=%d, par=%s\n",
-                game, b, d, optplyb.nsims, optplyb.nthreads, optplyb.nsecs, ngames, par_b);
-    } else if (optplya.game == HORNER) {
-        printf("# ply,game,input,nplayouts,nthreads,nsecs,nrepeats,par,threadlib,cp,virtualloss,locking\n");
-        printf("%s,%s,%s,%d,%d,%0.2f,%d,%s,%s,%0.2f,%d,%s\n",
-                "a", game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a,threadlib, optplya.cp, optplya.virtualloss,optplya.locking);
-    } else if (optplya.game == GEMPUZZLE) {
-        printf("# ply,a\n# game,%s\n# input,%s\n# nplayouts,%d\n# nthreads,%d\n# nsecs,%0.2f\n# nrepeats,%d\n# par,%s\n",
-                game, fileName, optplya.nsims, optplya.nthreads, optplya.nsecs, ngames, par_a);
-    }
-
+    
+    PrintMetadata(optplya,optplyb);
     for (int index = optind; index < argc; index++)
         printf("Non-option argument %s\n", argv[index]); // </editor-fold>
 
@@ -1185,30 +1173,31 @@ int main(int argc, char** argv) {
     if (optplya.game == HEX) {
         optplya.twoply=1;
         optplyb.twoply=1;
-        if(optplya.nmoves == 0){
-            optplya.nmoves = d*d;
+        if(optplya.nmoves == 0 || optplyb.nmoves == 0){
+            optplya.nmoves = optplya.dim*optplya.dim;
+            optplyb.nmoves = optplya.dim*optplya.dim;
         }
-//                HexGameState state(d);
-//                UCTPlayPGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
-        HexGameState state(d);
-        UCTPlayGame<HexGameState>(state, optplya, optplyb, ngames, nmoves, swap, vflag, 1);
+        HexGameState state(optplya.dim);
+        UCTPlayGame<HexGameState>(state, optplya, optplyb, optplya.ngames, optplya.nmoves, optplya.swap, optplya.verbose, 1);
     } else if (optplya.game == PGAME) {
+        std::cerr << "pgame is not implemented!\n";
+        exit(0);
         //        PGameState state(b, d, 0x80, seed);
         //        UCTPlayPGame<PGameState>(state, optplya, optplyb, ngames,nmoves,swap, vflag,1);
     } else if (optplya.game == HORNER) {
         //pars input file for polynomial
         Parser parser;
-        polynomial poly = parser.parseFile(fileName);
+        polynomial poly = parser.parseFile(optplya.fileName.c_str());
         PolyState state(poly);
         if(optplya.nmoves == 0){
             vector<int> moves;
             optplya.nmoves=state.GetMoves(moves);
         }
         optplya.twoply=0;    
-        if (vflag == 4)
+        if (optplya.verbose == 4)
             state.PrintToFile(const_cast<char*> ("orig.csv"));
 
-        UCTPlayHorner<PolyState>(state, optplya, ngames, vflag);
+        UCTPlayHorner<PolyState>(state, optplya, optplya.ngames, optplya.verbose);
     } else if (optplya.game == GEMPUZZLE) {
         std::cerr << "15-puzzle is not implemented!\n";
         exit(0);

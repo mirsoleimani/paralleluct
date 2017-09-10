@@ -37,13 +37,19 @@ struct PlyOptions {
     int par = 0;    
     int threadruntime=0;
     int game=0;
-    bool verbose = false;
+    int verbose = 0;
     unsigned int seed=1;
     int bestreward=4200;
     int nmoves = 0;
     bool virtualloss=0;
-    char* locking=const_cast<char *>("LOCKFREE");
+    int locking=LOCKMETHOD::FREELOCK;
     int twoply=1;
+    int ngames=1;
+    std::string fileName = "none";
+    int breath = 0;
+    int depth = 0;
+    int dim = 6;
+    int swap = 1;
 };
 
 struct TimeOptions {
@@ -432,6 +438,7 @@ public:
     Token* Playout(Token* token);
     Token* Evaluate(Token* token);
     void Backup(Token* token);
+    Node* SelectBest(UCT<T>::Node* n);
 #else
     NodePtr Select(NodePtr node, T& state);
     NodePtr Expand(NodePtr node, T& state, GEN& engine);
@@ -455,7 +462,7 @@ public:
 #ifdef MKLRNG
     inline unsigned int NextUniformInt(Identity& tid) {
 
-#define IRNGBUF (*_iRNGBuf)
+#define IRNGBUF (_iRNGBuf[tid._id])
         unsigned int i;
         if (tid._index == 0) {
             /*The first call to NextUniformInt or _dRNGBuf has been completely used*/
