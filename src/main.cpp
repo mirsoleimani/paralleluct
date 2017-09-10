@@ -627,11 +627,11 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                 std::cout << setw(10) << i << ","
                         << setw(10) << "plya" << ","
                         << setw(10) << optplya.seed << ","
-                        << setw(10) << result[i] << std::endl;
+                        << setw(10) << plywina[BLACK]+plywina[WHITE] << std::endl;
                 std::cout << setw(10) << i << ","
                         << setw(10) << "plyb" << ","
                         << setw(10) << optplyb.seed << ","
-                        << setw(10) << result[i] << std::endl;
+                        << setw(10) << plywinb[BLACK]+plywinb[WHITE]  << std::endl;
                 std::cout << "# end result" << std::endl;
             }
             if (verbose == 3) {
