@@ -950,7 +950,7 @@ int main(int argc, char** argv) {
     char* threadlib=const_cast<char*>("");
     char* fileName=const_cast<char*>("");
     PlyOptions optplya, optplyb;
-
+              
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
     while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:l:")) != -1) {
         switch (opt) {
@@ -1099,7 +1099,7 @@ int main(int argc, char** argv) {
             par_b = const_cast<char*> ("root");
             break;
         case PIPEPAR:
-            par_a = const_cast<char*> ("pipe");
+            par_b = const_cast<char*> ("pipe");
             break;
         default:
             par_b = const_cast<char*> ("seq");

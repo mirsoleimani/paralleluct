@@ -233,11 +233,11 @@ int HexGameState::GetMoveCounter(){
 
 float HexGameState::GetResult(int plyjm) {
     if (plyjm == BLACK) {
-        //return _bReward;
-        return (plyjm == EvaluateBoard(BLACK, TOPDOWN)) ? 1.0 : 0.0;
+        return _bReward;
+        //return (plyjm == EvaluateBoard(BLACK, TOPDOWN)) ? 1.0 : 0.0;
     } else {
-        //return _wReward;
-        return (plyjm == EvaluateBoard(WHITE, LEFTRIGHT)) ? 1.0 : 0.0;
+        return _wReward;
+        //return (plyjm == EvaluateBoard(WHITE, LEFTRIGHT)) ? 1.0 : 0.0;
     }
 }
 

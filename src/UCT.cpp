@@ -25,6 +25,7 @@ UCT<T>::UCT(const PlyOptions opt, int vb, vector<unsigned int> seed) : verbose(v
                 std::cerr << "MKLRNG: Memory allocation failed for buffer " << i << "threads!\n";
                 exit(0);
             }
+            memset(_iRNGBuf[i], 0, MAXRNGBUFSIZE * sizeof(unsigned int));
         }
     }
 #else 
@@ -71,8 +72,17 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         roots.push_back(new Node(0, NULL, lstate.GetPlyJM()));
         _localBestState.emplace_back(state);
         statistics.push_back(new TimeOptions());
+    }
+    if (plyOpt.game == HORNER) {
+        _score = lstate.GetResult(WHITE);
+    } else if (plyOpt.game == HEX) {
+        _score = 1;
+    } else {
+        assert(_score > 0 && "_score is not initialized!\n");
+        cout<<"_score is not initialized for this game!\n"<<endl;
+        exit(0);
     }// </editor-fold>
-
+    
     // <editor-fold defaultstate="collapsed" desc="fork">
     // <editor-fold defaultstate="collapsed" desc="sequential">
     if (plyOpt.par == SEQUENTIAL) {
@@ -289,7 +299,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     int index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end()));
     nn = nn->_children[index]; // </editor-fold>
 #else
-    nn = Select(roots[0], rootState); //TODO the cp value should be zero
+    nn = SelectBest(roots[0]); //TODO the cp value should be zero
 #endif
     m = nn->_move; // </editor-fold>
 
@@ -330,11 +340,6 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
     /*the first node in the path is root node*/
     UCT<T>::Node* n = roots[tid._rid];
     
-    if (plyOpt.game == HORNER) {
-        _score = state.GetResult(WHITE);
-    } else {
-        assert("_score is not initialized!\n");
-    }
     
     //add virtual loss to root node
     if (plyOpt.virtualloss) {
@@ -358,11 +363,10 @@ typename UCT<T>::Token* UCT<T>::Select(Token* token) {
             int visits = (*itr)->GetVisits();
             float wins = (*itr)->GetWins();
             assert(wins >= 0);
-            assert(visits > 0);
+            assert(visits >= 0);
 
             float exploit = 0;
             if (plyOpt.game == HORNER) {
-                //_score = state.GetResult(WHITE);
                 assert(_score > 0&&"_score is not initialized!\n");
                 exploit = _score / (wins / (float) (visits));
             } else if (plyOpt.game == HEX) {
@@ -415,7 +419,7 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
         n = n->AddChild();
         if (n != path.back()) {
             int m = n->_move;
-            assert(m > 0 && "move is not valid!\n");
+            assert(m >= 0 && "move is not valid!\n");
             path.push_back(n);
             state.SetMove(m); /*this line could be removed*/
         }
@@ -479,14 +483,50 @@ void UCT<T>::Backup(Token* token) {
     while (n != NULL) {
         if (plyOpt.virtualloss) {
             n->Update(-_score,-1); //remove virtual loss
-            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+            n->Update((n->_pjm == WHITE) ? rewardBlack : rewardWhite);
         } else {
-            n->Update((n->_pjm == WHITE) ? rewardWhite : rewardBlack);
+            n->Update((n->_pjm == WHITE) ? rewardBlack : rewardWhite);
         }
         n = n->_parent;
     }
 #endif
 
+}
+
+template <class T>
+typename UCT<T>::Node* UCT<T>::SelectBest(UCT<T>::Node* n) {
+        // <editor-fold defaultstate="collapsed" desc="initializing">
+        assert(n->_children.size() > 0 && "_children can not be empty!\n");
+        float l = 2.0 * logf((float) n->GetVisits());
+        int index = -1;
+        float cp = 0.0;
+        std::vector<float> UCT; // </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="calculate UCT value for all children">
+        for (iterator itr = n->_children.begin(); itr != n->_children.end(); itr++) {
+
+            int visits = (*itr)->GetVisits();
+            float wins = (*itr)->GetWins();
+            assert(wins >= 0);
+            assert(visits >= 0);
+
+            float exploit = 0;
+            if (plyOpt.game == HEX) {
+                exploit = wins / (float) (visits);
+            } else {
+                cout<<"SelectBest is not implemented for this game!\n";
+                exit(0);
+            }
+            float explore = cp * sqrtf(l / (float) (visits));
+
+            UCT.push_back(exploit + explore);
+
+        }// </editor-fold>
+
+        // <editor-fold defaultstate="collapsed" desc="find a child with max UCT value">
+        index = std::distance(UCT.begin(), std::max_element(UCT.begin(), UCT.end())); //TODO: why max is better than min?
+        assert(index < n->_children.size() && "index is out of range\n");
+        return n->_children[index]; // </editor-fold>
 }
 
 #else

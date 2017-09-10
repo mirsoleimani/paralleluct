@@ -432,6 +432,7 @@ public:
     Token* Playout(Token* token);
     Token* Evaluate(Token* token);
     void Backup(Token* token);
+    Node* SelectBest(UCT<T>::Node* n);
 #else
     NodePtr Select(NodePtr node, T& state);
     NodePtr Expand(NodePtr node, T& state, GEN& engine);
@@ -455,7 +456,7 @@ public:
 #ifdef MKLRNG
     inline unsigned int NextUniformInt(Identity& tid) {
 
-#define IRNGBUF (*_iRNGBuf)
+#define IRNGBUF (_iRNGBuf[tid._id])
         unsigned int i;
         if (tid._index == 0) {
             /*The first call to NextUniformInt or _dRNGBuf has been completely used*/
