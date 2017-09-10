@@ -82,10 +82,14 @@ typedef std::vector<int> term;
 typedef std::vector<term> polynomial;
 static vector<vector<int>> _poly;
 
-enum threadlib{NONE,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE};
-enum parallelization{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR};
-enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE};
-
+enum THREADLIB{NONE=0,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE,LASTTHREADLIB};
+static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
+enum PARMETHOD{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR,LASTPAR};
+static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipeline"};
+enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE,LASTGAME};
+static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
+enum LOCKMETHOD{FREELOCK,FINEGRAINLOCK,COARSEGRAINLOCK,LASTLOCKMETHOD};
+static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
 //typedef std::variate_generator<ENG&, DIST> GEN; // Variate generator
