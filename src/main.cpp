@@ -377,45 +377,37 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
     }
 
     std::cout << "# start statistic" << std::endl;
-    std::cout << "# avg(result)" << ","
-            << setw(10) << "atd(result)" << ","
-            << setw(10) << "err(result)" << std::endl;
-    std::cout << setw(10) << getAverage(result) << ","
-            << setw(10) << getStdDev(result) << ","
-            << setw(10) << getStdDev(result) / sqrt(ngames-1) << std::endl;
-    int i = 0;
-    std::cout << "# avg(playout)" << ","
-            << setw(10) << "std(playout)" << ","
-            << setw(10) << "srr(playout)" << ","
-            << "move no." << std::endl;
-    for (auto itr : nplayouts) {
-        std::cout << setw(10) << getAverage(itr) << ","
-                << setw(10) << getStdDev(itr) << ","
-                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
-                << setw(10) << i++ << std::endl;
-    }
-    std::cout << "# avg(reward)" << ","
-            << setw(10) << "std(reward)" << ","
-            << setw(10) << "err(reward)" << ","
-            << "move no." << std::endl;
-    i = 0;
-    for (auto itr : reward) {
-        std::cout << setw(10) << getAverage(itr) << ","
-                << setw(10) << getStdDev(itr) << ","
-                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
-                << setw(10) << i++ << std::endl;
-    }
-    std::cout << "# avg(time)" << ","
-            << setw(10) << "std(time)" << ","
-            << setw(10) << "err(time)" << ","
-            << "move no." << std::endl;
-    i = 0;
-    for (auto itr : time) {
-        std::cout << setw(10) << getAverage(itr) << ","
-                << setw(10) << getStdDev(itr) << ","
-                << setw(10) << getStdDev(itr) / sqrt(ngames-1) << ","
-                << setw(10) << i++ << std::endl;
-    }
+//    std::cout << "# avg(result)" << ","
+//            << setw(10) << "atd(result)" << ","
+//            << setw(10) << "err(result)" << std::endl;
+//    std::cout << setw(10) << getAverage(result) << ","
+//            << setw(10) << getStdDev(result) << ","
+//            << setw(10) << getStdDev(result) / sqrt(ngames) << std::endl;
+            std::cout << "# move no." << ","
+                << setw(10) << "player"<< ","
+                << setw(15) << "avg(playout)" << ","
+                << setw(10) << "std(playout)" << ","
+                << setw(10) << "err(playout)" << ","
+                << setw(10) << "avg(time)" << ","
+                << setw(10) << "std(time)" << ","
+                << setw(10) << "err(time)" << ","
+                << setw(10) << "avg(reward)" << ","
+                << setw(10) << "std(reward)" << ","
+                << setw(10) << "err(reward)" << ","<< endl;
+        for (int i=0; i<nplayouts.size();i++) {
+            if(nplayouts[i].size()>1)
+                std::cout << setw(10) << i << ","
+                    << setw(10) << "plya" << ","  
+                    << setw(15) << getAverage(nplayouts[i]) << ","
+                    << setw(10) << getStdDev(nplayouts[i]) << ","
+                    << setw(10) << getStdDev(nplayouts[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(time[i]) << ","
+                    << setw(10) << getStdDev(time[i]) << ","
+                    << setw(10) << getStdDev(time[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(reward[i]) << ","
+                    << setw(10) << getStdDev(reward[i]) << ","
+                    << setw(10) << getStdDev(reward[i]) / sqrt(ngames) << endl;
+        }
     std::cout << "# end statistic" << std::endl;
 }
 
