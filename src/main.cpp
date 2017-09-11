@@ -241,7 +241,7 @@ void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames,
 }
 
 template <typename T>
-void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
+void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool initgame) {
 
     vector<unsigned int> seeda(optplya.nthreads);
     std::random_device dev;
@@ -375,7 +375,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                     << setw(10) << WHITE << endl;
         }
     }
-
+    if(!initgame){
     std::cout << "# start statistic" << std::endl;
 //    std::cout << "# avg(result)" << ","
 //            << setw(10) << "atd(result)" << ","
@@ -409,10 +409,11 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose) {
                     << setw(10) << getStdDev(reward[i]) / sqrt(ngames) << endl;
         }
     std::cout << "# end statistic" << std::endl;
+    }
 }
 
 template <typename T>
-void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
+void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly,bool initgame) {
 
     //cilkview_data_t d;
 #ifdef THREADPOOL
@@ -762,7 +763,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
             }
         }
     }
-
+    if(!initgame){
     if (twoPly) {
         std::cout << "# start statistic" << std::endl;
 
@@ -852,6 +853,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     << setw(10) << i++ << std::endl;
         }
         std::cout << "# end statistic" << std::endl;
+    }
     }
 }
 
@@ -1165,7 +1167,14 @@ int main(int argc, char** argv) {
             optplyb.nmoves = optplya.dim*optplya.dim;
         }
         HexGameState state(optplya.dim);
-        UCTPlayGame<HexGameState>(state, optplya, optplyb, optplya.ngames, optplya.nmoves, optplya.swap, optplya.verbose, 1);
+        cout<<"# start warmup game...\n";
+        PlyOptions optplyainit = optplya;
+        PlyOptions optplybinit = optplyb;
+        optplyainit.nsecs = 10;
+        optplybinit.nsecs = 10;
+        UCTPlayGame<HexGameState>(state, optplyainit, optplybinit, 1, 2, optplya.swap, optplya.verbose, 1,true);
+        cout<<"# end warmup game.\n";
+        UCTPlayGame<HexGameState>(state, optplya, optplyb, optplya.ngames, optplya.nmoves, optplya.swap, optplya.verbose, 1,false);
     } else if (optplya.game == PGAME) {
         std::cerr << "pgame is not implemented!\n";
         exit(0);
@@ -1183,8 +1192,13 @@ int main(int argc, char** argv) {
         optplya.twoply=0;    
         if (optplya.verbose == 4)
             state.PrintToFile(const_cast<char*> ("orig.csv"));
-
-        UCTPlayHorner<PolyState>(state, optplya, optplya.ngames, optplya.verbose);
+        cout<<"# start warmup game...\n";
+        PlyOptions optplyainit = optplya;
+        optplyainit.nsecs = 10;
+        optplya.nmoves = 1;
+        UCTPlayHorner<PolyState>(state, optplya, 1, optplya.verbose,true);
+        cout<<"# end warmup game.\n";
+        UCTPlayHorner<PolyState>(state, optplya, optplya.ngames, optplya.verbose,false);
     } else if (optplya.game == GEMPUZZLE) {
         std::cerr << "15-puzzle is not implemented!\n";
         exit(0);
