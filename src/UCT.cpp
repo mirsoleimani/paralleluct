@@ -304,6 +304,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     m = nn->_move; // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="log">
+    _nPlayouts = roots[0]->GetVisits();
     if (verbose) {
         PrintStats_1(log1, ttime);
     }

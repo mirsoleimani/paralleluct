@@ -431,6 +431,10 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 
     std::vector<int> result(ngames);
     std::vector<vector<int>> nplayouts(optplya.nmoves);
+    std::vector<vector<int>> plyanplayouts(optplya.nmoves);
+    std::vector<vector<int>> plybnplayouts(optplya.nmoves);
+    std::vector<vector<double>> plyatime(optplya.nmoves);
+    std::vector<vector<double>> plybtime(optplya.nmoves);
     std::vector<vector<int>> reward(optplya.nmoves);
     std::vector<vector<double>> time(optplya.nmoves);
     string ply = "none";
@@ -439,7 +443,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
     vector<int> plywin(3);
     vector<int> plywina(3);
     vector<int> plywinb(3);
-
+    
     double ttime = 0;
     char fileName[100];
     int move = 0;
@@ -514,7 +518,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
             while (!state.IsTerminal() && j < optplya.nmoves) {
                 string log = " ";
                 string log2 = " ";
-
+                int plyno=0;
                 if (verbose) {
                     cout << setw(9) << j << ",";
                 }
@@ -532,14 +536,14 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                 if (state.GetPlyJM() == BLACK) {
                     ply = white;
                     if (white == "plya(W)") {
-
+                        plyno = 0;
                         //cin>>move;
                         //__cilkview_query(d);
                         bestState = plya.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
 
                     } else {
-
+                        plyno=1;
                         //__cilkview_query(d);
                         bestState = plyb.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
@@ -548,14 +552,14 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                 } else {
                     ply = black;
                     if (black == "plya(B)") {
-
+                        plyno=0;
                         //cin>>move;
                         //__cilkview_query(d);
                         bestState = plya.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
 
                     } else {
-
+                        plyno=1;
                         //__cilkview_query(d);
                         bestState = plyb.Run(state, move, log, log2, ttime);
                         //__cilkview_report(&d, NULL, "main_tag", CV_REPORT_WRITE_TO_RESULTS);
@@ -576,11 +580,17 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                             << setw(10) << ply << ","
                             << log2 << endl;
                 }
-                if (i > 0) {
-                    //nplayouts[j].push_back(plya.NumPlayoutsRoot());
+                //if (i > 0) {
+                    if(plyno==0){
+                        plyanplayouts[j].push_back(plya.NumPlayoutsRoot());
+                        plyatime[j].push_back(ttime);
+                    }else{
+                        plybnplayouts[j].push_back(plyb.NumPlayoutsRoot());
+                        plybtime[j].push_back(ttime);
+                    }
                     //reward[j].push_back(bestState.GetResult(WHITE));
-                    time[j].push_back(ttime);
-                }
+                    //time[j].push_back(ttime);
+                //}
                 j++;
             }
 
@@ -763,65 +773,50 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 
     if (twoPly) {
         std::cout << "# start statistic" << std::endl;
-                std::cout << "# avg(result)" << ","
-                << setw(10) << "atd(result)" << ","
-                << setw(10) << "err(result)" << std::endl;
-        std::cout << setw(10) << getAverage(result) << ","
-                << setw(10) << getStdDev(result) << ","
-                << setw(10) << getStdDev(result) / sqrt(ngames - 1) << std::endl;
-        int i = 0;
-        std::cout << "# avg(playout)" << ","
+
+        std::cout << "# move no." << ","
+                << setw(10) << "player"<< ","
+                << setw(15) << "avg(playout)" << ","
                 << setw(10) << "std(playout)" << ","
-                << setw(10) << "srr(playout)" << ","
-                << "move no." << std::endl;
-        for (auto itr : nplayouts) {
-            std::cout << setw(10) << getAverage(itr) << ","
-                    << setw(10) << getStdDev(itr) << ","
-                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
-                    << setw(10) << i++ << std::endl;
-        }
-        std::cout << "# avg(reward)" << ","
-                << setw(10) << "std(reward)" << ","
-                << setw(10) << "err(reward)" << ","
-                << "move no." << std::endl;
-        i = 0;
-        for (auto itr : reward) {
-            std::cout << setw(10) << getAverage(itr) << ","
-                    << setw(10) << getStdDev(itr) << ","
-                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
-                    << setw(10) << i++ << std::endl;
-        }
-        std::cout << "# avg(time)" << ","
+                << setw(10) << "err(playout)" << ","
+                << setw(10) << "avg(time)" << ","
                 << setw(10) << "std(time)" << ","
                 << setw(10) << "err(time)" << ","
-                << "move no." << std::endl;
-        i = 0;
-        for (auto itr : time) {
-            std::cout << setw(10) << getAverage(itr) << ","
-                    << setw(10) << getStdDev(itr) << ","
-                    << setw(10) << getStdDev(itr) / sqrt(ngames - 1) << ","
-                    << setw(10) << i++ << std::endl;
-        }
-        cout << setw(6) << "# player" << ","
                 << setw(10) << "wins(%)" << ","
                 << setw(10) << "wins" << ","
                 << setw(10) << "Black" << ","
                 << setw(10) << "White" << endl;
-        cout << setw(6) << "plya" << ","
-                << setw(10) << ((plywina[1] + plywina[2]) / (float) ngames)*100 << ","
-                << setw(10) << (plywina[1] + plywina[2]) << ","
-                << setw(10) << plywina[1] << ","
-                << setw(10) << plywina[2] << "," << endl;
-        cout << setw(6) << "plyb" << ","
-                << setw(10) << ((plywinb[1] + plywinb[2]) / (float) ngames)*100 << ","
-                << setw(10) << (plywinb[1] + plywinb[2]) << ","
-                << setw(10) << plywinb[1] << ","
-                << setw(10) << plywinb[2] << "," << endl;
-        cout << setw(6) << " " << ","
-                << setw(10) << " " << ","
-                << setw(10) << " " << ","
-                << setw(10) << plywin[1] << ","
-                << setw(10) << plywin[2] << "," << endl;
+        for (int i=0; i<plyanplayouts.size();i++) {
+            if(plyanplayouts[i].size()>1)
+                std::cout << setw(10) << i << ","
+                    << setw(10) << "plya" << ","  
+                    << setw(15) << getAverage(plyanplayouts[i]) << ","
+                    << setw(10) << getStdDev(plyanplayouts[i]) << ","
+                    << setw(10) << getStdDev(plyanplayouts[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(plyatime[i]) << ","
+                    << setw(10) << getStdDev(plyatime[i]) << ","
+                    << setw(10) << getStdDev(plyatime[i]) / sqrt(ngames) << ","
+                    << setw(10) << ((plywina[1] + plywina[2]) / (float) ngames)*100 << ","
+                    << setw(10) << (plywina[1] + plywina[2]) << ","
+                    << setw(10) << plywina[1] << ","
+                    << setw(10) << plywina[2] << endl;
+        }
+        for (int i=0; i<plybnplayouts.size();i++) {
+            if(plybnplayouts[i].size()>1)
+                std::cout << setw(10)<< i << ","
+                    << setw(10) << "plyb" << ","  
+                    << setw(15) << getAverage(plybnplayouts[i]) << ","
+                    << setw(10) << getStdDev(plybnplayouts[i]) << ","
+                    << setw(10) << getStdDev(plybnplayouts[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(plybtime[i]) << ","
+                    << setw(10) << getStdDev(plybtime[i]) << ","
+                    << setw(10) << getStdDev(plybtime[i]) / sqrt(ngames) << ","
+                    << setw(10) << ((plywinb[1] + plywinb[2]) / (float) ngames)*100 << ","
+                    << setw(10) << (plywinb[1] + plywinb[2]) << ","
+                    << setw(10) << plywinb[1] << ","
+                    << setw(10) << plywinb[2] << endl;
+        }
+
         std::cout << "# end statistic" << std::endl;
     } else {
         std::cout << "# start statistic" << std::endl;
