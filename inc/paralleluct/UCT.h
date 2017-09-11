@@ -452,7 +452,7 @@ public:
     void PrintStats_2(std::string& log2);
     void SaveDot(std::string fileName);   
     int NumPlayoutsRoot() {
-        return roots[0]->GetVisits();
+        return _nPlayouts;//roots[0]->GetVisits();
     }
 
     /*Utility functions*/
