@@ -409,11 +409,14 @@ typename UCT<T>::Token* UCT<T>::Expand(Token* token) {
     UCT<T>::Node* n = path.back();
     if (!state.IsTerminal()) {
         // <editor-fold defaultstate="collapsed" desc="create childern for n based on the current state">
+        UCT<T>::Node* n = path.back();
+        if(!n->IsParent()){
         vector<int> moves;
         //set the number of untried moves for n based on the current state
         state.GetMoves(moves);
         RandomShuffle(moves.begin(), moves.end(), tId);
         n->CreatChildren(moves, (state.GetPlyJM() == WHITE) ? WHITE : BLACK);
+        }
         // </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="add new node child to n">

@@ -96,6 +96,29 @@ public:
             _children.clear();
         }
 
+
+
+        /**
+         * Check if all the children of a node is expanded.
+         * @return 
+         */
+#ifdef LOCKFREE
+        /**
+         * Check if the children of a node is created.
+         * @return
+         */
+        bool IsParent() {
+            if (_isParent)
+                return true;
+            return false;
+        }
+        
+        bool IsFullExpanded() {
+            if (_isFullExpanded)
+                return true;
+            return false;
+        }
+#else
         /**
          * Check if the children of a node is created.
          * @return
@@ -105,20 +128,7 @@ public:
                 return true;
             return false;
         }
-
-        /**
-         * Check if all the children of a node is expanded.
-         * @return 
-         */
-#ifdef LOCKFREE
-
-        bool IsFullExpanded() {
-            if (_isFullExpanded)
-                return true;
-            return false;
-        }
-#else
-
+        
         bool IsFullExpanded() {
             //std::lock_guard<std::mutex> lock(mtx1);
             if (_untriedMoves == 0)
