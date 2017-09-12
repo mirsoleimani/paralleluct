@@ -1197,7 +1197,14 @@ int main(int argc, char** argv) {
             optplya.nmoves = optplya.dim*optplya.dim;
             optplyb.nmoves = optplya.dim*optplya.dim;
         }
+#ifdef HEXSTATICBOARD
+        Parser parser;
+        vector<vector<int>> edgeList = parser.MakeHexEdgeList(optplya.dim);
+        vector<int> leftPosList = parser.MakeHexLeftPos(optplya.dim);
+        HexGameState state(optplya.dim,edgeList,leftPosList);
+#else
         HexGameState state(optplya.dim);
+#endif
         cout<<"# start warmup game...\n";
         PlyOptions optplyainit = optplya;
         PlyOptions optplybinit = optplyb;
