@@ -39,7 +39,7 @@ struct PlyOptions {
     int game=0;
     int verbose = 0;
     unsigned int seed=1;
-    int bestreward=4200;
+    int bestreward=numeric_limits<int>::min();
     int nmoves = 0;
     bool virtualloss=0;
     int locking=LOCKMETHOD::FREELOCK;
@@ -59,6 +59,7 @@ struct TimeOptions {
     double ptime = 0.0; //playout
     double btime = 0.0; //backup
     size_t nrand = 0; //number of random numbers are used in simulation
+    int maxdepth = 0;
 };
 
 #ifdef THREADPOOL
@@ -95,6 +96,29 @@ public:
             _children.clear();
         }
 
+
+
+        /**
+         * Check if all the children of a node is expanded.
+         * @return 
+         */
+#ifdef LOCKFREE
+        /**
+         * Check if the children of a node is created.
+         * @return
+         */
+        bool IsParent() {
+            if (_isParent)
+                return true;
+            return false;
+        }
+        
+        bool IsFullExpanded() {
+            if (_isFullExpanded)
+                return true;
+            return false;
+        }
+#else
         /**
          * Check if the children of a node is created.
          * @return
@@ -104,20 +128,7 @@ public:
                 return true;
             return false;
         }
-
-        /**
-         * Check if all the children of a node is expanded.
-         * @return 
-         */
-#ifdef LOCKFREE
-
-        bool IsFullExpanded() {
-            if (_isFullExpanded)
-                return true;
-            return false;
-        }
-#else
-
+        
         bool IsFullExpanded() {
             //std::lock_guard<std::mutex> lock(mtx1);
             if (_untriedMoves == 0)
@@ -452,9 +463,11 @@ public:
     void PrintStats_2(std::string& log2);
     void SaveDot(std::string fileName);   
     int NumPlayoutsRoot() {
-        return roots[0]->GetVisits();
+        return _nPlayouts;//roots[0]->GetVisits();
     }
-
+    int GetMaxDepthofTree(){
+        return _maxDepth;
+    }
     /*Utility functions*/
     static bool SortChildern(NodePtr a, NodePtr b) {
         return (b->_move > a->_move);
@@ -510,6 +523,7 @@ private:
     T _globalBestState;
     int _nPlayouts;
     float _score;
+    int _maxDepth;
 #ifdef MKLRNG
     VSLStreamStatePtr _stream[MAXNUMSTREAMS]; /* Each token is associated with an unique stream*/
     unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/
