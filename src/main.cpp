@@ -1197,9 +1197,7 @@ int main(int argc, char** argv) {
         PlyOptions optplybinit = optplyb;
         optplyainit.nsecs = 10;
         optplybinit.nsecs = 10;
-        optplyainit.nmoves = 1;
-        optplybinit.nmoves = 1;
-        UCTPlayGame<HexGameState>(state, optplyainit, optplybinit, 1, 2, optplya.swap, optplya.verbose, 1,true);
+        UCTPlayGame<HexGameState>(state, optplyainit, optplybinit, 1, optplyainit.nmoves, optplya.swap, optplya.verbose, 1,true);
         cout<<"# end warmup game.\n";
         UCTPlayGame<HexGameState>(state, optplya, optplyb, optplya.ngames, optplya.nmoves, optplya.swap, optplya.verbose, 1,false);
     } else if (optplya.game == PGAME) {
@@ -1222,7 +1220,6 @@ int main(int argc, char** argv) {
         cout<<"# start warmup game...\n";
         PlyOptions optplyainit = optplya;
         optplyainit.nsecs = 10;
-        optplyainit.nmoves = 1;
         UCTPlayHorner<PolyState>(state, optplya, 1, optplya.verbose,true);
         cout<<"# end warmup game.\n";
         UCTPlayHorner<PolyState>(state, optplya, optplya.ngames, optplya.verbose,false);
