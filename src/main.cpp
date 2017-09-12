@@ -444,9 +444,9 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
     string ply = "none";
     string black;
     string white;
-    vector<int> plywin(3);
-    vector<int> plywina(3);
-    vector<int> plywinb(3);
+    vector<int> plywin(3,0);
+    vector<int> plywina(3,0);
+    vector<int> plywinb(3,0);
     
     double ttime = 0;
     char fileName[100];
@@ -609,23 +609,29 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
             if (result[i] == WIN) {
                 const char *c = pjm == BLACK ? "+B " : "+W ";
                 sprintf(buffer, c);
-
+                if(swap){
                 if (i % 2 == 0) {
                     pjm == BLACK ? plywina[pjm]++ : plywinb[pjm]++;
                 } else {
                     pjm == BLACK ? plywinb[pjm]++ : plywina[pjm]++;
                 }
-                plywin[pjm]++;
-            } else if (result[i] == LOST) {
-                const char *c = (CLEAR - pjm == BLACK ? "+B " : "+W ");
-                sprintf(buffer, c);
-
-                if (i % 2 == 0) {
-                    (CLEAR - pjm == BLACK) ? plywina[CLEAR - pjm]++ : plywinb[CLEAR - pjm]++;
                 } else {
-                    (CLEAR - pjm == BLACK) ? plywinb[CLEAR - pjm]++ : plywina[CLEAR - pjm]++;
+                    pjm == BLACK ? plywina[BLACK]++ : plywinb[WHITE]++;
                 }
-                plywin[CLEAR - pjm]++;
+                plywin[pjm]++;
+//            } else if (result[i] == LOST) {
+//                const char *c = (CLEAR - pjm == BLACK ? "+B " : "+W ");
+//                sprintf(buffer, c);
+//                if(swap){
+//                if (i % 2 == 0) {
+//                    (CLEAR - pjm == BLACK) ? plywina[CLEAR - pjm]++ : plywinb[CLEAR - pjm]++;
+//                } else {
+//                    (CLEAR - pjm == BLACK) ? plywinb[CLEAR - pjm]++ : plywina[CLEAR - pjm]++;
+//                }
+//                } else {
+//                    (CLEAR - pjm == BLACK) ? plywinb[CLEAR - pjm]++ : plywina[CLEAR - pjm]++;
+//                }
+//                plywin[CLEAR - pjm]++;
             } else if (result[i] == DRAW) {
                 sprintf(buffer, "+Draw");
             }

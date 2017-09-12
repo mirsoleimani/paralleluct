@@ -39,7 +39,7 @@ struct PlyOptions {
     int game=0;
     int verbose = 0;
     unsigned int seed=1;
-    int bestreward=4200;
+    int bestreward=numeric_limits<int>::min();
     int nmoves = 0;
     bool virtualloss=0;
     int locking=LOCKMETHOD::FREELOCK;
