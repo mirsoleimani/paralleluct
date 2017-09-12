@@ -27,12 +27,16 @@ using namespace std;
 #define NDEBUG
 #include <assert.h>
 
-//#define THREADPOOL
+#define THREADPOOL
 #ifdef THREADPOOL
 #include <boost/thread/thread.hpp>
 #include "threadpool.hpp"
 #include <boost/assert.hpp>
 #include <boost/asio.hpp>
+#include <boost/version.hpp>
+#if BOOST_VERSION < 105000
+#define TIME_UTC_ TIME_UTC
+#endif
 #endif
 
 #define MKLRNG
@@ -82,6 +86,11 @@ typedef int MOVE;
 typedef std::vector<int> term;
 typedef std::vector<term> polynomial;
 static vector<vector<int>> _poly;
+#define HEXSTATICBOARD
+#ifdef HEXSTATICBOARD
+static vector<vector<int>> edges;
+static vector<int> lefPos;
+#endif
 
 enum THREADLIB{NONE=0,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE,LASTTHREADLIB};
 static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
