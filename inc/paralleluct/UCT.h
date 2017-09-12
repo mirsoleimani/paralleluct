@@ -59,6 +59,7 @@ struct TimeOptions {
     double ptime = 0.0; //playout
     double btime = 0.0; //backup
     size_t nrand = 0; //number of random numbers are used in simulation
+    int maxdepth = 0;
 };
 
 #ifdef THREADPOOL
@@ -454,7 +455,9 @@ public:
     int NumPlayoutsRoot() {
         return _nPlayouts;//roots[0]->GetVisits();
     }
-
+    int GetMaxDepthofTree(){
+        return _maxDepth;
+    }
     /*Utility functions*/
     static bool SortChildern(NodePtr a, NodePtr b) {
         return (b->_move > a->_move);
@@ -510,6 +513,7 @@ private:
     T _globalBestState;
     int _nPlayouts;
     float _score;
+    int _maxDepth;
 #ifdef MKLRNG
     VSLStreamStatePtr _stream[MAXNUMSTREAMS]; /* Each token is associated with an unique stream*/
     unsigned int* _iRNGBuf[MAXNUMSTREAMS]; /* Each token is associated with a unique buffer of uniforms*/

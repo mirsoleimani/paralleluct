@@ -47,6 +47,7 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 
 //#define CILKSELECT
 //#define TIMING
+#define MAXDEPTH //measure the maximum depth of the tree that is reached.
 #define COUNTNRANDVEC   //counting the number of generated random buffers.
 #define MAXNUMVISITS
 

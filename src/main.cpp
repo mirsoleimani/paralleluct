@@ -250,6 +250,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool i
     std::vector<vector<int>> nplayouts(optplya.nmoves);
     std::vector<vector<int>> reward(optplya.nmoves);
     std::vector<vector<double>> time(optplya.nmoves);
+    std::vector<vector<int>> plyamaxdepth(optplya.nmoves);
     double ttime;
     char fileName[100];
 
@@ -282,6 +283,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool i
                     << setw(10) << "playout(%)" << ","
                     << setw(10) << "backup(%)" << ","
                     << setw(10) << "nrandvec" << ","
+                    << setw(10) << "depth" << ","
                     << setw(10) << "move" << ","
                     << setw(10) << "reward" << endl;
         }
@@ -342,6 +344,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool i
                 nplayouts[j].push_back(plya.NumPlayoutsRoot());
                 reward[j].push_back(bestState.GetResult(WHITE));
                 time[j].push_back(ttime);
+                plyamaxdepth[j].push_back(plya.GetMaxDepthofTree());
             //}
             j++;
         }
@@ -391,6 +394,9 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool i
                 << setw(10) << "avg(time)" << ","
                 << setw(10) << "std(time)" << ","
                 << setw(10) << "err(time)" << ","
+                << setw(10) << "avg(depth)" << ","
+                << setw(10) << "std(depth)" << ","
+                << setw(10) << "err(depth)" << ","
                 << setw(10) << "avg(reward)" << ","
                 << setw(10) << "std(reward)" << ","
                 << setw(10) << "err(reward)" << ","<< endl;
@@ -404,6 +410,9 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool i
                     << setw(10) << getAverage(time[i]) << ","
                     << setw(10) << getStdDev(time[i]) << ","
                     << setw(10) << getStdDev(time[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(plyamaxdepth[i]) << ","
+                    << setw(10) << getStdDev(plyamaxdepth[i]) << ","
+                    << setw(10) << getStdDev(plyamaxdepth[i]) / sqrt(ngames) << ","
                     << setw(10) << getAverage(reward[i]) << ","
                     << setw(10) << getStdDev(reward[i]) << ","
                     << setw(10) << getStdDev(reward[i]) / sqrt(ngames) << endl;
@@ -430,6 +439,8 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
     std::vector<vector<double>> plybtime(optplya.nmoves);
     std::vector<vector<int>> reward(optplya.nmoves);
     std::vector<vector<double>> time(optplya.nmoves);
+    std::vector<vector<int>> plyamaxdepth(optplya.nmoves);
+    std::vector<vector<int>> plybmaxdepth(optplya.nmoves);
     string ply = "none";
     string black;
     string white;
@@ -492,6 +503,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                         << setw(10) << "playout(%)" << ","
                         << setw(10) << "backup(%)" << ","
                         << setw(10) << "nrandvec" << ","
+                        << setw(10) << "depth" << ","
                         << setw(10) << "move" << endl;               
             }
             if (verbose == 3) {
@@ -577,9 +589,11 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     if(plyno==0){
                         plyanplayouts[j].push_back(plya.NumPlayoutsRoot());
                         plyatime[j].push_back(ttime);
+                        plyamaxdepth[j].push_back(plya.GetMaxDepthofTree());
                     }else{
                         plybnplayouts[j].push_back(plyb.NumPlayoutsRoot());
                         plybtime[j].push_back(ttime);
+                        plybmaxdepth[j].push_back(plyb.GetMaxDepthofTree());
                     }
                     //reward[j].push_back(bestState.GetResult(WHITE));
                     //time[j].push_back(ttime);
@@ -675,6 +689,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                         << setw(10) << "playout(%)" << ","
                         << setw(10) << "backup(%)" << ","
                         << setw(10) << "nrandvec" << ","
+                        << setw(10) << "depth" << ","
                         << setw(10) << "move" << ","
                         << setw(10) << "reward" << endl;
             }
@@ -733,6 +748,7 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     nplayouts[j].push_back(plya.NumPlayoutsRoot());
                     reward[j].push_back(bestState.GetResult(WHITE));
                     time[j].push_back(ttime);
+                    plyamaxdepth[j].push_back(plya.GetMaxDepthofTree());
                 //}
                 j++;
             }
@@ -775,6 +791,9 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                 << setw(10) << "avg(time)" << ","
                 << setw(10) << "std(time)" << ","
                 << setw(10) << "err(time)" << ","
+                << setw(10) << "avg(depth)" << ","
+                << setw(10) << "std(depth)" << ","
+                << setw(10) << "err(depth)" << ","
                 << setw(10) << "wins(%)" << ","
                 << setw(10) << "wins" << ","
                 << setw(10) << "Black" << ","
@@ -789,6 +808,9 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     << setw(10) << getAverage(plyatime[i]) << ","
                     << setw(10) << getStdDev(plyatime[i]) << ","
                     << setw(10) << getStdDev(plyatime[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(plyamaxdepth[i]) << ","
+                    << setw(10) << getStdDev(plyamaxdepth[i]) << ","
+                    << setw(10) << getStdDev(plyamaxdepth[i]) / sqrt(ngames) << ","
                     << setw(10) << ((plywina[1] + plywina[2]) / (float) ngames)*100 << ","
                     << setw(10) << (plywina[1] + plywina[2]) << ","
                     << setw(10) << plywina[1] << ","
@@ -804,6 +826,9 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
                     << setw(10) << getAverage(plybtime[i]) << ","
                     << setw(10) << getStdDev(plybtime[i]) << ","
                     << setw(10) << getStdDev(plybtime[i]) / sqrt(ngames) << ","
+                    << setw(10) << getAverage(plyamaxdepth[i]) << ","
+                    << setw(10) << getStdDev(plyamaxdepth[i]) << ","
+                    << setw(10) << getStdDev(plyamaxdepth[i]) / sqrt(ngames) << ","
                     << setw(10) << ((plywinb[1] + plywinb[2]) / (float) ngames)*100 << ","
                     << setw(10) << (plywinb[1] + plywinb[2]) << ","
                     << setw(10) << plywinb[1] << ","

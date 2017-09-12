@@ -65,7 +65,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
 
     T lstate(state);
     _finish = false;
-    //double ttime = 0;
+    _maxDepth = 0;
     ttime = 0;
     Timer tmr;
     for (int i = 0; i < plyOpt.nthreads; i++) {
@@ -652,6 +652,7 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 //    float reward = std::numeric_limits<float>::max();
     TimeOptions* timeopt = statistics[sid];
     timeopt->nrand = 0;
+    timeopt->maxdepth =0;
     int itr = 0;
     //TODO is it thread safe to calculate max here?
     float nsims = plyOpt.nsims / (float) plyOpt.nthreads;
@@ -714,6 +715,10 @@ void UCT<T>::UCTSearch(const T& rstate, int sid, int rid, Timer tmr) {
 #endif
 #ifdef MKLRNG
         Backup(t);
+#ifdef MAXDEPTH //measure the maximum depth of the tree that is reached.
+        if (t->_path.size() > timeopt->maxdepth)
+            timeopt->maxdepth = t->_path.size();
+#endif
 #else
         Backup(n, lstate);
 #endif
@@ -805,6 +810,10 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
     tbb::make_filter<UCT<T>::Token*, void>(
             tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
                 Backup(t);
+#ifdef MAXDEPTH //measure the maximum depth of the tree that is reached.
+//                if (t->path.size() > timeopt->maxdepth)
+//                        timeopt->maxdepth = t->path.size();
+#endif
                 if (plyOpt.game == HORNER) {
                     int reward = t->_state.GetResult(WHITE);
                     int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
@@ -852,6 +861,7 @@ void UCT<T>::PrintStats_1(string& log1, double ttime) {
         assert(statistics[t]->btime >= 0.0 && "select time is negative.");
         btime += statistics[t]->btime;
         nrand += statistics[t]->nrand;
+        if(statistics[t]->maxdepth > _maxDepth){_maxDepth=statistics[t]->maxdepth;}
 
     }
     stime /= plyOpt.nthreads;
@@ -869,7 +879,8 @@ void UCT<T>::PrintStats_1(string& log1, double ttime) {
             setw(10) << (etime / (ttime))*100 << "," <<
             setw(10) << (ptime / (ttime))*100 << "," <<
             setw(10) << (btime / (ttime))*100 << "," <<
-            setw(10) << nrand << ",";
+            setw(10) << nrand << "," <<
+            setw(10) << _maxDepth << ",";
     log1 = buffer.str();
 }
 
