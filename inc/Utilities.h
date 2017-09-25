@@ -27,7 +27,7 @@ using namespace std;
 #define NDEBUG
 #include <assert.h>
 
-#define THREADPOOL
+//#define THREADPOOL
 #ifdef THREADPOOL
 #include <boost/thread/thread.hpp>
 #include "threadpool.hpp"
@@ -50,10 +50,10 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 #endif
 
 //#define CILKSELECT
-//#define TIMING
+#define TIMING
 #define MAXDEPTH //measure the maximum depth of the tree that is reached.
 #define COUNTNRANDVEC   //counting the number of generated random buffers.
-#define MAXNUMVISITS
+//#define MAXNUMVISITS
 
 #define LOCKFREE
 //#define FINELOCK
@@ -67,7 +67,7 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 
 #define NSTREAMS 6024
 static const int MAXNUMSTREAMS = 6024;
-static const int MAXRNGBUFSIZE = 64000;
+static const int MAXRNGBUFSIZE = 1024;
 static const int MAXRAND_N = 10000;
 static const int SIMDALIGN = 64;
 static const int NTHREADS = 244;
@@ -93,13 +93,13 @@ static vector<int> lefPos;
 #endif
 
 enum THREADLIB{NONE=0,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE,LASTTHREADLIB};
-static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
+//static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
 enum PARMETHOD{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPAR,LASTPAR};
-static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipeline"};
+//static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipeline"};
 enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE,LASTGAME};
-static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
+//static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
 enum LOCKMETHOD{FREELOCK,FINEGRAINLOCK,COARSEGRAINLOCK,LASTLOCKMETHOD};
-static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
+//static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
 //typedef std::variate_generator<ENG&, DIST> GEN; // Variate generator

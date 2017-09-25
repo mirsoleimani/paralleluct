@@ -60,8 +60,8 @@ template <class T>
 T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, double& ttime) {
 
     // <editor-fold defaultstate="collapsed" desc="initialize">
-    std::vector<std::thread> threads;
-    tbb::task_group g;
+//    std::vector<std::thread> threads;
+//    tbb::task_group g;
 
     T lstate(state);
     _finish = false;

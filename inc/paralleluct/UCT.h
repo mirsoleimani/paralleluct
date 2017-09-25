@@ -534,6 +534,8 @@ private:
 #ifdef COARSELOCK
     std::mutex _mtxExpand;
 #endif
+    std::vector<std::thread> threads;
+    tbb::task_group g;
 };
 
 

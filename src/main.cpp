@@ -17,6 +17,11 @@
 //#include <cilktools/cilkview.h>
 using namespace std;
 
+static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
+static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipeline"};
+static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
+static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
+
 template <typename T>
 void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
     if (twoPly) {
@@ -453,7 +458,8 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
     int move = 0;
     int i = 0;
     char buffer[100];
-
+                string log;
+                string log2;
     if (twoPly) {
         vector<unsigned int> seeda(optplya.nthreads);
         vector<unsigned int> seedb(optplyb.nthreads);
@@ -521,8 +527,8 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
             T bestState;
             int j = 0;
             while (!state.IsTerminal() && j < optplya.nmoves) {
-                string log = " ";
-                string log2 = " ";
+                log.clear();
+                log2.clear();
                 int plyno=0;
                 if (verbose) {
                     cout << setw(9) << j << ",";
@@ -671,8 +677,8 @@ void UCTPlayGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, 
 
         for (i = 0; i < ngames; i++) {
             T state(rstate);
-            string log = " ";
-            string log2 = " ";
+            log.clear();
+            log2.clear();
             int move;
 #ifdef MKLRNG
             optplya.seed = (unsigned int) dev();
@@ -1021,7 +1027,7 @@ int main(int argc, char** argv) {
     PlyOptions optplya, optplyb;
               
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
-    while ((opt = getopt(argc, argv, "hg:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:p:l:k:")) != -1) {
+    while ((opt = getopt(argc, argv, "hp:g:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:l:k:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
@@ -1042,13 +1048,13 @@ int main(int argc, char** argv) {
                 }
                 break;
             case 'd':
-                if(optplya.game == GAME::PGAME){
+                //if(optplya.game == GAME::PGAME){
                     optplya.depth = atoi(optarg);
                     optplyb.depth = atoi(optarg);
-                } else if (optplya.game == GAME::HEX){
+                //} else if (optplya.game == GAME::HEX){
                     optplya.dim = atoi(optarg);
                     optplyb.dim = atoi(optarg);
-                }
+                //}
                 break;
             case 'o':
                 if (atoi(optarg) > 1) {
