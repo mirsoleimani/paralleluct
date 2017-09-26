@@ -386,6 +386,145 @@ public:
 #endif
         Node* _parent;
         std::vector<Node*> _children;
+    }; 
+    struct NodeFG {
+    public:
+        typedef typename std::vector<Node*>::const_iterator constItr;
+
+        Node(int move, UCT<T>::Node* parent, int ply) : _move(move),
+        _pjm(ply), _wins(0), _visits(1),  _parent(parent) {
+            /*http://en.cppreference.com/w/cpp/atomic/atomic_flag_clear*/
+            _untriedMoves = -1;
+        }
+        Node(const Node& orig);
+
+        ~Node() {
+            for (constItr itr = _children.begin(); itr != _children.end(); itr++)
+                delete (*itr);
+            _children.clear();
+        }
+
+        /**
+         * Check if the children of a node is created.
+         * @return
+         */
+        bool IsParent() {
+            if (_untriedMoves >= 0)
+                return true;
+            return false;
+        }
+        
+        bool IsFullExpanded() {
+            //std::lock_guard<std::mutex> lock(mtx1);
+            if (_untriedMoves == 0)
+                return true;
+            return false;
+        }
+
+        /**
+         * Update the values of a node with reward that
+         * comes from the evaluation of a non-terminal 
+         * state after the playout operation.
+         * @param result
+         */
+        void Update(int result) {
+            //std::lock_guard<std::mutex> lock(mtx1);
+            _visits++;
+            _wins += result;
+        }
+
+        void Update(int result, int c) {
+            //std::lock_guard<std::mutex> lock(mtx1);
+            _visits+=c;
+            _wins += result;
+        }
+
+
+        void CreatChildren(std::vector<int>& moves, int pjm) {
+            std::lock_guard<std::mutex> lock(mtx1);
+            if (!IsParent()) {
+                for (std::vector<int>::iterator itr = moves.begin(); itr != moves.end(); itr++) {
+                    _children.push_back(new Node(*itr, this, pjm));
+                }
+                _untriedMoves = moves.size();
+            }
+        }
+
+        /**
+         * Expand a new child from _children. 
+         * _untriedMoves-1 will be the index 
+         * of the new child.
+         * @return A pointer to the new expanded child.
+         */
+        Node* AddChild() {
+            std::lock_guard<std::mutex> lock(mtx1);
+            if (!IsFullExpanded()) {
+                assert(_untriedMoves > 0 && "AddChild: There is no more child to expand!\n");
+                return _children[--_untriedMoves];
+            } else {
+                return this;
+            }
+        }
+
+        int GetWins(){
+            return _wins;
+        }
+        
+        int GetVisits(){
+            return _visits;
+        }
+        
+        void SetWinsVisit(int w, int n){
+            //std::lock_guard<std::mutex> lock(mtx1);
+            _wins = w;
+            _visits = n;
+        }
+
+        /**
+         * save the node in dot language. attache himself to @pId as @gId.
+         * print himself as a new parent for the children.
+         * @param fout
+         * @param gId
+         * @param pId
+         */
+        void SaveDot(std::ofstream& fout, int& gId, const int pId) {
+            int id = gId;
+
+            fout << NumToStr(pId) << "->" << NumToStr(id)
+                    << "[ label = \"" << NumToStr(GetVisits())
+                    << "\" ];\n";
+            if (_isParent) {
+                fout << NumToStr(id)
+                        << "[ label = \""
+                        << NumToStr(_move.load())
+                        << "\" ];\n";
+                for (auto c : _children) {
+                    if ((*c).GetVisits() > 0) {
+                        gId++;
+                        c->SaveDot(fout, gId, id);
+                    }
+                }
+            } else {
+                fout << NumToStr(id) 
+                        << "[ label = \"" 
+                        << NumToStr(_move.load())
+                        << "\" , shape=box ];\n";
+                return;
+            }
+            return;
+        }
+        
+        std::atomic_int _move;
+        int _pjm;
+        std::atomic_int _wins;
+        std::atomic_int _visits;
+
+        int _untriedMoves;
+        std::mutex mtx1;
+        std::mutex mtx2;
+
+        Node* _parent;
+        std::vector<Node*> _children;
     }; // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="token of the pipeline">
