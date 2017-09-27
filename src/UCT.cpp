@@ -205,16 +205,15 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     }// </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="pipe parallelization">
-    else if (plyOpt.par == PIPEPAR) {
-        if (plyOpt.threadruntime == TBBSPSPIPELINE) {
+    else if (plyOpt.par == PIPEPARFIVE || plyOpt.par == PIPEPARSIX) {
+        if (plyOpt.par == PIPEPARFIVE) {
             tmr.reset();
             UCTSearchTBBSPSPipe(lstate, 0, 0, tmr);
-            //ttime = tmr.elapsed();
-
-            //                auto Search = std::bind(&UCT::UCTSearchTBBSPSPipe, std::ref(*this), std::cref(lstate), 0, 0, tmr);
-            //                threads.push_back(std::thread(Search));
-            //                assert(threads[i].joinable());
-            //            }
+            ttime = tmr.elapsed();
+        } else if (plyOpt.par == PIPEPARSIX) {
+            tmr.reset();
+            UCTSearchTBBSPSPipe6(lstate, 0, 0, tmr);
+            ttime = tmr.elapsed();
         } else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
             exit(0);
@@ -255,7 +254,7 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     //    }// </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="collect">
-    if (plyOpt.par == TREEPAR || plyOpt.par == PIPEPAR) {
+    if (plyOpt.par == TREEPAR) {
         ttime = tmr.elapsed();
     }
     if (plyOpt.par == ROOTPAR) {
@@ -793,6 +792,83 @@ void UCT<T>::UCTSearchTBBSPSPipe(const T& rstate, int sid, int rid, Timer tmr) {
                     return t;
                 }
 
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Expand(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Playout(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Evaluate(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, void>(
+            tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
+                Backup(t);
+#ifdef MAXDEPTH //measure the maximum depth of the tree that is reached.
+//                if (t->path.size() > timeopt->maxdepth)
+//                        timeopt->maxdepth = t->path.size();
+#endif
+                if (plyOpt.game == HORNER) {
+                    int reward = t->_state.GetResult(WHITE);
+                    int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+                    if (reward < localBestReward) {
+                        _localBestState[t->_identity._id] = t->_state;
+                    }
+                    if (reward < plyOpt.bestreward) {
+                        _finish = true;
+                    }
+                }
+                t->_state = rstate;
+            }));
+
+    for (int i = 0; i < ntokens; i++)
+        delete buffer[i];
+
+}
+
+template <class T>
+void UCT<T>::UCTSearchTBBSPSPipe6(const T& rstate, int sid, int rid, Timer tmr) {
+
+    vector<UCT<T>::Token*> buffer;
+    buffer.reserve(plyOpt.nthreads);
+    for (int i = 0; i < plyOpt.nthreads; i++) {
+        UCT<T>::Identity tId(i);
+        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
+    }
+
+    //TODO use circular buffer to create and use tokens.
+    int itr = plyOpt.nsims;
+    int index = 0;
+    int ntokens = plyOpt.nthreads;
+    bool finish = false;
+    tbb::parallel_pipeline(
+            ntokens,
+            tbb::make_filter<void, UCT<T>::Token*>(
+            tbb::filter::serial_in_order, [&](tbb::flow_control & fc)->UCT<T>::Token* {
+                //UCT<T>::Token *t = new UCT<T>::Token(rstate, roots[0]);
+                UCT<T>::Token* t = buffer[index];
+                index = (index + 1) % ntokens;
+                if (--itr == 0 || finish) {
+                    fc.stop();
+                    return NULL;
+
+                } else {
+                    return t;
+                }
+
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Select(t);
             })
     &
     tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
