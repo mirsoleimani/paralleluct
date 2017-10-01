@@ -50,10 +50,10 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 #endif
 
 //#define CILKSELECT
-#define TIMING
+//#define TIMING
 #define MAXDEPTH //measure the maximum depth of the tree that is reached.
 #define COUNTNRANDVEC   //counting the number of generated random buffers.
-//#define MAXNUMVISITS
+#define MAXNUMVISITS
 
 #define LOCKFREE
 //#define FINELOCK
@@ -94,7 +94,7 @@ static vector<int> lefPos;
 
 enum THREADLIB{NONE=0,CPP11,THPOOL,CILKPSPAWN,TBBTASKGROUP,CILKPFOR,TBBSPSPIPELINE,LASTTHREADLIB};
 //static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
-enum PARMETHOD{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPARFIVE,PIPEPARSIX,LASTPAR};
+enum PARMETHOD{SEQUENTIAL=0,TREEPAR,ROOTPAR,PIPEPARFIVE,PIPEPARSIX,PIPEPARSEVEN,LASTPAR};
 //static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipeline"};
 enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE,LASTGAME};
 //static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};

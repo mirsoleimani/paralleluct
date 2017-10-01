@@ -18,7 +18,7 @@
 using namespace std;
 
 static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
-static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe5","pipe6"};
+static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe-5","pipe-6-3","pipe-6-4"};
 static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
 static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
 
@@ -404,7 +404,7 @@ void UCTPlayHorner(T &rstate, PlyOptions optplya, int ngames, int verbose,bool i
                 << setw(10) << "err(depth)" << ","
                 << setw(10) << "avg(reward)" << ","
                 << setw(10) << "std(reward)" << ","
-                << setw(10) << "err(reward)" << ","<< endl;
+                << setw(10) << "err(reward)"  << endl;
         for (int i=0; i<nplayouts.size();i++) {
             if(nplayouts[i].size()>1)
                 std::cout << setw(10) << i << ","
@@ -950,8 +950,8 @@ static void ShowUsage(std::string name) {
             << "\t-n\t\tNumber of repeats\n"
             << "\t-m\t\tNumber of threads for player a (default=1) \n"
             << "\t-q\t\tNumber of threads for player b (default=1)\n"
-            << "\t-y\t\tParallel method for player a (default=sequential, tree=1, root=2, pipe5=3, pipe6=4)\n"
-            << "\t-w\t\tParallel method for player b (default=sequential, tree=1, root=2, pipe5=3, pipe6=4)\n"
+            << "\t-y\t\tParallel method for player a (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, pipe(depth 6-4, select parallel))=5\n"
+            << "\t-w\t\tParallel method for player b (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, pipe(depth 6-4, select parallel))=5\n"
             << "\t-x\t\tNumber of seconds for player a (default=1)\n"
             << "\t-z\t\tNumber of seconds for player b (default=1)\n"
             << "\t-e\t\tThe value of cp for player a (default=1)\n"

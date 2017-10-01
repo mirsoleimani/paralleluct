@@ -442,6 +442,7 @@ public:
     void UCTSearch(const T& state, int sid, int rid, Timer tmr);
     void UCTSearchTBBSPSPipe(const T& state, int sid, int rid, Timer tmr);
     void UCTSearchTBBSPSPipe6(const T& state, int sid, int rid, Timer tmr);
+    void UCTSearchTBBSPSPipe6S(const T& state, int sid, int rid, Timer tmr);
     /*MCTS functions*/
 #ifdef MKLRNG
     Token* Select(Token* token);
