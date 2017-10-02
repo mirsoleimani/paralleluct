@@ -205,7 +205,8 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
     }// </editor-fold>
 
         // <editor-fold defaultstate="collapsed" desc="pipe parallelization">
-    else if (plyOpt.par == PIPEPARFIVE || plyOpt.par == PIPEPARSIX || plyOpt.par == PIPEPARSEVEN) {
+    else if (plyOpt.par == PIPEPARFIVE || plyOpt.par == PIPEPARSIX 
+            || plyOpt.par == PIPEPARSEVEN || plyOpt.par == PIPEPAREIGHT) {
         if (plyOpt.par == PIPEPARFIVE) {
             tmr.reset();
             UCTSearchTBBSPSPipe(lstate, 0, 0, tmr);
@@ -217,6 +218,10 @@ T UCT<T>::Run(const T& state, int& m, std::string& log1, std::string& log2, doub
         } else if (plyOpt.par == PIPEPARSEVEN) {
             tmr.reset();
             UCTSearchTBBSPSPipe6S(lstate, 0, 0, tmr);
+            ttime = tmr.elapsed();
+        } else if (plyOpt.par == PIPEPAREIGHT) {
+            tmr.reset();
+            UCTSearchTBBSPSPipe6B(lstate, 0, 0, tmr);
             ttime = tmr.elapsed();
         } else {
             std::cerr << "No threading library is selected for tree parallelization!\n";
@@ -468,7 +473,7 @@ typename UCT<T>::Token* UCT<T>::Evaluate(UCT<T>::Token* token) {
 }
 
 template <class T>
-void UCT<T>::Backup(Token* token) {
+typename UCT<T>::Token* UCT<T>::Backup(Token* token) {
 
     vector<UCT<T>::Node*> &path = (*token)._path;
     T &state = (*token)._state;
@@ -497,7 +502,7 @@ void UCT<T>::Backup(Token* token) {
         n = n->_parent;
     }
 #endif
-
+    return token;
 }
 
 template <class T>
@@ -998,8 +1003,88 @@ void UCT<T>::UCTSearchTBBSPSPipe6S(const T& rstate, int sid, int rid, Timer tmr)
     for (int i = 0; i < ntokens; i++)
         delete buffer[i];
 
-}// </editor-fold>
+}
 
+template <class T>
+void UCT<T>::UCTSearchTBBSPSPipe6B(const T& rstate, int sid, int rid, Timer tmr) {
+
+    vector<UCT<T>::Token*> buffer;
+    buffer.reserve(plyOpt.nthreads);
+    for (int i = 0; i < plyOpt.nthreads; i++) {
+        UCT<T>::Identity tId(i);
+        buffer.emplace_back(new UCT<T>::Token(rstate, tId));
+    }
+
+    //TODO use circular buffer to create and use tokens.
+    int itr = plyOpt.nsims;
+    int index = 0;
+    int ntokens = plyOpt.nthreads;
+    bool finish = false;
+    tbb::parallel_pipeline(
+            ntokens,
+            tbb::make_filter<void, UCT<T>::Token*>(
+            tbb::filter::serial_in_order, [&](tbb::flow_control & fc)->UCT<T>::Token* {
+                //UCT<T>::Token *t = new UCT<T>::Token(rstate, roots[0]);
+                UCT<T>::Token* t = buffer[index];
+                index = (index + 1) % ntokens;
+#ifdef MAXDEPTH //measure the maximum depth of the tree that is reached.
+                if (t->_path.size() > statistics[index]->maxdepth)
+                        statistics[index]->maxdepth = t->_path.size();
+#endif
+                if (--itr == 0 || finish) {
+                    fc.stop();
+                    return NULL;
+
+                } else {
+                    return t;
+                }
+
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::serial_out_of_order, [&](UCT<T>::Token * t) {
+                t->_state = rstate;
+                return Select(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Expand(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Playout(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Evaluate(t);
+            })
+    &
+    tbb::make_filter<UCT<T>::Token*, UCT<T>::Token*>(
+            tbb::filter::parallel, [&](UCT<T>::Token * t) {
+                return Backup(t);
+            })
+    &      
+    tbb::make_filter<UCT<T>::Token*, void>(
+            tbb::filter::serial_in_order, [&](UCT<T>::Token * t) {
+                if (plyOpt.game == HORNER) {
+                    int reward = t->_state.GetResult(WHITE);
+                    int localBestReward = _localBestState[t->_identity._id].GetResult(WHITE);
+                    if (reward < localBestReward) {
+                        _localBestState[t->_identity._id] = t->_state;
+                    }
+                    if (reward < plyOpt.bestreward) {
+                        _finish = true;
+                    }
+                }
+//                t->_state = rstate;
+            }));
+
+    for (int i = 0; i < ntokens; i++)
+        delete buffer[i];
+}// </editor-fold>
 // <editor-fold defaultstate="collapsed" desc="Printing">
 
 

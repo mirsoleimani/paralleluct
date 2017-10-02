@@ -443,13 +443,14 @@ public:
     void UCTSearchTBBSPSPipe(const T& state, int sid, int rid, Timer tmr);
     void UCTSearchTBBSPSPipe6(const T& state, int sid, int rid, Timer tmr);
     void UCTSearchTBBSPSPipe6S(const T& state, int sid, int rid, Timer tmr);
+    void UCTSearchTBBSPSPipe6B(const T& state, int sid, int rid, Timer tmr);
     /*MCTS functions*/
 #ifdef MKLRNG
     Token* Select(Token* token);
     Token* Expand(Token* token);
     Token* Playout(Token* token);
     Token* Evaluate(Token* token);
-    void Backup(Token* token);
+    Token* Backup(Token* token);
     Node* SelectBest(UCT<T>::Node* n);
 #else
     NodePtr Select(NodePtr node, T& state);

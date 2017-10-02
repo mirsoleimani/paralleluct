@@ -18,7 +18,7 @@
 using namespace std;
 
 static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
-static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe-5","pipe-6-3","pipe-6-4"};
+static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe-5","pipe-6-3","pipe-6-4-s","pipe-6-4-b"};
 static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
 static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
 
@@ -950,8 +950,10 @@ static void ShowUsage(std::string name) {
             << "\t-n\t\tNumber of repeats\n"
             << "\t-m\t\tNumber of threads for player a (default=1) \n"
             << "\t-q\t\tNumber of threads for player b (default=1)\n"
-            << "\t-y\t\tParallel method for player a (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, pipe(depth 6-4, select parallel))=5\n"
-            << "\t-w\t\tParallel method for player b (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, pipe(depth 6-4, select parallel))=5\n"
+            << "\t-y\t\tParallel method for player a (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, "
+            "pipe(depth 6-4, select parallel))=5, pipe(depth 6-4, backup parallel)=6\n"
+            << "\t-w\t\tParallel method for player b (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, "
+            "pipe(depth 6-4, select parallel))=5, pipe(depth 6-4, backup parallel)=6\n"
             << "\t-x\t\tNumber of seconds for player a (default=1)\n"
             << "\t-z\t\tNumber of seconds for player b (default=1)\n"
             << "\t-e\t\tThe value of cp for player a (default=1)\n"
