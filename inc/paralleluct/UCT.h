@@ -50,6 +50,7 @@ struct PlyOptions {
     int depth = 0;
     int dim = 6;
     int swap = 1;
+    int backupDirection=0;
 };
 
 struct TimeOptions {

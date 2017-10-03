@@ -484,12 +484,20 @@ typename UCT<T>::Token* UCT<T>::Backup(Token* token) {
     float rewardBlack = state.GetResult(BLACK);
 
 #ifdef VECTORIZEDBACKUP
-    if (plyOpt.virtualloss) {
-        assert("virtual loss is not implemented!");
+    if (plyOpt.backupDirection == TOPDOWNBACKUP) {
+        if (plyOpt.virtualloss) {
+            assert("virtual loss is not implemented!");
+        } else {
+            for (int i = 0; i < path.size(); i++)
+                path[i]->Update((path[i]->_pjm == WHITE) ? rewardBlack : rewardWhite);
+        }
     } else {
-#pragma simd
-        for (int i = 0; i < path.size(); i++)
-            path[i]->Update((path[i]->_pjm == WHITE) ? rewardWhite : rewardBlack);
+        if (plyOpt.virtualloss) {
+            assert("virtual loss is not implemented!");
+        } else {
+            for (int i = path.size() - 1; i >= 0; i--)
+                path[i]->Update((path[i]->_pjm == WHITE) ? rewardBlack : rewardWhite);
+        }
     }
 #else
     while (n != NULL) {

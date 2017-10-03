@@ -60,7 +60,8 @@ typedef boost::variate_generator<ENG, DIST > GEN;
 //#define COARSELOCK
 
 //#define COPYSTATE
-//#define VECTORIZEDBACKUP
+#define VECTORIZEDBACKUP
+
 
 #define POS(i,j,dim) i*dim+j       
 #define MAX(n,m) ((n)>(m)?(n):(m))
@@ -100,6 +101,7 @@ enum GAME{NOGAME=0,HEX,PGAME,HORNER,GEMPUZZLE,LASTGAME};
 //static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
 enum LOCKMETHOD{FREELOCK,FINEGRAINLOCK,COARSEGRAINLOCK,LASTLOCKMETHOD};
 //static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
+enum BACKUPDIRCT{BOTTOMUPBACKUP=0,TOPDOWNBACKUP,LASTBACKUPDIRECT};
 //typedef std::mt19937 ENG; // Mersenne Twister
 //typedef std::uniform_int<int> DIST; // Uniform Distribution
 //typedef std::variate_generator<ENG&, DIST> GEN; // Variate generator

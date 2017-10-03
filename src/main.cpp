@@ -21,6 +21,7 @@ static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_s
 static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe-5","pipe-6-3","pipe-6-4-s","pipe-6-4-b"};
 static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
 static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
+static const vector<string> BACKUPDIRECTNAME= {"bottom-up","top-down"};
 
 template <typename T>
 void UCTPlayPGame(T &rstate, PlyOptions optplya, PlyOptions optplyb, int ngames, int nmoves, int swap, int verbose, bool twoPly) {
@@ -966,6 +967,8 @@ static void ShowUsage(std::string name) {
             << "\t-l\t\tvirtual loss(default=off, on=1)\n"
             << "\t-i\t\tInput file\n"
             << "\t-k\t\tLocking method(default=lock-free,fine-lock=1,coarse-lock=2)\n"
+            << "\t-B\t\tBackup direction for player a (default=bottom up,top down=1)\n"
+            << "\t-D\t\tBackup direction for player b (default=bottom up,top down=1)\n"
             << endl;
 }
 
@@ -984,6 +987,7 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
             << setw(10) << right << "cp" << ","
             << setw(10) << right << "virtualloss" << ","
             << setw(10) << right << "locking" << ","
+            << setw(15) << right << "backup-direct" << ","
             << setw(6) << right << ((optplya.game == GAME::PGAME) ? ("depth,") : "")
             << setw(7) << right << ((optplya.game == GAME::PGAME) ? ("breath,") : "")
             << setw(5) << right << ((optplya.game == GAME::HEX) ? ("dim") : "")
@@ -1000,6 +1004,7 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
             << setw(10) << right << optplya.cp << ","
             << setw(10) << right << optplya.virtualloss << ","
             << setw(10) << right << LOCKMETHODNAME[optplya.locking] << ","
+            << setw(15) << right << BACKUPDIRECTNAME[optplya.backupDirection] << ","
             << setw(6) << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.depth)+"," : "") 
             << setw(7) << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.breath)+"," : "")
             << setw(5) << right << ((optplya.game == GAME::HEX) ? NumToStr(optplya.dim) : "")
@@ -1016,6 +1021,7 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
             << setw(10) << right << optplyb.cp << ","
             << setw(10) << right << optplyb.virtualloss << ","
             << setw(10) << right << LOCKMETHODNAME[optplyb.locking] << ","
+            << setw(15) << right << BACKUPDIRECTNAME[optplyb.backupDirection] << ","
             << setw(6) << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.depth)+"," : "")
             << setw(7) << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.breath)+"," : "")
             << setw(5) << right << ((optplyb.game == GAME::HEX) ? NumToStr(optplyb.dim) : "")
@@ -1029,7 +1035,7 @@ int main(int argc, char** argv) {
     PlyOptions optplya, optplyb;
               
     // <editor-fold defaultstate="collapsed" desc="pars the arguments">
-    while ((opt = getopt(argc, argv, "hp:g:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:l:k:")) != -1) {
+    while ((opt = getopt(argc, argv, "hp:g:b:d:o:t:m:q:y:w:x:z:n:v:s:e:f:r:a:c:i:l:k:B:D:")) != -1) {
         switch (opt) {
             case 'h':
                 hflag = 1;
@@ -1150,6 +1156,22 @@ int main(int argc, char** argv) {
                 if(-1 < atoi(optarg) && atoi(optarg)<LOCKMETHOD::LASTLOCKMETHOD){
                     optplya.locking = atoi(optarg);
                     optplyb.locking = atoi(optarg);
+                } else {
+                    std::cerr << "The locking method is not supported.\n";
+                    exit(0);
+                }
+                break;
+            case 'B':
+                if(-1 < atoi(optarg) && atoi(optarg)<BACKUPDIRCT::LASTBACKUPDIRECT){
+                    optplya.backupDirection = atoi(optarg);
+                } else {
+                    std::cerr << "The locking method is not supported.\n";
+                    exit(0);
+                }
+                break;
+            case 'D':
+                if(-1 < atoi(optarg) && atoi(optarg)<BACKUPDIRCT::LASTBACKUPDIRECT){
+                    optplyb.backupDirection = atoi(optarg);
                 } else {
                     std::cerr << "The locking method is not supported.\n";
                     exit(0);
