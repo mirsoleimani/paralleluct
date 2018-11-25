@@ -18,7 +18,8 @@
 using namespace std;
 
 static const vector<string> THREADLIBNAME = {"none","c++11","threadpool","cilk_spawn","tbb_task_group","cilk_for","tbb_sps_pipeline"};
-static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe-5","pipe-6-3","pipe-6-4-s","pipe-6-4-b"};
+static const vector<string> PARMETHODNAME = {"sequential","tree","root","pipe-5","pipe-6-3",
+"pipe-6-4-s","pipe-6-4-b","pipe-6-4-sb"};
 static const vector<string> GAMENAME = {"none","hex","pgame","horner","gem-puzzle"};
 static const vector<string> LOCKMETHODNAME = {"lock-free","fine-lock","coarse-lock"};
 static const vector<string> BACKUPDIRECTNAME= {"bottom-up","top-down"};
@@ -952,9 +953,9 @@ static void ShowUsage(std::string name) {
             << "\t-m\t\tNumber of threads for player a (default=1) \n"
             << "\t-q\t\tNumber of threads for player b (default=1)\n"
             << "\t-y\t\tParallel method for player a (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, "
-            "pipe(depth 6-4, select parallel))=5, pipe(depth 6-4, backup parallel)=6\n"
+            "pipe(depth 6-4, select parallel))=5, pipe(depth 6-4, backup parallel)=6, pipe(depth 6-5, select backup parallel)=7\n"
             << "\t-w\t\tParallel method for player b (default=sequential, tree=1, root=2, pipe(depth 5)=3, pipe(depth 6-3)=4, "
-            "pipe(depth 6-4, select parallel))=5, pipe(depth 6-4, backup parallel)=6\n"
+            "pipe(depth 6-4, select parallel))=5, pipe(depth 6-4, backup parallel)=6, pipe(depth 6-5, select backup parallel)=7\n"
             << "\t-x\t\tNumber of seconds for player a (default=1)\n"
             << "\t-z\t\tNumber of seconds for player b (default=1)\n"
             << "\t-e\t\tThe value of cp for player a (default=1)\n"
@@ -977,7 +978,7 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
     cout << "# start metadata\n";
     std::cout << setw(3) << right << "ply" << ","
             << setw(10) << right << "game" << ","
-            << setw(10) << right << "input" << ","
+            //<< setw(10) << right << "input" << ","
             << setw(10) << right << "nplayouts" << ","
             << setw(10) << right << "nthreads" << ","
             << setw(10) << right << "nsecs" << ","
@@ -988,13 +989,14 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
             << setw(10) << right << "virtualloss" << ","
             << setw(10) << right << "locking" << ","
             << setw(15) << right << "backup-direct" << ","
-            << setw(6) << right << ((optplya.game == GAME::PGAME) ? ("depth,") : "")
-            << setw(7) << right << ((optplya.game == GAME::PGAME) ? ("breath,") : "")
-            << setw(5) << right << ((optplya.game == GAME::HEX) ? ("dim") : "")
+            << right << ((optplya.game == GAME::PGAME) ? ("depth,") : "")
+            << right << ((optplya.game == GAME::PGAME) ? ("breath,") : "")
+            << right << ((optplya.game == GAME::HEX) ? ("dim") : "")
+            << right << ((optplya.game == GAME::HORNER) ? ("input") : "")
     << "\n";
     std::cout << setw(3) << right << "a" << ","
             << setw(10) << right << GAMENAME[optplya.game] << ","
-            << setw(10) << right << optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) << ","
+            //<< setw(10) << right << optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) << ","
             << setw(10) << right << optplya.nsims << ","
             << setw(10) << right << optplya.nthreads << ","
             << setw(10) << right << optplya.nsecs << ","
@@ -1005,13 +1007,14 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
             << setw(10) << right << optplya.virtualloss << ","
             << setw(10) << right << LOCKMETHODNAME[optplya.locking] << ","
             << setw(15) << right << BACKUPDIRECTNAME[optplya.backupDirection] << ","
-            << setw(6) << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.depth)+"," : "") 
-            << setw(7) << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.breath)+"," : "")
-            << setw(5) << right << ((optplya.game == GAME::HEX) ? NumToStr(optplya.dim) : "")
+            << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.depth)+"," : "") 
+            << right << ((optplya.game == GAME::PGAME) ? NumToStr(optplya.breath)+"," : "")
+            << right << ((optplya.game == GAME::HEX) ? NumToStr(optplya.dim) : "")
+            << right << ((optplya.game == GAME::HORNER) ? optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) : "")
     << "\n";
     std::cout << setw(3) << right << "b" << ","
             << setw(10) << right << GAMENAME[optplyb.game] << ","
-            << setw(10) << right << optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) << ","
+           // << setw(10) << right << optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) << ","
             << setw(10) << right << optplyb.nsims << ","
             << setw(10) << right << optplyb.nthreads << ","
             << setw(10) << right << optplyb.nsecs << ","
@@ -1022,9 +1025,10 @@ void PrintMetadata(PlyOptions optplya, PlyOptions optplyb) {
             << setw(10) << right << optplyb.virtualloss << ","
             << setw(10) << right << LOCKMETHODNAME[optplyb.locking] << ","
             << setw(15) << right << BACKUPDIRECTNAME[optplyb.backupDirection] << ","
-            << setw(6) << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.depth)+"," : "")
-            << setw(7) << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.breath)+"," : "")
-            << setw(5) << right << ((optplyb.game == GAME::HEX) ? NumToStr(optplyb.dim) : "")
+            << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.depth)+"," : "")
+            << right << ((optplyb.game == GAME::PGAME) ? NumToStr(optplyb.breath)+"," : "")
+            << right << ((optplyb.game == GAME::HEX) ? NumToStr(optplyb.dim) : "")
+            << right << ((optplya.game == GAME::HORNER) ? optplya.fileName.substr(optplya.fileName.find_last_of("/\\") + 1) : "")
     << "\n";
     cout << "# end metadata\n";
 }
@@ -1087,7 +1091,7 @@ int main(int argc, char** argv) {
                 optplyb.nthreads = atoi(optarg);
                 break;
             case 'y':
-                if (THREADLIB::NONE < atoi(optarg) && atoi(optarg) < THREADLIB::LASTTHREADLIB){
+                if (PARMETHOD::SEQUENTIAL <= atoi(optarg) && atoi(optarg) < PARMETHOD::LASTPARMETHOD){
                     optplya.par = atoi(optarg);
                 } else {
                     std::cerr << "ERROR:(-y) No runtime thread library is specified!\n";
@@ -1095,7 +1099,7 @@ int main(int argc, char** argv) {
                 }
                 break;
             case 'w':
-                if ( THREADLIB::NONE < atoi(optarg) && atoi(optarg) < THREADLIB::LASTTHREADLIB){
+                if ( PARMETHOD::SEQUENTIAL <= atoi(optarg) && atoi(optarg) < PARMETHOD::LASTPARMETHOD){
                     optplyb.par = atoi(optarg);
                 } else {
                     std::cerr << "ERROR:(-w) No runtime thread library is specified!\n";
